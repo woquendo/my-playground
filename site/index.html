@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Welcome</title>
+  <title>Music & Anime Hub</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -126,6 +126,8 @@
       // Songs: compact searchable & paginated list with a single player
       songsEl.innerHTML = '';
       const songs = (data.songs || []).slice();
+      // expose songs globally for player controls and next/prev behavior
+      window.songsList = songs;
       if (!songs.length) {
         songsEl.innerHTML = '<p class="small">No songs available.</p>';
       } else {
@@ -203,23 +205,17 @@
               // highlight
               Array.from(list.querySelectorAll('.song-card')).forEach(c => c.classList.remove('active'));
               card.classList.add('active');
-              // load into player
+              // load into player via YouTube IFrame API (user gesture allows unmuted play)
               const videoId = extractYouTubeId(song.youtube || '');
-              playerContainer.innerHTML = '';
               if (videoId) {
-                const iframe = document.createElement('iframe');
-                // Attempt to play unmuted on user click. Browsers may still block autoplay without user gesture.
-                const autoplayParams = song.autoplay ? '?rel=0&autoplay=1' : '?rel=0';
-                iframe.src = `https://www.youtube.com/embed/${videoId}${autoplayParams}`;
-                iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
-                iframe.setAttribute('allowfullscreen', '');
-                playerContainer.appendChild(iframe);
+                createPlayer(videoId, { muted: false, index: realIdx });
               } else if (song.youtube) {
                 const a = document.createElement('a');
                 a.href = song.youtube;
                 a.target = '_blank';
                 a.rel = 'noopener noreferrer';
                 a.textContent = 'Open on YouTube';
+                playerContainer.innerHTML = '';
                 playerContainer.appendChild(a);
               }
             });
@@ -245,17 +241,93 @@
           // load muted autoplay to increase chance browser allows it
           const videoId = extractYouTubeId(song.youtube || '');
           if (videoId) {
-            playerContainer.innerHTML = '';
-            const iframe = document.createElement('iframe');
-            const autoplayParams = '?rel=0&autoplay=1&mute=1';
-            iframe.src = `https://www.youtube.com/embed/${videoId}${autoplayParams}`;
-            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
-            iframe.setAttribute('allowfullscreen', '');
-            playerContainer.appendChild(iframe);
+            // load via API muted so programmatic autoplay has a higher chance of starting
+            createPlayer(videoId, { muted: true, index: firstAutoplay });
             // highlight card
             const card = list.querySelector(`.song-card:nth-child(${(firstAutoplay - (pageOf - 1) * pageSize) + 1})`);
             if (card) card.classList.add('active');
           }
+        }
+      }
+    }
+
+    // --- YouTube player helpers (load API, create player, autoplay-next) ---
+    window.ytApiReady = false;
+    window.currentPlayer = null;
+    window.currentVideoIndex = null;
+    window.songsList = window.songsList || [];
+
+    function loadYouTubeAPI() {
+      if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+      return new Promise((resolve) => {
+        const existing = document.getElementById('youtube-api-script');
+        if (!existing) {
+          const s = document.createElement('script');
+          s.id = 'youtube-api-script';
+          s.src = 'https://www.youtube.com/iframe_api';
+          document.head.appendChild(s);
+        }
+        window.onYouTubeIframeAPIReady = function () { window.ytApiReady = true; resolve(window.YT); };
+      });
+    }
+
+    function createPlayer(videoId, opts = {}) {
+      const muted = !!opts.muted;
+      const index = typeof opts.index === 'number' ? opts.index : null;
+      const playerContainer = document.getElementById('song-player');
+      if (!playerContainer) return;
+      // destroy existing player
+      if (window.currentPlayer && window.currentPlayer.destroy) {
+        try { window.currentPlayer.destroy(); } catch (e) { }
+        window.currentPlayer = null;
+      }
+      // remove children
+      playerContainer.innerHTML = '';
+      const holder = document.createElement('div');
+      holder.id = 'yt-player';
+      holder.style.width = '100%';
+      holder.style.height = '100%';
+      playerContainer.appendChild(holder);
+
+      loadYouTubeAPI().then((YT) => {
+        window.currentPlayer = new YT.Player('yt-player', {
+          videoId: videoId,
+          playerVars: { rel: 0, autoplay: 1, controls: 1, playsinline: 1 },
+          events: {
+            onReady: function (ev) { if (muted) ev.target.mute(); ev.target.playVideo(); },
+            onStateChange: function (ev) {
+              if (ev.data === YT.PlayerState.ENDED) { playNext(); }
+            }
+          }
+        });
+        window.currentVideoIndex = index;
+      }).catch(err => {
+        // fallback: embed plain iframe
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=1${muted ? '&mute=1' : ''}`;
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
+        iframe.setAttribute('allowfullscreen', '');
+        playerContainer.appendChild(iframe);
+        window.currentVideoIndex = index;
+      });
+    }
+
+    function playNext() {
+      const list = window.songsList || [];
+      if (typeof window.currentVideoIndex !== 'number') return;
+      let next = window.currentVideoIndex + 1;
+      if (next >= list.length) return; // end of queue
+      const nextSong = list[next];
+      // update UI: find card and click its play button if present
+      const btn = document.querySelector(`button.play-btn[data-idx="${next}"]`);
+      if (btn) { btn.click(); }
+      else {
+        // fallback: directly create player
+        const vid = extractYouTubeId(nextSong.youtube || '');
+        if (vid) createPlayer(vid, { muted: false, index: next });
+        // Ensure autoplay for the next song
+        if (window.currentPlayer && window.currentPlayer.playVideo) {
+          window.currentPlayer.playVideo();
         }
       }
     }
