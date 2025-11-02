@@ -33,6 +33,62 @@ h1 {
 	padding: 1rem;
 	border-radius: 8px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+/* Layout: sidebar + main */
+.layout {
+	display: flex;
+	gap: 20px;
+	align-items: flex-start
+}
+.sidebar {
+	width: 220px;
+	border-radius: 8px;
+	background: #ddd;
+	background-image: url('data/images/opm.jpg');
+	background-size: cover;
+	background-position: center;
+	min-height: 400px;
+	flex-shrink: 0
+}
+.main {
+	flex: 1
+}
+
+/* Compact song cards and controls */
+.song-list-controls {
+	display: flex;
+	gap: 8px;
+	margin-top: 0.4rem
+}
+.song-cards {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 0.5rem
+}
+.song-card {
+	background: var(--card);
+	padding: 8px;
+	border-radius: 8px;
+	display: block
+}
+.song-card-inner {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px
+}
+.song-card .artist {
+	color: var(--muted);
+	font-size: 0.9rem
+}
+.song-card.active {
+	outline: 2px solid rgba(37, 99, 235, 0.14)
+}
+.pager {
+	display: flex;
+	align-items: center;
+	gap: 8px
+}
 	margin-bottom: 0.75rem
 }
 
