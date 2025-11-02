@@ -1,0 +1,14 @@
+{
+  "anime_username": "woquendo",
+  "shows": [
+    { "title": "Summer Festival", "date": "2025-07-15", "location": "NYC", "description": "Outdoor performance at Central Park." },
+    { "title": "Autumn Tour", "date": "2025-10-01", "location": "Chicago", "description": "Acoustic set at the Lakeside Theater." }
+  ],
+  "songs": [
+    { "title": "Track 1", "artist": "Artist A", "youtube": "https://www.youtube.com/watch?v=a-rt6oYvFbI", "autoplay": true },
+    { "title": "Track 2", "artist": "Artist B", "youtube": "https://www.youtube.com/watch?v=CoAcV6m9nAM", "autoplay": true },
+    { "title": "Track 3", "artist": "Artist C", "youtube": "https://www.youtube.com/watch?v=TB0758uZZhc", "autoplay": true },
+    { "title": "Track 4", "artist": "Artist D", "youtube": "https://www.youtube.com/watch?v=jwqtkW9Ivpg", "autoplay": true },
+    { "title": "Track 5", "artist": "Artist E", "youtube": "https://www.youtube.com/watch?v=Xzpcb2-0TQo", "autoplay": true }
+  ]
+}

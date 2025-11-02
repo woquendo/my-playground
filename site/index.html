@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shows & Songs</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Shows & Songs</h1>
+    <section>
+      <h2>Anime / Shows</h2>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
+        <label for="mal-username" class="small">MAL username:</label>
+        <input id="mal-username" type="text" placeholder="woquendo" style="padding:6px;border-radius:6px;border:1px solid #ddd" />
+        <button id="import-btn" class="btn">Import anime list</button>
+        <button id="download-btn" class="btn">Download JSON</button>
+        <button id="clear-local" class="btn small">Clear Local</button>
+      </div>
+      <div id="shows" class="show-list">
+        <p class="small">Loading anime list and shows…</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Songs</h2>
+      <div id="songs" class="song-list">
+        <p class="small">Loading songs…</p>
+      </div>
+    </section>
+
+    <div class="footer">Tip: run a local server to test (see README in this folder). Works directly on GitHub Pages.</div>
+  </div>
+
+  <script>
+    // Fallback data in case fetch fails (e.g., opened via file:// without a server)
+    const fallbackData = {
+      shows: [
+        { title: "Summer Festival", date: "2025-07-15", location: "NYC", description: "Outdoor performance at Central Park." },
+        { title: "Autumn Tour", date: "2025-10-01", location: "Chicago", description: "Acoustic set at the Lakeside Theater." }
+      ],
+      songs: [
+        { title: "Morning Light", artist: "The Skylines", youtube: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+        { title: "Midnight Run", artist: "The Skylines", youtube: "https://www.youtube.com/watch?v=kXYiU_JCYtU" }
+      ]
+    };
+
+    // Utility: extract YouTube video ID from common URL forms
+    function extractYouTubeId(url){
+      if(!url) return null;
+      // patterns: v=ID, youtu.be/ID, /embed/ID
+      const vMatch = url.match(/[?&]v=([\w-]{11})/);
+      if(vMatch && vMatch[1]) return vMatch[1];
+      const shortMatch = url.match(/youtu\.be\/([\w-]{11})/);
+      if(shortMatch && shortMatch[1]) return shortMatch[1];
+      const embedMatch = url.match(/embed\/([\w-]{11})/);
+      if(embedMatch && embedMatch[1]) return embedMatch[1];
+      // last resort: try to find 11-char id in the url
+      const general = url.match(/([\w-]{11})/);
+      return general ? general[1] : null;
+    }
+
+    function render(data){
+      const showsEl = document.getElementById('shows');
+      const songsEl = document.getElementById('songs');
+
+      // Shows / Anime
+      showsEl.innerHTML = '';
+      if(!data.shows || data.shows.length === 0){
+        showsEl.innerHTML = '<div class="small">No shows or anime found.</div>';
+      } else {
+        // If items have a `status` field treat them as anime entries and group
+        const isAnime = data.shows.some(s => s.status);
+        if(isAnime){
+          const order = ['watching','plan_to_watch','completed','on_hold','dropped'];
+          const groups = {};
+          data.shows.forEach(s => {
+            const st = (s.status || 'unknown').toString().toLowerCase();
+            if(!groups[st]) groups[st] = [];
+            groups[st].push(s);
+          });
+
+          order.forEach(st => {
+            if(groups[st] && groups[st].length){
+              const header = document.createElement('h3');
+              header.textContent = `${st.replace(/_/g,' ')} (${groups[st].length})`;
+              showsEl.appendChild(header);
+              groups[st].forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'show-item';
+                const title = item.title || item.name || (item.node && item.node.title) || 'Untitled';
+                const url = item.url || (item.node && item.node.url) || (item.anime && item.anime.url) || '';
+                const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
+                div.innerHTML = `<strong>${meta}</strong><div class="small">${item.episodes ? item.episodes + ' eps' : ''} ${item.score ? '• score: ' + item.score : ''}</div>`;
+                showsEl.appendChild(div);
+              });
+            }
+          });
+        } else {
+          data.shows.forEach(s => {
+            const li = document.createElement('div');
+            li.className = 'show-item';
+            li.innerHTML = `<strong>${s.title}</strong> — <span class="small">${s.date ? new Date(s.date).toLocaleDateString() : ''} ${s.location ? '('+s.location+')' : ''}</span><div class="small">${s.description || ''}</div>`;
+            showsEl.appendChild(li);
+          });
+        }
+      }
+
+      // Songs: render a single player area and a selectable list so only one iframe is loaded at a time
+      songsEl.innerHTML = '';
+      if(!data.songs || data.songs.length === 0){
+        songsEl.innerHTML = '<p class="small">No songs available.</p>';
+      } else {
+        // Player container (single iframe will be attached here)
+        const playerContainer = document.createElement('div');
+        playerContainer.id = 'song-player';
+        playerContainer.className = 'song-item';
+        playerContainer.innerHTML = '<div class="small">Select a song to load the player.</div>';
+        songsEl.appendChild(playerContainer);
+
+        const list = document.createElement('div');
+        list.id = 'song-list-items';
+        list.style.display = 'grid';
+        list.style.gridTemplateColumns = '1fr';
+        list.style.gap = '0.6rem';
+
+        data.songs.forEach((song, idx) => {
+          const item = document.createElement('div');
+          item.className = 'song-item';
+          item.dataset.index = idx;
+          const title = song.title || 'Untitled';
+          const artist = song.artist ? `<div class="small">${song.artist}</div>` : '';
+          item.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;"><div><strong>${title}</strong>${artist}</div><div><button class=\"btn\" data-idx=\"${idx}\">Play</button></div></div>`;
+
+          const playBtn = item.querySelector('button');
+          playBtn.addEventListener('click', () => {
+            // highlight
+            Array.from(list.children).forEach(c => c.classList.remove('active'));
+            item.classList.add('active');
+            // load the selected song into playerContainer
+            const videoId = extractYouTubeId(song.youtube || '');
+            playerContainer.innerHTML = '';
+            if(videoId){
+              const iframe = document.createElement('iframe');
+              const autoplayParams = song.autoplay ? '?rel=0&autoplay=1&mute=1' : '?rel=0';
+              iframe.src = `https://www.youtube.com/embed/${videoId}${autoplayParams}`;
+              iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
+              iframe.setAttribute('allowfullscreen', '');
+              playerContainer.appendChild(iframe);
+            } else if(song.youtube){
+              const a = document.createElement('a');
+              a.href = song.youtube;
+              a.target = '_blank';
+              a.rel = 'noopener noreferrer';
+              a.textContent = 'Open on YouTube';
+              playerContainer.appendChild(a);
+            }
+          });
+
+          list.appendChild(item);
+        });
+
+        songsEl.appendChild(list);
+
+        // Auto-select first song with autoplay flag to respect user's desire, but only one will play
+        const firstAutoplay = data.songs.findIndex(s => s.autoplay);
+        if(firstAutoplay >= 0){
+          // simulate click
+          const btn = list.querySelector(`button[data-idx=\"${firstAutoplay}\"]`);
+          if(btn) btn.click();
+        }
+      }
+    }
+
+    // Try to fetch JSON; if it fails, use fallbackData
+    // Data lifecycle: prefer localStorage -> data/shows_songs.json -> fallback
+    const STORAGE_KEY = 'shows_songs_data_v1';
+
+    function saveLocalData(obj){
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+      }catch(e){ console.warn('Could not save to localStorage', e); }
+    }
+
+    function loadLocalData(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      }catch(e){ console.warn('Could not read localStorage', e); return null; }
+    }
+
+    function downloadJSON(obj, filename = 'shows_songs.json'){
+      const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function fetchLocalOrRemote(){
+      const local = loadLocalData();
+      if(local){
+        render(local);
+        return local;
+      }
+      try{
+        const r = await fetch('data/shows_songs.json');
+        if(!r.ok) throw new Error('Network response not ok');
+        const json = await r.json();
+        render(json);
+        return json;
+      }catch(err){
+        console.warn('Could not fetch data/shows_songs.json — using fallback data.', err);
+        render(fallbackData);
+        return fallbackData;
+      }
+    }
+
+    // Functions to import from Jikan (MyAnimeList public data via Jikan API)
+    const JIKAN_BASE = 'https://api.jikan.moe/v4';
+
+    async function fetchAnimelistAll(username){
+      // Try the single comprehensive endpoint first. If it fails (404), fall back to per-status endpoints.
+      const tryAllUrl = `${JIKAN_BASE}/users/${encodeURIComponent(username)}/animelist?limit=300`;
+      try{
+        const r = await fetch(tryAllUrl);
+        if(r.ok){
+          const json = await r.json();
+          return json.data || [];
+        }
+        if(r.status !== 404) throw new Error('bad response '+r.status);
+      }catch(e){
+        // continue to per-status fallback
+      }
+
+      // Fallback: try per-status endpoints (some Jikan deployments use this pattern)
+      const statusCandidates = ['watching','plan_to_watch','completed','on_hold','dropped'];
+      let combined = [];
+      for(const st of statusCandidates){
+        const url = `${JIKAN_BASE}/users/${encodeURIComponent(username)}/animelist/${encodeURIComponent(st)}?limit=300`;
+        try{
+          const res = await fetch(url);
+          if(!res.ok) continue;
+          const json = await res.json();
+          const list = json.data || [];
+          // mark status where possible
+          combined = combined.concat(list.map(it => (it.status ? it : Object.assign({}, it, { status: st }))));
+        }catch(e){
+          // ignore and continue
+        }
+      }
+      return combined;
+    }
+
+    function normalizeEntry(entry){
+      // entry shape varies; try to read common fields
+      const node = entry.anime || entry.node || entry.entry || entry;
+      const title = node.title || node.name || node.title_english || node.name_en || (node.mal_id && ("#"+node.mal_id)) || 'Untitled';
+      const url = node.url || node.mal_url || '';
+      const episodes = node.episodes || node.episodes_aired || node.episode_count || null;
+      // entry may carry list_status/status fields
+      const status = (entry.status || (entry.list_status && entry.list_status.status) || (entry.animelist_status && entry.animelist_status.status) || '').toString().toLowerCase();
+      const score = (entry.score || (entry.list_status && entry.list_status.score) || null);
+      return { title, url, episodes, score, status };
+    }
+
+    async function importAnimeList(username){
+      const raw = await fetchAnimelistAll(username);
+      return raw.map(normalizeEntry);
+    }
+
+    // Wire UI
+    document.getElementById('import-btn').addEventListener('click', async ()=>{
+      const usernameInput = document.getElementById('mal-username');
+      const username = (usernameInput.value || '').trim() || (window.__initialData && window.__initialData.anime_username) || '';
+      if(!username){ alert('Please enter a MyAnimeList username.'); return; }
+      document.getElementById('import-btn').textContent = 'Importing...';
+      try{
+        const animeShows = await importAnimeList(username);
+        // Build new data object preserving songs
+        const base = window.__initialData || fallbackData;
+        const newData = Object.assign({}, base, { anime_username: username, shows: animeShows });
+        // Persist locally and render
+        saveLocalData(newData);
+        window.__initialData = newData;
+        render(newData);
+        alert('Imported '+animeShows.length+' entries from MyAnimeList for '+username+'. Use Download JSON to save a file.');
+      }catch(e){
+        console.error(e);
+        alert('Import failed: '+e.message);
+      } finally{
+        document.getElementById('import-btn').textContent = 'Import anime list';
+      }
+    });
+
+    document.getElementById('download-btn').addEventListener('click', ()=>{
+      const data = window.__initialData || loadLocalData() || fallbackData;
+      downloadJSON(data);
+    });
+
+    document.getElementById('clear-local').addEventListener('click', ()=>{
+      localStorage.removeItem(STORAGE_KEY);
+      alert('Local data cleared. Reloading from packaged JSON.');
+      fetchLocalOrRemote();
+    });
+
+    // initial load
+    fetchLocalOrRemote().then(d => { window.__initialData = d; const usernameEl = document.getElementById('mal-username'); if(d && d.anime_username) usernameEl.value = d.anime_username; });
+  </script>
+</body>
+</html>
