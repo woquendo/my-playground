@@ -103,7 +103,29 @@ export async function importAnimeList(username) {
     return raw.map(normalizeEntry);
 }
 
-export function renderShowList(shows, container) {
+// Schedule view handler - moved to outer scope
+function renderScheduleView(shows, container) {
+    const today = new Date();
+    const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Create schedule controls
+    const controls = createScheduleControls(currentDate);
+    const scheduleContent = document.createElement('div');
+    scheduleContent.className = 'schedule-content';
+
+    container.appendChild(controls);
+    container.appendChild(scheduleContent);
+
+    // Setup schedule controls event listeners
+    setupScheduleEventListeners(controls, currentDate, (selectedDate) => {
+        renderScheduleContent(shows, scheduleContent, selectedDate, localStorage.getItem('scheduleView') || 'grid');
+    });
+
+    // Initial render
+    renderScheduleContent(shows, scheduleContent, currentDate, localStorage.getItem('scheduleView') || 'grid');
+}
+
+export function renderShowList(shows, container, view = 'shows') {
     if (!container) return;
 
     container.innerHTML = '';
@@ -112,9 +134,19 @@ export function renderShowList(shows, container) {
         return;
     }
 
+    // If this is the schedule view, directly render the schedule
+    if (view === 'schedule') {
+        renderScheduleView(shows, container);
+        return;
+    }
+
     // State for pagination and view mode
     let currentPage = 1;
     const itemsPerPage = 20;
+
+    // Remember selected tab and view
+    let currentStatus = localStorage.getItem('showsStatus') || 'watching';
+    let currentView = localStorage.getItem('showsView') || 'grid';
 
     const isAnime = shows.some(s => s.status);
     if (isAnime) {
@@ -123,10 +155,10 @@ export function renderShowList(shows, container) {
         controlsContainer.className = 'shows-controls';
 
         // Initialize view toggle
-        const initialView = localStorage.getItem('showsView') || 'grid';
-        const viewToggle = createViewToggle(initialView, (newView) => {
+        const viewToggle = createViewToggle(currentView, (newView) => {
             localStorage.setItem('showsView', newView);
-            renderFilteredShows(newView);
+            currentView = newView;
+            renderFilteredShows();
         });
 
         // Status tabs
@@ -141,7 +173,7 @@ export function renderShowList(shows, container) {
         });
 
         statusTabs.innerHTML = order.map(status => `
-            <button class="btn small status-btn${status === 'watching' ? ' active' : ''}" data-status="${status}">
+            <button class="btn small status-btn${status === currentStatus ? ' active' : ''}" data-status="${status}">
                 ${status.replace(/_/g, ' ')} (${(groups[status] || []).length})
             </button>
         `).join('');
@@ -165,95 +197,8 @@ export function renderShowList(shows, container) {
         showsContainer.id = 'shows-container';
         container.appendChild(showsContainer);
 
-        // State variables for both views
-        let currentStatus = 'watching';
-        let currentView = 'grid';
+        // State variables
         let searchQuery = '';
-
-        // Shows view handler
-        function renderShowView() {
-            // Create controls container
-            const controlsContainer = document.createElement('div');
-            controlsContainer.className = 'shows-controls';
-
-            // View toggle
-            const viewToggle = document.createElement('div');
-            viewToggle.className = 'view-toggle';
-            viewToggle.innerHTML = `
-                <button class="btn small view-btn active" data-view="grid">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                    </svg>
-                </button>
-                <button class="btn small view-btn" data-view="list">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-            `;
-
-            // Status tabs
-            const statusTabs = document.createElement('div');
-            statusTabs.className = 'status-tabs';
-
-            // Add controls to container
-            controlsContainer.appendChild(viewToggle);
-            controlsContainer.appendChild(statusTabs);
-
-            // Search input
-            const searchContainer = document.createElement('div');
-            searchContainer.className = 'search-container';
-            searchContainer.innerHTML = `
-                <input type="text" id="show-search" class="search-input" placeholder="Search shows...">
-            `;
-            controlsContainer.appendChild(searchContainer);
-
-            container.appendChild(controlsContainer);
-
-            // Create shows container
-            const showsContainer = document.createElement('div');
-            showsContainer.className = 'shows-grid';
-            showsContainer.id = 'shows-container';
-            container.appendChild(showsContainer);
-
-            // Set up event listeners directly
-            // Status tabs listener
-            statusTabs.addEventListener('click', (e) => {
-                if (e.target.classList.contains('status-btn')) {
-                    statusTabs.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
-                    e.target.classList.add('active');
-                    currentStatus = e.target.dataset.status;
-                    currentPage = 1; // Reset to first page when changing status
-                    renderFilteredShows();
-                }
-            });
-
-            // View toggle listener
-            viewToggle.addEventListener('click', (e) => {
-                if (e.target.closest('.view-btn')) {
-                    const btn = e.target.closest('.view-btn');
-                    viewToggle.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentView = btn.dataset.view;
-                    renderFilteredShows();
-                }
-            });
-
-            // Search input listener
-            searchContainer.querySelector('#show-search').addEventListener('input', (e) => {
-                searchQuery = e.target.value;
-                currentPage = 1; // Reset to first page when searching
-                renderFilteredShows();
-            });
-
-            // Initial render
-            renderFilteredShows();
-        }
 
         function renderFilteredShows() {
             let filteredShows = (groups[currentStatus] || []).filter(item => {
@@ -295,33 +240,69 @@ export function renderShowList(shows, container) {
                 const div = document.createElement('div');
                 div.className = `show-item show-item-${currentView}`;
 
-                const showContent = document.createElement('div');
-                showContent.className = 'show-content';
+                if (currentView === 'grid') {
+                    const gridContent = document.createElement('div');
+                    gridContent.className = 'grid-content';
 
-                if (item.image_url) {
-                    const imgContainer = document.createElement('div');
-                    imgContainer.className = 'show-image';
-                    imgContainer.innerHTML = `<img src="${item.image_url}" alt="${item.title}" loading="lazy">`;
-                    div.appendChild(imgContainer);
+                    if (item.image_url) {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'show-image';
+                        imgContainer.innerHTML = `<img src="${item.image_url}" alt="${item.title}" loading="lazy">`;
+                        gridContent.appendChild(imgContainer);
+                    }
+
+                    const title = item.title || item.name || 'Untitled';
+                    const url = item.url || '';
+                    const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
+
+                    const infoContainer = document.createElement('div');
+                    infoContainer.className = 'show-info';
+                    infoContainer.innerHTML = `
+                        <strong class="show-title">${meta}</strong>
+                        <div class="show-details">
+                            ${item.episodes ? `<span class="episodes">${item.episodes} eps</span>` : ''}
+                            ${item.score ? `<span class="score">★ ${item.score}</span>` : ''}
+                        </div>
+                        <div class="show-meta small">
+                            ${item.type ? `<span>${item.type}</span>` : ''}
+                            ${item.season && item.season_year ?
+                            `<span>${item.season} ${item.season_year}</span>` : ''}
+                        </div>
+                    `;
+                    gridContent.appendChild(infoContainer);
+                    div.appendChild(gridContent);
+                } else {
+                    const listContent = document.createElement('div');
+                    listContent.className = 'list-content';
+
+                    if (item.image_url) {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'show-image-small';
+                        imgContainer.innerHTML = `<img src="${item.image_url}" alt="${item.title}" loading="lazy">`;
+                        listContent.appendChild(imgContainer);
+                    }
+
+                    const title = item.title || item.name || 'Untitled';
+                    const url = item.url || '';
+                    const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
+
+                    const metadataArr = [];
+                    if (item.episodes) metadataArr.push(`${item.episodes} eps`);
+                    if (item.score) metadataArr.push(`★ ${item.score}`);
+                    if (item.type) metadataArr.push(item.type);
+                    if (item.season && item.season_year) metadataArr.push(`${item.season} ${item.season_year}`);
+                    if (item.studios) metadataArr.push(item.studios);
+
+                    const infoContainer = document.createElement('div');
+                    infoContainer.className = 'list-info';
+                    infoContainer.innerHTML = `
+                        <strong class="show-title">${meta}</strong>
+                        <div class="show-meta small">${metadataArr.join(' • ')}</div>
+                    `;
+                    listContent.appendChild(infoContainer);
+                    div.appendChild(listContent);
                 }
 
-                const title = item.title || item.name || 'Untitled';
-                const url = item.url || '';
-                const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
-
-                const metadataArr = [];
-                if (item.episodes) metadataArr.push(`${item.episodes} eps`);
-                if (item.score) metadataArr.push(`Score: ${item.score}`);
-                if (item.type) metadataArr.push(item.type);
-                if (item.season && item.season_year) metadataArr.push(`${item.season} ${item.season_year}`);
-                if (item.studios) metadataArr.push(`Studio: ${item.studios}`);
-
-                showContent.innerHTML = `
-                    <strong>${meta}</strong>
-                    <div class="small metadata-row">${metadataArr.join(' • ')}</div>
-                `;
-
-                div.appendChild(showContent);
                 showsContainer.appendChild(div);
             });
         }
@@ -332,6 +313,7 @@ export function renderShowList(shows, container) {
                 statusTabs.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
                 e.target.classList.add('active');
                 currentStatus = e.target.dataset.status;
+                localStorage.setItem('showsStatus', currentStatus);
                 currentPage = 1; // Reset to first page when changing status
                 renderFilteredShows();
             }
@@ -428,66 +410,6 @@ export function renderShowList(shows, container) {
 
         // Initial render
         renderFilteredShows();
-
-        // Add schedule tab only if it doesn't exist
-        const navContainer = document.querySelector('.nav');
-        if (navContainer && !navContainer.querySelector('[data-view="schedule"]')) {
-            const scheduleBtn = document.createElement('button');
-            scheduleBtn.className = 'btn small nav-btn';
-            scheduleBtn.textContent = 'Schedule';
-            scheduleBtn.dataset.view = 'schedule';
-
-            // Find the existing shows button
-            const existingShowsBtn = navContainer.querySelector('[data-page="shows"]');
-            if (existingShowsBtn) {
-                navContainer.insertBefore(scheduleBtn, existingShowsBtn.nextSibling);
-            }
-
-            // Schedule button click handler
-            scheduleBtn.addEventListener('click', () => {
-                const showsBtn = navContainer.querySelector('[data-page="shows"]');
-                if (showsBtn) showsBtn.classList.remove('active');
-                scheduleBtn.classList.add('active');
-                container.innerHTML = '';
-                renderScheduleView();
-            });
-
-            // Add handler to existing shows button
-            const showsBtn = navContainer.querySelector('[data-page="shows"]');
-            if (showsBtn) {
-                showsBtn.addEventListener('click', () => {
-                    scheduleBtn.classList.remove('active');
-                    showsBtn.classList.add('active');
-                    container.innerHTML = '';
-                    renderShowView();
-                });
-            }
-        }
-
-        // Schedule view handler
-        function renderScheduleView() {
-            const today = new Date();
-            const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-            // Create schedule controls
-            const controls = createScheduleControls(currentDate);
-            const scheduleContent = document.createElement('div');
-            scheduleContent.className = 'schedule-content';
-
-            container.appendChild(controls);
-            container.appendChild(scheduleContent);
-
-            // Setup schedule controls event listeners
-            setupScheduleEventListeners(controls, currentDate, (selectedDate) => {
-                renderScheduleContent(shows, scheduleContent, selectedDate, localStorage.getItem('scheduleView') || 'grid');
-            });
-
-            // Initial render
-            renderScheduleContent(shows, scheduleContent, currentDate, localStorage.getItem('scheduleView') || 'grid');
-        }
-
-        // Initial schedule render
-        renderScheduleView();
     }
 
     if (!isAnime) {

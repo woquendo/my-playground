@@ -1,0 +1,117 @@
+/* Basic reset and viewport filling */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Basic styling */
+:root {
+    --bg: #0b0b0b;
+    --card: #111;
+    --muted: #cfcfcf;
+    --accent: #2563eb;
+    --list-width: 340px;
+}
+
+/* Layout and container styles */
+.layout {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+    height: 100vh;
+    width: 100vw;
+    gap: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.container {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.container.main {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.main {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Page content layout */
+.page {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Header styles */
+.site-header {
+    padding: 20px 0 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.nav {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 0;
+    padding: 0;
+}
+
+.song-area {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Hide welcome text on shows page */
+.container.main.page-shows h1 {
+    display: none;
+}
+
+/* Hide page title on shows page */
+#page-shows h2 {
+    display: none;
+}
+
+/* Hide welcome text everywhere */
+h1 {
+    display: none;
+}
+
+body {
+    font-family: Inter, Segoe UI, Arial, sans-serif;
+    background-color: var(--bg);
+    background-image: url('../data/images/opm.jpg');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-attachment: fixed;
+    background-size: cover;
+    background-color: #0b0b0b;
+    color: #fff;
+}

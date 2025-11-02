@@ -5,7 +5,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Music & Anime Hub</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/grid.css">
+  <link rel="stylesheet" href="css/buttons.css">
+  <link rel="stylesheet" href="css/player.css">
+  <link rel="stylesheet" href="css/responsive.css">
 </head>
 
 <body>
@@ -16,22 +20,34 @@
         <nav class="nav">
           <button class="nav-btn active" data-page="songs">Songs</button>
           <button class="nav-btn" data-page="shows">Anime / Shows</button>
+          <button class="nav-btn" data-page="schedule">Schedule</button>
         </nav>
       </header>
       <h1>Welcome to the Music & Anime Hub</h1>
       <section id="page-shows" class="page" style="display:none">
-        <h2>Anime / Shows</h2>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
-          <label for="mal-username" class="small">MAL username:</label>
-          <input id="mal-username" type="text" placeholder="woquendo"
-            style="padding:6px;border-radius:6px;border:1px solid #ddd" />
-          <button id="import-btn" class="btn">Import anime list</button>
-          <button id="download-btn" class="btn">Download JSON</button>
-          <button id="reload-packaged" class="btn">Reload packaged JSON</button>
-          <button id="clear-local" class="btn small">Clear Local</button>
+        <header class="page-header">
+          <div class="header-main">
+            <h2>Anime / Shows</h2>
+            <div class="header-controls">
+              <button class="btn small" id="show-import-btn">Import/Settings</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="import-controls" style="display:none">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
+            <label for="mal-username" class="small">MAL username:</label>
+            <input id="mal-username" type="text" placeholder="woquendo"
+              style="padding:6px;border-radius:6px;border:1px solid #ddd" />
+            <button id="import-btn" class="btn">Import anime list</button>
+            <button id="download-btn" class="btn">Download JSON</button>
+            <button id="reload-packaged" class="btn">Reload packaged JSON</button>
+            <button id="clear-local" class="btn small">Clear Local</button>
+          </div>
+          <pre id="import-log" class="small"
+            style="max-height:200px;overflow:auto;white-space:pre-wrap;background:#fff;padding:8px;border:1px solid #eee;border-radius:6px;display:none"></pre>
         </div>
-        <pre id="import-log" class="small"
-          style="max-height:200px;overflow:auto;white-space:pre-wrap;background:#fff;padding:8px;border:1px solid #eee;border-radius:6px;display:none"></pre>
+
         <div id="shows" class="show-list">
           <p class="small">Loading anime list and shows…</p>
         </div>
@@ -41,6 +57,13 @@
         <h2>Songs</h2>
         <div id="songs" class="song-list">
           <p class="small">Loading songs…</p>
+        </div>
+      </section>
+
+      <section id="page-schedule" class="page" style="display:none">
+        <h2>Schedule</h2>
+        <div id="shows" class="schedule-view">
+          <p class="small">Loading schedule…</p>
         </div>
       </section>
 

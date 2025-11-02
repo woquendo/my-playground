@@ -1,0 +1,62 @@
+/* Player styling */
+#song-player {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: calc(100vh - 200px);
+}
+
+#song-player,
+#song-player .song-item,
+#song-player #yt-player {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: calc(100vh - 200px);
+}
+
+#song-player iframe,
+#song-player #yt-player iframe {
+    width: 100%;
+    height: 100% !important;
+    border: 0;
+    border-radius: 6px;
+    max-height: calc(100vh - 200px);
+}
+
+/* Player and song area styles */
+.song-area {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.player-column {
+    flex: 1 1 auto;
+    min-width: 420px;
+    max-width: calc(100% - var(--list-width) - 24px);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 220px);
+    height: auto;
+}
+
+.list-column {
+    flex: 0 0 var(--list-width);
+    width: var(--list-width);
+    max-width: var(--list-width);
+    position: relative;
+    z-index: 30;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.54), rgba(0, 0, 0, 0.48));
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    overflow-y: auto;
+    max-height: 100%;
+}

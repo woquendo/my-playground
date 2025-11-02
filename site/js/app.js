@@ -5,6 +5,7 @@ import { renderShowList, importAnimeList } from './showList.js';
 import { setupNavigation } from './navigation.js';
 import { fallbackData, STORAGE_KEY } from './config.js';
 import { setSongsList } from './player.js';
+import { setupImportControls } from './importControls.js';
 
 let initialData = null;
 
@@ -23,7 +24,7 @@ function renderPage(pageName, data) {
         const showsEl = document.getElementById('shows');
         const shows = data.shows || [];
         console.log('Rendering shows:', shows.length);
-        renderShowList(shows, showsEl);
+        renderShowList(shows, showsEl, 'shows');
     }
     else if (pageName === 'songs') {
         const songsEl = document.getElementById('songs');
@@ -31,6 +32,12 @@ function renderPage(pageName, data) {
         console.log('Rendering songs:', songs.length);
         renderSongList(songs, songsEl);
         setSongsList(songs);
+    }
+    else if (pageName === 'schedule') {
+        const showsEl = document.getElementById('shows');
+        const shows = data.shows || [];
+        console.log('Rendering schedule:', shows.length);
+        renderShowList(shows, showsEl, 'schedule');
     }
 }
 
@@ -47,6 +54,14 @@ function setupPageNavigation(data) {
             // Update active state
             navButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+
+            // Clear any existing schedule or show content
+            const showsContainer = document.getElementById('shows');
+            if (showsContainer) {
+                showsContainer.innerHTML = pageName === 'schedule' ?
+                    '<p class="small">Loading schedule…</p>' :
+                    '<p class="small">Loading shows…</p>';
+            }
 
             // Render the page content
             renderPage(pageName, data);
@@ -71,6 +86,9 @@ async function initializeApp() {
 
     // Set up navigation before first render
     setupPageNavigation(initialData);
+
+    // Set up import controls
+    setupImportControls();
 
     // Wire up event handlers
     document.getElementById('import-btn').addEventListener('click', async () => {
