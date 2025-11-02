@@ -241,6 +241,8 @@ body {
     flex-direction: column;
     gap: 10px;
     padding: 12px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .show-item-grid {
@@ -340,4 +342,25 @@ body {
 .schedule-date h3 {
     margin: 0;
     color: var(--accent);
+}
+
+/* Schedule controls styling */
+.schedule-controls-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.schedule-controls-container .btn {
+    font-size: 1.1em;
+    padding: 8px 12px;
+}
+
+/* Show title legibility in grid view */
+.show-item-grid .show-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1.3;
 }
