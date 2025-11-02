@@ -1,0 +1,34 @@
+{
+    "songs": [
+        {
+            "title": "Rider, Rider",
+            "artist": "TeddyLoid (Altervoice)",
+            "youtube": "https://www.youtube.com/watch?v=a-rt6oYvFbI",
+            "autoplay": true
+        },
+        {
+            "title": "I Am Tackle",
+            "artist": "TeddyLoid (Altervoice)",
+            "youtube": "https://www.youtube.com/watch?v=CoAcV6m9nAM",
+            "autoplay": true
+        },
+        {
+            "title": "Legion of Hell",
+            "artist": "TeddyLoid (Altervoice)",
+            "youtube": "https://www.youtube.com/watch?v=TB0758uZZhc",
+            "autoplay": true
+        },
+        {
+            "title": "Spider Beat",
+            "artist": "TeddyLoid (Altervoice)",
+            "youtube": "https://www.youtube.com/watch?v=jwqtkW9Ivpg",
+            "autoplay": true
+        },
+        {
+            "title": "Let's Go. Rider Kick",
+            "artist": "TeddyLoid (Altervoice)",
+            "youtube": "https://www.youtube.com/watch?v=Xzpcb2-0TQo",
+            "autoplay": true
+        }
+    ]
+}
