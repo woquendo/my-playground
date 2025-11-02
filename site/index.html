@@ -241,8 +241,8 @@
           // load muted autoplay to increase chance browser allows it
           const videoId = extractYouTubeId(song.youtube || '');
           if (videoId) {
-            // load via API muted so programmatic autoplay has a higher chance of starting
-            createPlayer(videoId, { muted: true, index: firstAutoplay });
+            // Load unmuted for better user experience
+            createPlayer(videoId, { muted: false, index: firstAutoplay });
             // highlight card
             const card = list.querySelector(`.song-card:nth-child(${(firstAutoplay - (pageOf - 1) * pageSize) + 1})`);
             if (card) card.classList.add('active');
@@ -286,15 +286,43 @@
       const holder = document.createElement('div');
       holder.id = 'yt-player';
       holder.style.width = '100%';
-      holder.style.height = '100%';
-      playerContainer.appendChild(holder);
-
-      loadYouTubeAPI().then((YT) => {
+      holder.style.height = '0';
+      holder.style.position = 'relative';
+      holder.style.paddingBottom = '56.25%';  // 16:9 aspect ratio
+      playerContainer.appendChild(holder); loadYouTubeAPI().then((YT) => {
         window.currentPlayer = new YT.Player('yt-player', {
           videoId: videoId,
-          playerVars: { rel: 0, autoplay: 1, controls: 1, playsinline: 1 },
+          height: '100%',
+          width: '100%',
+          playerVars: {
+            rel: 0,
+            autoplay: 1,
+            controls: 1,
+            modestbranding: 0,
+            showinfo: 1,
+            iv_load_policy: 3,
+            fs: 1,
+            playsinline: 1,
+            mute: muted ? 1 : 0,
+            // Add suggested quality for faster loading
+            suggestedQuality: 'default',
+            // Enable full iframe API
+            enablejsapi: 1,
+            origin: window.location.origin,
+            widget_referrer: window.location.href
+          },
           events: {
-            onReady: function (ev) { if (muted) ev.target.mute(); ev.target.playVideo(); },
+            onReady: function (ev) {
+              if (!muted && ev.target.isMuted()) {
+                ev.target.unMute();
+              }
+              // Give a small delay to ensure player is ready
+              setTimeout(() => {
+                ev.target.playVideo();
+              }, 100);
+              // Also try to play immediately
+              ev.target.playVideo();
+            },
             onStateChange: function (ev) {
               if (ev.data === YT.PlayerState.ENDED) { playNext(); }
             }
@@ -304,8 +332,23 @@
       }).catch(err => {
         // fallback: embed plain iframe
         const iframe = document.createElement('iframe');
-        iframe.src = `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=1${muted ? '&mute=1' : ''}`;
+        const params = new URLSearchParams({
+          rel: '0',
+          autoplay: '1',
+          controls: '1',
+          showinfo: '1',
+          modestbranding: '0',
+          iv_load_policy: '3',
+          fs: '1',
+          enablejsapi: '1',
+          origin: window.location.origin,
+          widget_referrer: window.location.href,
+          mute: muted ? '1' : '0'
+        });
+        iframe.src = `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
         iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
         iframe.setAttribute('allowfullscreen', '');
         playerContainer.appendChild(iframe);
         window.currentVideoIndex = index;
