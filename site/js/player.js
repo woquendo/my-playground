@@ -96,6 +96,11 @@ export function createPlayer(videoId, opts = {}) {
                 },
                 onStateChange: function (ev) {
                     if (ev.data === YT.PlayerState.ENDED) { playNext(); }
+                    // Update minimized player if visible
+                    const minimized = document.getElementById('minimized-player');
+                    if (minimized && minimized.style.display !== 'none') {
+                        updateMinimizedPlayer();
+                    }
                 }
             }
         });
@@ -147,4 +152,87 @@ export function playNext() {
             currentPlayer.playVideo();
         }
     }
+}
+
+export function playPrevious() {
+    if (typeof currentVideoIndex !== 'number') return;
+    let prev = currentVideoIndex - 1;
+    if (prev < 0) return;
+
+    const prevSong = songsList[prev];
+    const btn = document.querySelector(`button.play-btn[data-idx="${prev}"]`);
+
+    if (btn) {
+        btn.click();
+    } else {
+        const vid = extractYouTubeId(prevSong.youtube || '');
+        if (vid) createPlayer(vid, { muted: false, index: prev });
+        if (currentPlayer && currentPlayer.playVideo) {
+            currentPlayer.playVideo();
+        }
+    }
+}
+
+export function getCurrentSong() {
+    if (typeof currentVideoIndex === 'number' && songsList[currentVideoIndex]) {
+        return songsList[currentVideoIndex];
+    }
+    return null;
+}
+
+export function isPlaying() {
+    return currentPlayer && currentPlayer.getPlayerState && currentPlayer.getPlayerState() === 1; // YT.PlayerState.PLAYING
+}
+
+export function pausePlayer() {
+    if (currentPlayer && currentPlayer.pauseVideo) {
+        currentPlayer.pauseVideo();
+    }
+}
+
+export function playPlayer() {
+    if (currentPlayer && currentPlayer.playVideo) {
+        currentPlayer.playVideo();
+    }
+}
+
+export function stopPlayer() {
+    if (currentPlayer && currentPlayer.stopVideo) {
+        currentPlayer.stopVideo();
+    }
+    currentPlayer = null;
+    currentVideoIndex = null;
+}
+
+function updateMinimizedPlayer() {
+    const minimized = document.getElementById('minimized-player');
+    const titleEl = document.getElementById('minimized-title');
+    const playPauseBtn = document.getElementById('minimized-play-pause');
+
+    if (!minimized || !titleEl || !playPauseBtn) return;
+
+    const song = getCurrentSong();
+    if (song) {
+        titleEl.textContent = `${song.title || 'Untitled'} - ${song.artist || 'Unknown'}`;
+        playPauseBtn.textContent = isPlaying() ? 'Pause' : 'Play';
+    }
+}
+
+export function showMinimizedPlayer() {
+    const minimized = document.getElementById('minimized-player');
+    if (minimized) {
+        minimized.style.display = 'flex';
+        updateMinimizedPlayer();
+    }
+}
+
+export function hideMinimizedPlayer() {
+    const minimized = document.getElementById('minimized-player');
+    if (minimized) {
+        minimized.style.display = 'none';
+    }
+}
+
+export function isPlayerActive() {
+    return !!currentPlayer;
 }

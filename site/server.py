@@ -69,6 +69,27 @@ class MALProxyHandler(SimpleHTTPRequestHandler):
                 
             except Exception as e:
                 self.send_error(500, f"Error saving shows: {str(e)}")
+        elif self.path == '/save-schedule-updates':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                updates_data = json.loads(post_data.decode('utf-8'))
+                
+                # Save to schedule_updates.json
+                updates_file = os.path.join(os.path.dirname(__file__), 'data', 'schedule_updates.json')
+                with open(updates_file, 'w', encoding='utf-8') as f:
+                    json.dump(updates_data, f, indent=2)
+                
+                # Send success response
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'POST')
+                self.end_headers()
+                self.wfile.write(json.dumps({'success': True}).encode())
+                
+            except Exception as e:
+                self.send_error(500, f"Error saving schedule updates: {str(e)}")
         else:
             self.send_error(404, "Not found")
 

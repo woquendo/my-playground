@@ -5,6 +5,7 @@ import { renderShowList, importAnimeList } from './showList.js';
 import { setupNavigation } from './navigation.js';
 import { fallbackData, STORAGE_KEY } from './config.js';
 import { setSongsList } from './player.js';
+import { pausePlayer, playPlayer, playNext, playPrevious, stopPlayer, hideMinimizedPlayer } from './player.js';
 import { setupImportControls } from './importControls.js';
 
 let initialData = null;
@@ -34,7 +35,7 @@ function renderPage(pageName, data) {
         setSongsList(songs);
     }
     else if (pageName === 'schedule') {
-        const showsEl = document.getElementById('shows');
+        const showsEl = document.getElementById('schedule-container');
         const shows = data.shows || [];
         console.log('Rendering schedule:', shows.length);
         renderShowList(shows, showsEl, 'schedule');
@@ -42,53 +43,61 @@ function renderPage(pageName, data) {
 }
 
 // Update navigation to handle data loading
-function setupPageNavigation(data) {
-    const navButtons = document.querySelectorAll('.nav-btn');
-    navButtons.forEach(btn => {
-        const pageName = btn.dataset.page;
-        btn.addEventListener('click', () => {
-            // Show the selected page
-            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-            document.getElementById('page-' + pageName).style.display = '';
-
-            // Update active state
-            navButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Clear any existing schedule or show content
-            const showsContainer = document.getElementById('shows');
-            if (showsContainer) {
-                showsContainer.innerHTML = pageName === 'schedule' ?
-                    '<p class="small">Loading schedule…</p>' :
-                    '<p class="small">Loading shows…</p>';
-            }
-
-            // Render the page content
-            renderPage(pageName, data);
-        });
-    });
-
-    // Render initial page
-    const activePage = document.querySelector('.nav-btn.active');
-    if (activePage) {
-        renderPage(activePage.dataset.page, data);
-    }
+function renderPageCallback(pageName) {
+    renderPage(pageName, loadedData);
 }
 
 function render(data) {
     loadedData = data; // Store the data
-    setupPageNavigation(data);
+    setupNavigation(renderPageCallback);
+}
+
+function setupMinimizedPlayer() {
+    const prevBtn = document.getElementById('minimized-prev');
+    const playPauseBtn = document.getElementById('minimized-play-pause');
+    const nextBtn = document.getElementById('minimized-next');
+    const closeBtn = document.getElementById('minimized-close');
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', playPrevious);
+    }
+
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+            if (playPauseBtn.textContent === 'Pause') {
+                pausePlayer();
+                playPauseBtn.textContent = 'Play';
+            } else {
+                playPlayer();
+                playPauseBtn.textContent = 'Pause';
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', playNext);
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            stopPlayer();
+            hideMinimizedPlayer();
+        });
+    }
 }
 
 async function initializeApp() {
     // Load initial data first but don't render yet
     initialData = await fetchLocalOrRemote();
 
-    // Set up navigation before first render
-    setupPageNavigation(initialData);
+    // Render data and set up navigation
+    render(initialData);
 
     // Set up import controls
     setupImportControls();
+
+    // Set up minimized player controls
+    setupMinimizedPlayer();
 
     // Wire up event handlers
     document.getElementById('import-btn').addEventListener('click', async () => {
@@ -103,6 +112,14 @@ async function initializeApp() {
         try {
             const animeShows = await importAnimeList(username);
             const base = initialData || fallbackData;
+            const existingShows = base.shows || [];
+            // Preserve custom_air_day from existing shows
+            animeShows.forEach(newShow => {
+                const existing = existingShows.find(s => s.id === newShow.id);
+                if (existing && existing.custom_air_day !== undefined) {
+                    newShow.custom_air_day = existing.custom_air_day;
+                }
+            });
             const newData = Object.assign({}, base, { anime_username: username, shows: animeShows });
 
             try {
@@ -137,6 +154,11 @@ async function initializeApp() {
     document.getElementById('download-btn').addEventListener('click', () => {
         const data = initialData || loadLocalData() || fallbackData;
         downloadJSON(data);
+    });
+
+    document.getElementById('download-schedule-updates-btn').addEventListener('click', () => {
+        const updates = JSON.parse(localStorage.getItem('schedule_updates') || '{"updates":{}}');
+        downloadJSON(updates, 'schedule_updates.json');
     });
 
     document.getElementById('reload-packaged').addEventListener('click', async () => {

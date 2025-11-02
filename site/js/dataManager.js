@@ -37,9 +37,10 @@ export async function fetchLocalOrRemote(onDataUpdate) {
 
     try {
         // Fetch fresh data from server
-        const [showsRes, songsRes] = await Promise.all([
+        const [showsRes, songsRes, updatesRes] = await Promise.all([
             fetch('./data/shows.json?t=' + Date.now()),
-            fetch('./data/songs.json?t=' + Date.now())
+            fetch('./data/songs.json?t=' + Date.now()),
+            fetch('./data/schedule_updates.json?t=' + Date.now()).catch(() => ({ ok: false }))
         ]);
 
         if (!showsRes.ok || !songsRes.ok) {
@@ -54,13 +55,29 @@ export async function fetchLocalOrRemote(onDataUpdate) {
             showsRes.json(),
             songsRes.json()
         ]);
-        console.log('Loaded data:', { shows: showsData, songs: songsData });
+        const updatesData = updatesRes.ok ? await updatesRes.json() : { updates: {} };
+        console.log('Loaded data:', { shows: showsData, songs: songsData, updates: updatesData });
 
         // Ensure we have the correct data structure
         const packaged = {
             shows: showsData && showsData.shows ? showsData.shows : (Array.isArray(showsData) ? showsData : []),
             songs: songsData && songsData.songs ? songsData.songs : (Array.isArray(songsData) ? songsData : [])
         };
+
+        // Apply schedule updates from file
+        packaged.shows.forEach(show => {
+            if (updatesData.updates && updatesData.updates[show.id] !== undefined) {
+                show.custom_air_day = updatesData.updates[show.id];
+            }
+        });
+
+        // Apply local schedule updates (overrides file)
+        const localUpdates = JSON.parse(localStorage.getItem('schedule_updates') || '{"updates":{}}');
+        packaged.shows.forEach(show => {
+            if (localUpdates.updates && localUpdates.updates[show.id] !== undefined) {
+                show.custom_air_day = localUpdates.updates[show.id];
+            }
+        });
 
         const localStr = local ? JSON.stringify(local) : null;
         const pkgStr = JSON.stringify(packaged);

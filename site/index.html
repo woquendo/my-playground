@@ -14,7 +14,6 @@
 
 <body>
   <div class="layout">
-    <aside class="sidebar" aria-hidden="true"></aside>
     <div class="container main">
       <header class="site-header">
         <nav class="nav">
@@ -23,52 +22,67 @@
           <button class="nav-btn" data-page="schedule">Schedule</button>
         </nav>
       </header>
-      <h1>Welcome to the Music & Anime Hub</h1>
-      <section id="page-shows" class="page" style="display:none">
-        <header class="page-header">
-          <div class="header-main">
-            <h2>Anime / Shows</h2>
-            <div class="header-controls">
-              <button class="btn small" id="show-import-btn">Import/Settings</button>
+      <main class="content">
+        <h1>Welcome to the Music & Anime Hub</h1>
+        <section id="page-shows" class="page" style="display:none">
+          <header class="page-header">
+            <div class="header-main">
+              <h2>Anime / Shows</h2>
+              <div class="header-controls">
+                <button class="btn small" id="show-import-btn">Import/Settings</button>
+              </div>
             </div>
+          </header>
+
+          <div class="import-controls" style="display:none">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
+              <label for="mal-username" class="small">MAL username:</label>
+              <input id="mal-username" type="text" placeholder="woquendo"
+                style="padding:6px;border-radius:6px;border:1px solid #ddd" />
+              <button id="import-btn" class="btn">Import anime list</button>
+              <button id="download-btn" class="btn">Download JSON</button>
+              <button id="reload-packaged" class="btn">Reload packaged JSON</button>
+              <button id="download-schedule-updates-btn" class="btn">Download Schedule Updates JSON</button>
+              <button id="clear-local" class="btn small">Clear Local</button>
+            </div>
+            <pre id="import-log" class="small"
+              style="max-height:200px;overflow:auto;white-space:pre-wrap;background:#fff;padding:8px;border:1px solid #eee;border-radius:6px;display:none"></pre>
           </div>
-        </header>
 
-        <div class="import-controls" style="display:none">
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
-            <label for="mal-username" class="small">MAL username:</label>
-            <input id="mal-username" type="text" placeholder="woquendo"
-              style="padding:6px;border-radius:6px;border:1px solid #ddd" />
-            <button id="import-btn" class="btn">Import anime list</button>
-            <button id="download-btn" class="btn">Download JSON</button>
-            <button id="reload-packaged" class="btn">Reload packaged JSON</button>
-            <button id="clear-local" class="btn small">Clear Local</button>
+          <div id="shows" class="show-list">
+            <p class="small">Loading anime list and shows…</p>
           </div>
-          <pre id="import-log" class="small"
-            style="max-height:200px;overflow:auto;white-space:pre-wrap;background:#fff;padding:8px;border:1px solid #eee;border-radius:6px;display:none"></pre>
-        </div>
+        </section>
 
-        <div id="shows" class="show-list">
-          <p class="small">Loading anime list and shows…</p>
-        </div>
-      </section>
+        <section id="page-songs" class="page">
+          <h2>Songs</h2>
+          <div id="song-player"></div>
+          <div id="songs" class="song-list">
+            <p class="small">Loading songs…</p>
+          </div>
+        </section>
 
-      <section id="page-songs" class="page">
-        <h2>Songs</h2>
-        <div id="songs" class="song-list">
-          <p class="small">Loading songs…</p>
-        </div>
-      </section>
+        <section id="page-schedule" class="page" style="display:none">
+          <h2>Schedule</h2>
+          <div id="schedule-container" class="schedule-view">
+            <p class="small">Loading schedule…</p>
+          </div>
+        </section>
 
-      <section id="page-schedule" class="page" style="display:none">
-        <h2>Schedule</h2>
-        <div id="shows" class="schedule-view">
-          <p class="small">Loading schedule…</p>
+      </main>
+    </div>
+    <div class="footer">
+      <div id="minimized-player" class="minimized-player" style="display:none">
+        <div class="minimized-player-content">
+          <span id="minimized-title">Now Playing</span>
+          <button id="minimized-prev" class="btn small">Prev</button>
+          <button id="minimized-play-pause" class="btn small">Pause</button>
+          <button id="minimized-next" class="btn small">Next</button>
+          <button id="minimized-close" class="btn small">Close</button>
         </div>
-      </section>
-
-      <div class="footer">Tip: run a local server to test (see README in this folder). Works directly on GitHub Pages.
       </div>
+      <div id="pagination-options"></div>
+      <div class="footer-text">Copyright © 2025 Music & Anime Hub</div>
     </div>
   </div>
 
