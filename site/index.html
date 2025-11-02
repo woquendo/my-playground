@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Shows & Songs</title>
+  <title>Welcome</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -12,8 +12,14 @@
   <div class="layout">
     <aside class="sidebar" aria-hidden="true"></aside>
     <div class="container main">
-      <h1>Shows & Songs</h1>
-      <section>
+      <header class="site-header">
+        <nav class="nav">
+          <button class="nav-btn active" data-page="songs">Songs</button>
+          <button class="nav-btn" data-page="shows">Anime / Shows</button>
+        </nav>
+      </header>
+      <h1>Welcome to the Music & Anime Hub</h1>
+      <section id="page-shows" class="page" style="display:none">
         <h2>Anime / Shows</h2>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
           <label for="mal-username" class="small">MAL username:</label>
@@ -31,7 +37,7 @@
         </div>
       </section>
 
-      <section>
+      <section id="page-songs" class="page">
         <h2>Songs</h2>
         <div id="songs" class="song-list">
           <p class="small">Loading songs…</p>
@@ -123,20 +129,28 @@
       if (!songs.length) {
         songsEl.innerHTML = '<p class="small">No songs available.</p>';
       } else {
+        // Build side-by-side player + list layout
+        const songArea = document.createElement('div');
+        songArea.className = 'song-area';
+
+        const playerWrapper = document.createElement('div');
+        playerWrapper.className = 'player-column';
         const playerContainer = document.createElement('div');
         playerContainer.id = 'song-player';
         playerContainer.className = 'song-item';
         playerContainer.innerHTML = '<div class="small">Select a song to load the player.</div>';
-        songsEl.appendChild(playerContainer);
+        playerWrapper.appendChild(playerContainer);
 
+        const listWrapper = document.createElement('div');
+        listWrapper.className = 'list-column';
         const controls = document.createElement('div');
         controls.className = 'song-list-controls';
         controls.innerHTML = `<input id="song-search" placeholder="Search songs or artists" style="flex:1;padding:6px;border-radius:6px;border:1px solid #ddd" /> <select id="page-size" style="margin-left:8px;padding:6px;border-radius:6px;border:1px solid #ddd"><option value="5">5/page</option><option value="8">8/page</option><option value="12">12/page</option></select>`;
-        songsEl.appendChild(controls);
+        listWrapper.appendChild(controls);
 
         const listWrap = document.createElement('div');
         listWrap.id = 'song-list-wrap';
-        listWrap.style.maxHeight = '420px';
+        listWrap.style.maxHeight = '72vh';
         listWrap.style.overflow = 'auto';
         listWrap.style.marginTop = '0.6rem';
 
@@ -144,13 +158,17 @@
         list.id = 'song-list-items';
         list.className = 'song-cards';
         listWrap.appendChild(list);
-        songsEl.appendChild(listWrap);
+        listWrapper.appendChild(listWrap);
 
         const pager = document.createElement('div');
         pager.className = 'pager small';
         pager.style.marginTop = '0.6rem';
         pager.innerHTML = '<button id="prev-page" class="btn small">Prev</button> <span id="page-info" style="margin:0 8px"></span> <button id="next-page" class="btn small">Next</button>';
-        songsEl.appendChild(pager);
+        listWrapper.appendChild(pager);
+
+        songArea.appendChild(playerWrapper);
+        songArea.appendChild(listWrapper);
+        songsEl.appendChild(songArea);
 
         // pagination & filter state
         let currentPage = 1;
@@ -190,7 +208,8 @@
               playerContainer.innerHTML = '';
               if (videoId) {
                 const iframe = document.createElement('iframe');
-                const autoplayParams = song.autoplay ? '?rel=0&autoplay=1&mute=1' : '?rel=0';
+                // Attempt to play unmuted on user click. Browsers may still block autoplay without user gesture.
+                const autoplayParams = song.autoplay ? '?rel=0&autoplay=1' : '?rel=0';
                 iframe.src = `https://www.youtube.com/embed/${videoId}${autoplayParams}`;
                 iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
                 iframe.setAttribute('allowfullscreen', '');
@@ -218,12 +237,25 @@
         renderSongPage();
         const firstAutoplay = songs.findIndex(s => s.autoplay);
         if (firstAutoplay >= 0) {
-          // compute if autoplay item is on current page and trigger play
+          // compute page and render, then load the autoplay item but muted (programmatic autoplay)
           const pageOf = Math.floor(firstAutoplay / pageSize) + 1;
           currentPage = pageOf;
           renderSongPage();
-          const autoplayBtn = list.querySelector(`button[data-idx="${firstAutoplay}"]`);
-          if (autoplayBtn) autoplayBtn.click();
+          const song = songs[firstAutoplay];
+          // load muted autoplay to increase chance browser allows it
+          const videoId = extractYouTubeId(song.youtube || '');
+          if (videoId) {
+            playerContainer.innerHTML = '';
+            const iframe = document.createElement('iframe');
+            const autoplayParams = '?rel=0&autoplay=1&mute=1';
+            iframe.src = `https://www.youtube.com/embed/${videoId}${autoplayParams}`;
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; autoplay';
+            iframe.setAttribute('allowfullscreen', '');
+            playerContainer.appendChild(iframe);
+            // highlight card
+            const card = list.querySelector(`.song-card:nth-child(${(firstAutoplay - (pageOf - 1) * pageSize) + 1})`);
+            if (card) card.classList.add('active');
+          }
         }
       }
     }
@@ -258,19 +290,29 @@
     }
 
     async function fetchLocalOrRemote() {
+      // Load local first for fast render
       const local = loadLocalData();
-      if (local) {
-        render(local);
-        return local;
-      }
+      if (local) render(local);
+
+      // Always fetch packaged JSON to detect updates and prefer packaged when it changed on disk
       try {
-        const r = await fetch('data/shows_songs.json');
-        if (!r.ok) throw new Error('Network response not ok');
-        const json = await r.json();
-        render(json);
-        return json;
+        const r = await fetch('data/shows_songs.json?t=' + Date.now());
+        if (!r.ok) throw new Error('Network response not ok: ' + r.status);
+        const packaged = await r.json();
+        // If local differs from packaged, prefer packaged (user edited file)
+        const localStr = local ? JSON.stringify(local) : null;
+        const pkgStr = JSON.stringify(packaged);
+        if (!local || localStr !== pkgStr) {
+          // update localStorage and render packaged
+          saveLocalData(packaged);
+          render(packaged);
+          return packaged;
+        }
+        // otherwise keep local
+        return local || packaged;
       } catch (err) {
-        console.warn('Could not fetch data/shows_songs.json — using fallback data.', err);
+        console.warn('Could not fetch data/shows_songs.json — using local or fallback data.', err);
+        if (local) return local;
         render(fallbackData);
         return fallbackData;
       }
@@ -418,6 +460,21 @@
 
     // initial load
     fetchLocalOrRemote().then(d => { window.__initialData = d; const usernameEl = document.getElementById('mal-username'); if (d && d.anime_username) usernameEl.value = d.anime_username; });
+
+    // Simple page navigation between Songs and Shows
+    function showPage(name) {
+      document.querySelectorAll('.page').forEach(el => el.style.display = 'none');
+      const el = document.getElementById('page-' + name);
+      if (el) el.style.display = '';
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`.nav-btn[data-page="${name}"]`);
+      if (btn) btn.classList.add('active');
+    }
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.addEventListener('click', () => showPage(b.dataset.page));
+    });
+    // default
+    showPage('songs');
   </script>
 </body>
 
