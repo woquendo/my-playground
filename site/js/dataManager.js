@@ -70,17 +70,31 @@ export async function fetchLocalOrRemote(onDataUpdate) {
         // Apply schedule updates from file
         packaged.shows.forEach(show => {
             if (updatesData.updates && updatesData.updates[show.id] !== undefined) {
-                show.custom_air_day = updatesData.updates[show.id];
+                const update = updatesData.updates[show.id];
+                if (typeof update === 'number') {
+                    // Legacy format: just custom air day
+                    if (update >= 0 && update <= 6) {
+                        show.custom_air_day = update;
+                    }
+                } else if (typeof update === 'object') {
+                    // New format: object with multiple properties
+                    if (typeof update.custom_air_day === 'number' && update.custom_air_day >= 0 && update.custom_air_day <= 6) {
+                        show.custom_air_day = update.custom_air_day;
+                    }
+                    if (typeof update.custom_start_date === 'string' && /^(\d{2})-(\d{2})-(\d{2})$/.test(update.custom_start_date)) {
+                        show.custom_start_date = update.custom_start_date;
+                    }
+                    if (typeof update.custom_episodes === 'number' && update.custom_episodes > 0) {
+                        show.custom_episodes = update.custom_episodes;
+                    }
+                    if (typeof update.skipped_weeks === 'number' && update.skipped_weeks >= 0) {
+                        show.skipped_weeks = update.skipped_weeks;
+                    }
+                }
             }
         });
 
-        // Apply local schedule updates (overrides file)
-        const localUpdates = JSON.parse(localStorage.getItem('schedule_updates') || '{"updates":{}}');
-        packaged.shows.forEach(show => {
-            if (localUpdates.updates && localUpdates.updates[show.id] !== undefined) {
-                show.custom_air_day = localUpdates.updates[show.id];
-            }
-        });
+        // Local schedule updates are handled by applyScheduleUpdates in scheduleManager.js
 
         const localStr = local ? JSON.stringify(local) : null;
         const pkgStr = JSON.stringify(packaged);

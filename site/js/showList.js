@@ -420,7 +420,7 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
 
     // If this is the schedule view, directly render the schedule
     if (view === 'schedule') {
-        renderScheduleView(shows, container);
+        renderScheduleView(shows, container, titles);
         return;
     }
 

@@ -4,6 +4,8 @@
       "custom_air_day": 6,
       "custom_start_date": "10-11-25"
     },
-    "61930": 6
+    "59062": {
+      "skipped_weeks": 1
+    }
   }
 }

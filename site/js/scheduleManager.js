@@ -10,17 +10,22 @@ function applyScheduleUpdates(shows) {
             const updatedShow = { ...show };
             if (typeof update === 'number') {
                 // Legacy format: just custom air day
-                updatedShow.custom_air_day = update;
+                if (update >= 0 && update <= 6) {
+                    updatedShow.custom_air_day = update;
+                }
             } else if (typeof update === 'object') {
                 // New format: object with multiple properties
-                if (update.custom_air_day !== undefined) {
+                if (typeof update.custom_air_day === 'number' && update.custom_air_day >= 0 && update.custom_air_day <= 6) {
                     updatedShow.custom_air_day = update.custom_air_day;
                 }
-                if (update.custom_start_date !== undefined) {
+                if (typeof update.custom_start_date === 'string' && /^(\d{2})-(\d{2})-(\d{2})$/.test(update.custom_start_date)) {
                     updatedShow.custom_start_date = update.custom_start_date;
                 }
-                if (update.custom_episodes !== undefined) {
+                if (typeof update.custom_episodes === 'number' && update.custom_episodes > 0) {
                     updatedShow.custom_episodes = update.custom_episodes;
+                }
+                if (typeof update.skipped_weeks === 'number' && update.skipped_weeks >= 0) {
+                    updatedShow.skipped_weeks = update.skipped_weeks;
                 }
             }
             return updatedShow;
@@ -42,7 +47,12 @@ export function calculateCurrentEpisode(show, selectedDate) {
     const startDate = new Date(2000 + year, month - 1, day);
     const targetDate = new Date(selectedDate);
     const weeksDiff = Math.floor((targetDate - startDate) / (7 * 24 * 60 * 60 * 1000));
-    return weeksDiff + 1;
+
+    // Account for skipped weeks
+    const skippedWeeks = show.skipped_weeks || 0;
+    const adjustedEpisode = weeksDiff - skippedWeeks + 1;
+
+    return Math.max(1, adjustedEpisode); // Don't go below episode 1
 }
 
 export function createScheduleControls(currentDate, selectedDate = null) {
@@ -179,7 +189,8 @@ function filterAiringShows(shows, selectedDate) {
 
         // Use custom start date if available, otherwise use original start date
         const startDateStr = show.custom_start_date || show.start_date;
-        const airDate = new Date(startDateStr);
+        const [month, day, year] = startDateStr.split('-').map(Number);
+        const airDate = new Date(2000 + year, month - 1, day);
         if (!airDate || isNaN(airDate.getTime())) return false;
 
         // Get day of week for the show and selected date
@@ -191,7 +202,7 @@ function filterAiringShows(shows, selectedDate) {
     });
 }
 
-export function renderScheduleContent(shows, container, selectedDate, view) {
+export function renderScheduleContent(shows, container, selectedDate, view, titles = {}) {
     container.innerHTML = '';
     const date = new Date(selectedDate);
 
@@ -204,6 +215,9 @@ export function renderScheduleContent(shows, container, selectedDate, view) {
         const status = (show.status || '').toLowerCase();
         if (status !== 'watching' && status !== 'plan_to_watch') return false;
 
+        // Only shows marked as currently airing
+        if (show.airing_status !== 1) return false;
+
         // Use custom episodes if available, otherwise use original episodes (default to 12 if null)
         const totalEpisodes = show.custom_episodes !== undefined ? show.custom_episodes : (show.episodes || 12);
         if (!totalEpisodes) return false;
@@ -214,8 +228,13 @@ export function renderScheduleContent(shows, container, selectedDate, view) {
         const startDate = new Date(2000 + year, month - 1, day);
         const daysSinceStart = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
         if (daysSinceStart < 0) return false;
-        const episode = Math.floor(daysSinceStart / 7) + 1;
-        if (episode > totalEpisodes) return false;
+
+        // Account for skipped weeks in episode calculation
+        const weeksSinceStart = Math.floor(daysSinceStart / 7);
+        const skippedWeeks = show.skipped_weeks || 0;
+        const episode = weeksSinceStart - skippedWeeks + 1;
+
+        if (episode > totalEpisodes || episode < 1) return false;
         const airingDay = show.custom_air_day !== undefined ? show.custom_air_day : startDate.getDay();
         return date.getDay() === airingDay;
     });
@@ -232,22 +251,27 @@ export function renderScheduleContent(shows, container, selectedDate, view) {
     dayShows.forEach(show => {
         const div = document.createElement('div');
         div.className = `show-item show-item-${view}`;
+        const title = titles[show.id] || show.title_english || show.title || show.name || 'Untitled';
+        const url = show.url || '';
         if (show.image_url) {
             const imgContainer = document.createElement('div');
             imgContainer.className = 'show-image';
-            const imgHtml = show.url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer"><img src="${show.image_url}" alt="${show.title}" loading="lazy"></a>` : `<img src="${show.image_url}" alt="${show.title}" loading="lazy">`;
+            const imgHtml = show.url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer"><img src="${show.image_url}" alt="${title}" loading="lazy"></a>` : `<img src="${show.image_url}" alt="${title}" loading="lazy">`;
             imgContainer.innerHTML = imgHtml;
             div.appendChild(imgContainer);
         }
-        const title = show.title_english || show.title || show.name || 'Untitled';
-        const url = show.url || '';
         const meta = url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
 
         // Use custom start date if available, otherwise use original start date
         const startDateStr = show.custom_start_date || show.start_date;
         const [month, day, year] = startDateStr.split('-').map(Number);
         const startDate = new Date(2000 + year, month - 1, day);
-        const episode = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1;
+
+        // Account for skipped weeks in episode calculation
+        const daysSinceStart = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
+        const weeksSinceStart = Math.floor(daysSinceStart / 7);
+        const skippedWeeks = show.skipped_weeks || 0;
+        const episode = Math.max(1, weeksSinceStart - skippedWeeks + 1);
 
         // Use custom episodes if available, otherwise use original episodes (default to 12 if null)
         const totalEpisodes = show.custom_episodes !== undefined ? show.custom_episodes : (show.episodes || 12);
@@ -269,7 +293,7 @@ export function renderScheduleContent(shows, container, selectedDate, view) {
         editBtn.className = 'btn small edit-air-day';
         editBtn.title = 'Edit air day';
         editBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
-        setupAirDayEditor(editBtn, show, selectedDate, () => renderScheduleContent(updatedShows, container, selectedDate, view));
+        setupAirDayEditor(editBtn, show, selectedDate, () => renderScheduleContent(updatedShows, container, selectedDate, view, titles));
         div.appendChild(editBtn);
         showsDiv.appendChild(div);
     });
@@ -306,6 +330,10 @@ function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
                         <label>Total Episodes:</label>
                         <input type="number" id="episodes-input" min="1" placeholder="Leave empty to use original">
                     </div>
+                    <div class="edit-field">
+                        <label>Skipped Weeks:</label>
+                        <input type="number" id="skipped-weeks-input" min="0" placeholder="Number of weeks episodes were delayed">
+                    </div>
                 </div>
                 <div class="edit-actions">
                     <button class="btn small" id="cancel-edit">Cancel</button>
@@ -314,14 +342,30 @@ function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
             </div>
         `;
 
-        // Set current values
-        const updates = JSON.parse(localStorage.getItem('schedule_updates') || '{"updates":{}}');
-        const currentUpdate = updates.updates[show.id] || {};
+        setTimeout(async () => {
+            // Load current updates from server
+            let serverUpdates = { updates: {} };
+            try {
+                const res = await fetch('./data/schedule_updates.json?t=' + Date.now());
+                if (res.ok) {
+                    serverUpdates = await res.json();
+                }
+            } catch (e) {
+                console.warn('Failed to load schedule updates from server:', e);
+            }
 
-        setTimeout(() => {
+            // Merge with local updates (local overrides server)
+            const localUpdates = JSON.parse(localStorage.getItem('schedule_updates') || '{"updates":{}}');
+            const updates = {
+                updates: { ...serverUpdates.updates, ...localUpdates.updates }
+            };
+
+            const currentUpdate = updates.updates[show.id] || {};
+
             const airDaySelect = dialog.querySelector('#air-day-select');
             const startDateInput = dialog.querySelector('#start-date-input');
             const episodesInput = dialog.querySelector('#episodes-input');
+            const skippedWeeksInput = dialog.querySelector('#skipped-weeks-input');
 
             // Set current values
             if (currentUpdate.custom_air_day !== undefined) {
@@ -343,6 +387,12 @@ function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
                 episodesInput.value = currentUpdate.custom_episodes;
             } else if (show.custom_episodes !== undefined) {
                 episodesInput.value = show.custom_episodes;
+            }
+
+            if (currentUpdate.skipped_weeks !== undefined) {
+                skippedWeeksInput.value = currentUpdate.skipped_weeks;
+            } else if (show.skipped_weeks !== undefined) {
+                skippedWeeksInput.value = show.skipped_weeks;
             }
 
             // Event listeners
@@ -377,6 +427,13 @@ function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
                     delete newUpdate.custom_episodes;
                 }
 
+                const skippedWeeksValue = skippedWeeksInput.value;
+                if (skippedWeeksValue && parseInt(skippedWeeksValue) > 0) {
+                    newUpdate.skipped_weeks = parseInt(skippedWeeksValue);
+                } else {
+                    delete newUpdate.skipped_weeks;
+                }
+
                 // Save to schedule_updates
                 if (Object.keys(newUpdate).length > 0) {
                     updates.updates[show.id] = newUpdate;
@@ -405,7 +462,7 @@ function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
 }
 
 // Schedule view handler
-export function renderScheduleView(shows, container) {
+export function renderScheduleView(shows, container, titles = {}) {
     container.innerHTML = '';
     const today = new Date(2025, 10, 2); // November 2, 2025 - use fixed date for predicted schedule
     let currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2); // Week start for display (2 days before today)
@@ -421,7 +478,7 @@ export function renderScheduleView(shows, container) {
     const viewToggle = createViewToggle(currentView, (newView) => {
         localStorage.setItem('scheduleView', newView);
         currentView = newView;
-        renderScheduleContent(updatedShows, scheduleContent, selectedDate, currentView);
+        renderScheduleContent(updatedShows, scheduleContent, selectedDate, currentView, titles);
     });
 
     // Create schedule controls
@@ -467,7 +524,7 @@ export function renderScheduleView(shows, container) {
                 updateView(newStart, newSelected);
             }
         });
-        renderScheduleContent(updatedShows, scheduleContent, selectedDate, currentView);
+        renderScheduleContent(updatedShows, scheduleContent, selectedDate, currentView, titles);
     };
 
     // Setup schedule controls event listeners
@@ -495,5 +552,5 @@ export function renderScheduleView(shows, container) {
     });
 
     // Initial render
-    renderScheduleContent(updatedShows, scheduleContent, selectedDate, currentView);
+    renderScheduleContent(updatedShows, scheduleContent, selectedDate, currentView, titles);
 }

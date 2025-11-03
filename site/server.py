@@ -104,10 +104,14 @@ class MALProxyHandler(SimpleHTTPRequestHandler):
                 post_data = self.rfile.read(content_length)
                 updates_data = json.loads(post_data.decode('utf-8'))
                 
+                print(f"Saving schedule updates: {updates_data}")
+                
                 # Save to schedule_updates.json
                 updates_file = os.path.join(os.path.dirname(__file__), 'data', 'schedule_updates.json')
                 with open(updates_file, 'w', encoding='utf-8') as f:
                     json.dump(updates_data, f, indent=2)
+                
+                print(f"Saved to {updates_file}")
                 
                 # Send success response
                 self.send_response(200)
@@ -118,6 +122,7 @@ class MALProxyHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({'success': True}).encode())
                 
             except Exception as e:
+                print(f"Error saving schedule updates: {str(e)}")
                 self.send_error(500, f"Error saving schedule updates: {str(e)}")
         elif self.path == '/save-titles':
             try:
