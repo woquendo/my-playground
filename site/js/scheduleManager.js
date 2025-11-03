@@ -408,8 +408,8 @@ function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
 export function renderScheduleView(shows, container) {
     container.innerHTML = '';
     const today = new Date(2025, 10, 2); // November 2, 2025 - use fixed date for predicted schedule
-    let currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Week start for display
-    let selectedDate = new Date(currentDate); // Date for which to show content
+    let currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2); // Week start for display (2 days before today)
+    let selectedDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Date for which to show content (today)
 
     // Get current view
     let currentView = localStorage.getItem('scheduleView') || 'grid';
