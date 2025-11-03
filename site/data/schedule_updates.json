@@ -1,5 +1,9 @@
 {
   "updates": {
+    "52807": {
+      "custom_air_day": 6,
+      "custom_start_date": "10-11-25"
+    },
     "61930": 6
   }
 }

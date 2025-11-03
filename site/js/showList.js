@@ -5,107 +5,9 @@ import {
     createScheduleControls,
     setupScheduleEventListeners,
     calculateCurrentEpisode,
-    formatDate
+    formatDate,
+    renderScheduleView
 } from './scheduleManager.js';
-
-function renderScheduleContent(shows, container, selectedDate, view) {
-    container.innerHTML = '';
-    const date = new Date(selectedDate);
-    const dayShows = shows.filter(show => {
-        if (!show.start_date || !show.episodes) return false;
-        // Only include shows that are watching or plan to watch
-        const status = (show.status || '').toLowerCase();
-        if (status !== 'watching' && status !== 'plan_to_watch') return false;
-        const [month, day, year] = show.start_date.split('-').map(Number);
-        const startDate = new Date(2000 + year, month - 1, day);
-        const daysSinceStart = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
-        if (daysSinceStart < 0) return false;
-        const episode = Math.floor(daysSinceStart / 7) + 1;
-        if (episode > show.episodes) return false;
-        const airingDay = show.custom_air_day !== undefined ? show.custom_air_day : startDate.getDay();
-        return date.getDay() === airingDay;
-    });
-    if (dayShows.length === 0) {
-        container.innerHTML = '<div class="small">No shows scheduled for this date.</div>';
-        return;
-    }
-    const dateDiv = document.createElement('div');
-    dateDiv.className = 'schedule-date';
-    dateDiv.innerHTML = `<h3>${date.toDateString()}</h3>`;
-    container.appendChild(dateDiv);
-    const showsDiv = document.createElement('div');
-    showsDiv.className = `shows-${view}`;
-    dayShows.forEach(show => {
-        const div = document.createElement('div');
-        div.className = `show-item show-item-${view}`;
-        if (show.image_url) {
-            const imgContainer = document.createElement('div');
-            imgContainer.className = 'show-image';
-            const imgHtml = show.url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer"><img src="${show.image_url}" alt="${show.title}" loading="lazy"></a>` : `<img src="${show.image_url}" alt="${show.title}" loading="lazy">`;
-            imgContainer.innerHTML = imgHtml;
-            div.appendChild(imgContainer);
-        }
-        const title = show.title || show.name || 'Untitled';
-        const url = show.url || '';
-        const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
-        const [month, day, year] = show.start_date.split('-').map(Number);
-        const startDate = new Date(2000 + year, month - 1, day);
-        const episode = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000)) + 1;
-        const infoContainer = document.createElement('div');
-        infoContainer.className = 'show-info';
-        infoContainer.innerHTML = `
-            <strong class="show-title">${meta}</strong>
-            <div class="show-details">
-                ${show.episodes ? `<span class="episodes">Episode ${episode} of ${show.episodes}</span>` : ''}
-            </div>
-            <div class="show-meta small">
-                ${show.type ? `<span>${show.type}</span>` : ''}
-                <span class="air-day-edit"></span>
-            </div>
-        `;
-        div.appendChild(infoContainer);
-        // Create edit button for air day
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn small edit-air-day';
-        editBtn.title = 'Edit air day';
-        editBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
-        setupAirDayEditor(editBtn, show, selectedDate, () => renderScheduleContent(shows, container, selectedDate, view));
-        div.appendChild(editBtn);
-        showsDiv.appendChild(div);
-    });
-    container.appendChild(showsDiv);
-}
-
-function setupAirDayEditor(editBtn, show, selectedDate, onUpdate) {
-    editBtn.onclick = () => {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const currentDay = show.custom_air_day !== undefined ? show.custom_air_day : new Date(show.start_date).getDay();
-        const select = document.createElement('select');
-        select.innerHTML = days.map((day, idx) =>
-            `<option value="${idx}" ${idx === currentDay ? 'selected' : ''}>${day}</option>`
-        ).join('');
-        select.onchange = (e) => {
-            const newDay = parseInt(e.target.value);
-            show.custom_air_day = newDay;
-            // Save to schedule_updates in localStorage
-            const updates = JSON.parse(localStorage.getItem('schedule_updates') || '{"updates":{}}');
-            updates.updates[show.id] = newDay;
-            localStorage.setItem('schedule_updates', JSON.stringify(updates));
-            // Save to server
-            fetch('/save-schedule-updates', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updates)
-            }).catch(err => console.warn('Failed to save schedule updates:', err));
-            onUpdate();
-        };
-        const container = editBtn.parentElement.querySelector('.air-day-edit');
-        container.innerHTML = '';
-        container.appendChild(select);
-    };
-}
 
 export async function fetchAnimelistAll(username) {
     const logEl = document.getElementById('import-log');
@@ -137,7 +39,7 @@ export async function fetchAnimelistAll(username) {
                         status: statusName,
                         url: `https://myanimelist.net/anime/${item.anime_id}`,
                         score: item.score,
-                        episodes: item.anime_num_episodes || null,
+                        episodes: item.anime_num_episodes || 12,
                         type: item.anime_media_type_string || null,
                         image_url: item.anime_image_path || null,
                         watching_status: item.status_watching_state || null,
@@ -172,7 +74,7 @@ function normalizeEntry(entry) {
     const node = entry.anime || entry.node || entry.entry || entry;
     const title = node.title || node.name || node.title_english || node.name_en || (node.mal_id && ("#" + node.mal_id)) || 'Untitled';
     const url = node.url || node.mal_url || '';
-    const episodes = node.episodes || node.episodes_aired || node.episode_count || null;
+    const episodes = node.episodes || node.episodes_aired || node.episode_count || 12;
     const status = (entry.status || (entry.list_status && entry.list_status.status) || (entry.animelist_status && entry.animelist_status.status) || '').toString().toLowerCase();
     const score = (entry.score || (entry.list_status && entry.list_status.score) || null);
 
@@ -199,97 +101,6 @@ function normalizeEntry(entry) {
 export async function importAnimeList(username) {
     const raw = await fetchAnimelistAll(username);
     return raw.map(normalizeEntry);
-}
-
-// Schedule view handler - moved to outer scope
-function renderScheduleView(shows, container) {
-    container.innerHTML = '';
-    const today = new Date(2025, 10, 2); // November 2, 2025 - use fixed date for predicted schedule
-    let currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Week start for display
-    let selectedDate = new Date(currentDate); // Date for which to show content
-
-    // Get current view
-    let currentView = localStorage.getItem('scheduleView') || 'grid';
-
-    // Create view toggle
-    const viewToggle = createViewToggle(currentView, (newView) => {
-        localStorage.setItem('scheduleView', newView);
-        currentView = newView;
-        renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
-    });
-
-    // Create schedule controls
-    let controls = createScheduleControls(currentDate, selectedDate);
-    const scheduleContent = document.createElement('div');
-    scheduleContent.className = 'schedule-content';
-
-    // Create controls container
-    const controlsContainer = document.createElement('div');
-    controlsContainer.className = 'schedule-controls-container';
-    controlsContainer.appendChild(viewToggle);
-    controlsContainer.appendChild(controls);
-
-    container.appendChild(controlsContainer);
-    container.appendChild(scheduleContent);
-
-    // Function to update controls and content
-    const updateView = (newWeekStart, newSelectedDate) => {
-        currentDate = new Date(newWeekStart);
-        selectedDate = new Date(newSelectedDate);
-        const newControls = createScheduleControls(currentDate, selectedDate);
-        controlsContainer.replaceChild(newControls, controls);
-        controls = newControls;
-        setupScheduleEventListeners(controls, currentDate, (action, date) => {
-            if (action === 'day-select' || action === 'date-pick') {
-                // For specific date selection, adjust week start to show 2 days past
-                const adjustedStart = new Date(date);
-                adjustedStart.setDate(date.getDate() - 2);
-                updateView(adjustedStart, date);
-            } else if (action === 'prev-week') {
-                const newStart = new Date(currentDate);
-                newStart.setDate(currentDate.getDate() - 7);
-                // Keep selected date in the same relative position if possible
-                const newSelected = new Date(selectedDate);
-                newSelected.setDate(selectedDate.getDate() - 7);
-                updateView(newStart, newSelected);
-            } else if (action === 'next-week') {
-                const newStart = new Date(currentDate);
-                newStart.setDate(currentDate.getDate() + 7);
-                // Keep selected date in the same relative position if possible
-                const newSelected = new Date(selectedDate);
-                newSelected.setDate(selectedDate.getDate() + 7);
-                updateView(newStart, newSelected);
-            }
-        });
-        renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
-    };
-
-    // Setup schedule controls event listeners
-    setupScheduleEventListeners(controls, currentDate, (action, date) => {
-        if (action === 'day-select' || action === 'date-pick') {
-            // For specific date selection, adjust week start to show 2 days past
-            const adjustedStart = new Date(date);
-            adjustedStart.setDate(date.getDate() - 2);
-            updateView(adjustedStart, date);
-        } else if (action === 'prev-week') {
-            const newStart = new Date(currentDate);
-            newStart.setDate(currentDate.getDate() - 7);
-            // Keep selected date in the same relative position if possible
-            const newSelected = new Date(selectedDate);
-            newSelected.setDate(selectedDate.getDate() - 7);
-            updateView(newStart, newSelected);
-        } else if (action === 'next-week') {
-            const newStart = new Date(currentDate);
-            newStart.setDate(currentDate.getDate() + 7);
-            // Keep selected date in the same relative position if possible
-            const newSelected = new Date(selectedDate);
-            newSelected.setDate(selectedDate.getDate() + 7);
-            updateView(newStart, newSelected);
-        }
-    });
-
-    // Initial render
-    renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
 }
 
 export function renderShowList(shows, container, view = 'shows') {
