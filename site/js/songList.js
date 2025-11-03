@@ -10,20 +10,7 @@ export function renderSongList(songs, container) {
         return;
     }
 
-    // Build side-by-side player + list layout
-    const songArea = document.createElement('div');
-    songArea.className = 'song-area';
-
-    // Player column
-    const playerWrapper = document.createElement('div');
-    playerWrapper.className = 'player-column';
-    const playerContainer = document.createElement('div');
-    playerContainer.id = 'song-player';
-    playerContainer.className = 'song-item';
-    playerContainer.innerHTML = '<div class="small">Select a song to load the player.</div>';
-    playerWrapper.appendChild(playerContainer);
-
-    // List column
+    // Create list container
     const listWrapper = document.createElement('div');
     listWrapper.className = 'list-column';
 
@@ -60,9 +47,7 @@ export function renderSongList(songs, container) {
     pager.innerHTML = '<button id="prev-page" class="btn small">Prev</button> <span id="page-info" style="margin:0 8px"></span> <button id="next-page" class="btn small">Next</button>';
     listWrapper.appendChild(pager);
 
-    songArea.appendChild(playerWrapper);
-    songArea.appendChild(listWrapper);
-    container.appendChild(songArea);
+    container.appendChild(listWrapper);
 
     // Setup pagination and search
     let currentPage = 1;
@@ -98,6 +83,7 @@ export function renderSongList(songs, container) {
                 Array.from(list.querySelectorAll('.song-card')).forEach(c => c.classList.remove('active'));
                 card.classList.add('active');
 
+                const playerContainer = document.getElementById('song-player');
                 const videoId = extractYouTubeId(song.youtube || '');
                 if (videoId) {
                     createPlayer(videoId, { muted: false, index: realIdx });

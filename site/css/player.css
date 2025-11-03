@@ -38,8 +38,8 @@
 }
 
 .player-column {
-    flex: 1 1 auto;
-    min-width: 420px;
+    flex: 0 0 320px;
+    min-width: 320px;
     display: flex;
     flex-direction: column;
     max-height: calc(100vh - 220px);
@@ -47,9 +47,7 @@
 }
 
 .list-column {
-    flex: 0 0 var(--list-width);
-    width: var(--list-width);
-    max-width: var(--list-width);
+    flex: 1;
     position: relative;
     z-index: 30;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.54), rgba(0, 0, 0, 0.48));
