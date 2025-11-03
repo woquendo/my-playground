@@ -140,22 +140,22 @@ export async function importAnimeList(username) {
 
 export async function fetchEnglishTitle(showId) {
     try {
-        const proxyUrl = `/proxy-anime?id=${showId}`;
-        const res = await fetch(proxyUrl);
+        // Use Jikan API instead of proxy for static hosting compatibility
+        const apiUrl = `https://api.jikan.moe/v4/anime/${showId}`;
+        const res = await fetch(apiUrl);
         if (!res.ok) {
+            if (res.status === 429) {
+                throw new Error('Rate limited. Please try again later.');
+            }
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
         const data = await res.json();
-        const html = data.html;
 
-        // Extract English title
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        const englishTitleEl = tempDiv.querySelector('p.title-english.title-inherit');
-        if (englishTitleEl) {
-            const englishTitle = englishTitleEl.textContent.trim();
+        // Extract English title from Jikan API response
+        if (data.data && data.data.titles) {
+            const englishTitle = data.data.titles.find(title => title.type === 'English');
             if (englishTitle) {
-                return englishTitle;
+                return englishTitle.title;
             }
         }
         return null;
@@ -167,47 +167,30 @@ export async function fetchEnglishTitle(showId) {
 
 export async function fetchAnimeStats(showId) {
     try {
-        const proxyUrl = `/proxy-anime?id=${showId}`;
-        const res = await fetch(proxyUrl);
+        // Use Jikan API instead of proxy for static hosting compatibility
+        const apiUrl = `https://api.jikan.moe/v4/anime/${showId}`;
+        const res = await fetch(apiUrl);
         if (!res.ok) {
+            if (res.status === 429) {
+                throw new Error('Rate limited. Please try again later.');
+            }
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
         const data = await res.json();
-        const html = data.html;
 
-        // Parse stats from HTML
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-
+        // Extract stats from Jikan API response
         const stats = {};
 
-        // Extract score
-        const scoreEl = tempDiv.querySelector('.score-label');
-        if (scoreEl) {
-            stats.score = scoreEl.textContent.trim();
-            // Also get user count from data-user attribute
-            const scoreDiv = tempDiv.querySelector('.score');
-            if (scoreDiv && scoreDiv.dataset.user) {
-                stats.scoreUsers = scoreDiv.dataset.user;
+        if (data.data) {
+            const anime = data.data;
+            stats.score = anime.score ? anime.score.toFixed(2) : null;
+            stats.ranked = anime.rank ? `#${anime.rank}` : null;
+            stats.popularity = anime.popularity ? `#${anime.popularity}` : null;
+            stats.members = anime.members ? anime.members.toLocaleString() : null;
+            // Jikan provides scored_by for score users
+            if (anime.scored_by) {
+                stats.scoreUsers = anime.scored_by.toLocaleString();
             }
-        }
-
-        // Extract ranking
-        const rankedEl = tempDiv.querySelector('.numbers.ranked strong');
-        if (rankedEl) {
-            stats.ranked = rankedEl.textContent.trim();
-        }
-
-        // Extract popularity
-        const popularityEl = tempDiv.querySelector('.numbers.popularity strong');
-        if (popularityEl) {
-            stats.popularity = popularityEl.textContent.trim();
-        }
-
-        // Extract members
-        const membersEl = tempDiv.querySelector('.numbers.members strong');
-        if (membersEl) {
-            stats.members = membersEl.textContent.trim();
         }
 
         return stats;
