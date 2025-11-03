@@ -205,7 +205,8 @@ export async function importAnimeList(username) {
 function renderScheduleView(shows, container) {
     container.innerHTML = '';
     const today = new Date(2025, 10, 2); // November 2, 2025 - use fixed date for predicted schedule
-    const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    let currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Week start for display
+    let selectedDate = new Date(currentDate); // Date for which to show content
 
     // Get current view
     let currentView = localStorage.getItem('scheduleView') || 'grid';
@@ -214,11 +215,11 @@ function renderScheduleView(shows, container) {
     const viewToggle = createViewToggle(currentView, (newView) => {
         localStorage.setItem('scheduleView', newView);
         currentView = newView;
-        renderScheduleContent(shows, scheduleContent, currentDate, currentView);
+        renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
     });
 
     // Create schedule controls
-    let controls = createScheduleControls(currentDate);
+    let controls = createScheduleControls(currentDate, selectedDate);
     const scheduleContent = document.createElement('div');
     scheduleContent.className = 'schedule-content';
 
@@ -231,27 +232,64 @@ function renderScheduleView(shows, container) {
     container.appendChild(controlsContainer);
     container.appendChild(scheduleContent);
 
-    // Function to update controls
-    const updateControls = (newDate) => {
-        const newControls = createScheduleControls(newDate);
+    // Function to update controls and content
+    const updateView = (newWeekStart, newSelectedDate) => {
+        currentDate = new Date(newWeekStart);
+        selectedDate = new Date(newSelectedDate);
+        const newControls = createScheduleControls(currentDate, selectedDate);
         controlsContainer.replaceChild(newControls, controls);
         controls = newControls;
-        setupScheduleEventListeners(controls, newDate, (selectedDate) => {
-            currentDate.setTime(selectedDate.getTime());
-            updateControls(currentDate);
-            renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
+        setupScheduleEventListeners(controls, currentDate, (action, date) => {
+            if (action === 'day-select' || action === 'date-pick') {
+                // For specific date selection, adjust week start to show 2 days past
+                const adjustedStart = new Date(date);
+                adjustedStart.setDate(date.getDate() - 2);
+                updateView(adjustedStart, date);
+            } else if (action === 'prev-week') {
+                const newStart = new Date(currentDate);
+                newStart.setDate(currentDate.getDate() - 7);
+                // Keep selected date in the same relative position if possible
+                const newSelected = new Date(selectedDate);
+                newSelected.setDate(selectedDate.getDate() - 7);
+                updateView(newStart, newSelected);
+            } else if (action === 'next-week') {
+                const newStart = new Date(currentDate);
+                newStart.setDate(currentDate.getDate() + 7);
+                // Keep selected date in the same relative position if possible
+                const newSelected = new Date(selectedDate);
+                newSelected.setDate(selectedDate.getDate() + 7);
+                updateView(newStart, newSelected);
+            }
         });
+        renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
     };
 
     // Setup schedule controls event listeners
-    setupScheduleEventListeners(controls, currentDate, (selectedDate) => {
-        currentDate.setTime(selectedDate.getTime());
-        updateControls(currentDate);
-        renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
+    setupScheduleEventListeners(controls, currentDate, (action, date) => {
+        if (action === 'day-select' || action === 'date-pick') {
+            // For specific date selection, adjust week start to show 2 days past
+            const adjustedStart = new Date(date);
+            adjustedStart.setDate(date.getDate() - 2);
+            updateView(adjustedStart, date);
+        } else if (action === 'prev-week') {
+            const newStart = new Date(currentDate);
+            newStart.setDate(currentDate.getDate() - 7);
+            // Keep selected date in the same relative position if possible
+            const newSelected = new Date(selectedDate);
+            newSelected.setDate(selectedDate.getDate() - 7);
+            updateView(newStart, newSelected);
+        } else if (action === 'next-week') {
+            const newStart = new Date(currentDate);
+            newStart.setDate(currentDate.getDate() + 7);
+            // Keep selected date in the same relative position if possible
+            const newSelected = new Date(selectedDate);
+            newSelected.setDate(selectedDate.getDate() + 7);
+            updateView(newStart, newSelected);
+        }
     });
 
     // Initial render
-    renderScheduleContent(shows, scheduleContent, currentDate, currentView);
+    renderScheduleContent(shows, scheduleContent, selectedDate, currentView);
 }
 
 export function renderShowList(shows, container, view = 'shows') {

@@ -14,7 +14,7 @@ export function calculateCurrentEpisode(show, selectedDate) {
     return weeksDiff + 1;
 }
 
-export function createScheduleControls(currentDate, onDateChange) {
+export function createScheduleControls(currentDate, selectedDate = null) {
     const controls = document.createElement('div');
     controls.className = 'schedule-controls';
 
@@ -29,12 +29,12 @@ export function createScheduleControls(currentDate, onDateChange) {
     controls.innerHTML = `
         <div class="date-nav">
             <button class="btn small" id="prev-week">&laquo; Previous Week</button>
-            <input type="date" id="date-picker" value="${currentDate.toISOString().split('T')[0]}">
+            <input type="date" id="date-picker" value="${selectedDate ? selectedDate.toISOString().split('T')[0] : currentDate.toISOString().split('T')[0]}">
             <button class="btn small" id="next-week">Next Week &raquo;</button>
         </div>
         <div class="week-buttons">
             ${weekDays.map(date => `
-                <button class="btn small date-btn${date.getTime() === currentDate.getTime() ? ' active' : ''}" 
+                <button class="btn small date-btn${selectedDate && date.getTime() === selectedDate.getTime() ? ' active' : ''}" 
                         data-date="${date.toISOString()}">
                     ${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.getDate()}
                 </button>
@@ -45,21 +45,22 @@ export function createScheduleControls(currentDate, onDateChange) {
     return controls;
 }
 
-export function setupScheduleEventListeners(controls, currentDate, onDateChange) {
+export function setupScheduleEventListeners(controls, currentDate, onAction) {
     controls.querySelector('#prev-week').onclick = () => {
-        currentDate.setDate(currentDate.getDate() - 7);
-        onDateChange(currentDate);
+        const newDate = new Date(currentDate);
+        newDate.setDate(currentDate.getDate() - 7);
+        onAction('prev-week', newDate);
     };
 
     controls.querySelector('#next-week').onclick = () => {
-        currentDate.setDate(currentDate.getDate() + 7);
-        onDateChange(currentDate);
+        const newDate = new Date(currentDate);
+        newDate.setDate(currentDate.getDate() + 7);
+        onAction('next-week', newDate);
     };
 
     controls.querySelector('#date-picker').onchange = (e) => {
         const newDate = new Date(e.target.value);
-        currentDate.setTime(newDate.getTime());
-        onDateChange(currentDate);
+        onAction('date-pick', newDate);
     };
 
     controls.querySelector('.week-buttons').onclick = (e) => {
@@ -70,7 +71,7 @@ export function setupScheduleEventListeners(controls, currentDate, onDateChange)
         btn.classList.add('active');
 
         const selectedDate = new Date(btn.dataset.date);
-        onDateChange(selectedDate);
+        onAction('day-select', selectedDate);
     };
 }
 
