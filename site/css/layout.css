@@ -670,3 +670,61 @@ body {
 .alert-dialog .btn:hover {
     background: #2563eb;
 }
+
+/* Stats tooltip */
+.stats-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    pointer-events: none;
+    max-width: 250px;
+    font-size: 13px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.stats-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.stats-tooltip .stats-title {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.stats-tooltip .stats-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    color: #fff;
+}
+
+.stats-tooltip .stats-item:last-child {
+    margin-bottom: 0;
+}
+
+.stats-tooltip .stats-label {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.stats-tooltip .stats-value {
+    font-weight: 600;
+    color: #fff;
+}
+
+.stats-tooltip .stats-loading {
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+    padding: 8px 0;
+}

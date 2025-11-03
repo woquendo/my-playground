@@ -165,7 +165,57 @@ export async function fetchEnglishTitle(showId) {
     }
 }
 
-// Custom alert dialog function
+export async function fetchAnimeStats(showId) {
+    try {
+        const proxyUrl = `/proxy-anime?id=${showId}`;
+        const res = await fetch(proxyUrl);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        const data = await res.json();
+        const html = data.html;
+
+        // Parse stats from HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+
+        const stats = {};
+
+        // Extract score
+        const scoreEl = tempDiv.querySelector('.score-label');
+        if (scoreEl) {
+            stats.score = scoreEl.textContent.trim();
+            // Also get user count from data-user attribute
+            const scoreDiv = tempDiv.querySelector('.score');
+            if (scoreDiv && scoreDiv.dataset.user) {
+                stats.scoreUsers = scoreDiv.dataset.user;
+            }
+        }
+
+        // Extract ranking
+        const rankedEl = tempDiv.querySelector('.numbers.ranked strong');
+        if (rankedEl) {
+            stats.ranked = rankedEl.textContent.trim();
+        }
+
+        // Extract popularity
+        const popularityEl = tempDiv.querySelector('.numbers.popularity strong');
+        if (popularityEl) {
+            stats.popularity = popularityEl.textContent.trim();
+        }
+
+        // Extract members
+        const membersEl = tempDiv.querySelector('.numbers.members strong');
+        if (membersEl) {
+            stats.members = membersEl.textContent.trim();
+        }
+
+        return stats;
+    } catch (e) {
+        console.error(`Error fetching stats for ${showId}:`, e);
+        return null;
+    }
+}// Custom alert dialog function
 function showCustomAlert(message) {
     // Remove any existing alert
     const existingAlert = document.querySelector('.alert-dialog-overlay');
@@ -221,6 +271,142 @@ function showCustomAlert(message) {
 
     // Focus the button
     okBtn.focus();
+}
+
+// Stats tooltip system
+let currentTooltip = null;
+let tooltipTimeout = null;
+let statsCache = new Map(); // Cache stats for 24 hours
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+function createStatsTooltip(show, event) {
+    // Remove existing tooltip
+    if (currentTooltip) {
+        currentTooltip.remove();
+        currentTooltip = null;
+    }
+
+    // Create tooltip
+    const tooltip = document.createElement('div');
+    tooltip.className = 'stats-tooltip';
+
+    // Position tooltip near mouse cursor
+    const rect = event.target.getBoundingClientRect();
+    tooltip.style.left = `${event.clientX + 10}px`;
+    tooltip.style.top = `${event.clientY - 10}px`;
+
+    // Add loading state
+    tooltip.innerHTML = `
+        <div class="stats-title">${show.title || 'Loading...'}</div>
+        <div class="stats-loading">Loading stats...</div>
+    `;
+
+    document.body.appendChild(tooltip);
+    currentTooltip = tooltip;
+
+    // Make visible
+    setTimeout(() => tooltip.classList.add('visible'), 10);
+
+    return tooltip;
+}
+
+function updateTooltipWithStats(tooltip, stats, show) {
+    if (!stats) {
+        tooltip.innerHTML = `
+            <div class="stats-title">${show.title || 'Unknown'}</div>
+            <div class="stats-loading">Failed to load stats</div>
+        `;
+        return;
+    }
+
+    const title = show.title_english || show.title || 'Unknown';
+
+    tooltip.innerHTML = `
+        <div class="stats-title">${title}</div>
+        ${stats.score ? `<div class="stats-item"><span class="stats-label">Score:</span> <span class="stats-value">${stats.score}${stats.scoreUsers ? ` (${stats.scoreUsers})` : ''}</span></div>` : ''}
+        ${stats.ranked ? `<div class="stats-item"><span class="stats-label">Ranked:</span> <span class="stats-value">${stats.ranked}</span></div>` : ''}
+        ${stats.popularity ? `<div class="stats-item"><span class="stats-label">Popularity:</span> <span class="stats-value">${stats.popularity}</span></div>` : ''}
+        ${stats.members ? `<div class="stats-item"><span class="stats-label">Members:</span> <span class="stats-value">${stats.members}</span></div>` : ''}
+    `;
+}
+
+function hideStatsTooltip() {
+    if (currentTooltip) {
+        currentTooltip.classList.remove('visible');
+        setTimeout(() => {
+            if (currentTooltip) {
+                currentTooltip.remove();
+                currentTooltip = null;
+            }
+        }, 200);
+    }
+}
+
+function setupStatsHover(showItem, show) {
+    if (!show.id) return; // Only for shows with MAL IDs
+
+    let hoverTimeout = null;
+
+    showItem.addEventListener('mouseenter', (e) => {
+        // Clear any existing timeout
+        if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = null;
+        }
+
+        // Delay showing tooltip to avoid flickering
+        hoverTimeout = setTimeout(async () => {
+            const tooltip = createStatsTooltip(show, e);
+
+            // Check cache first
+            const cacheKey = `stats_${show.id}`;
+            const cached = statsCache.get(cacheKey);
+
+            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+                // Use cached data
+                updateTooltipWithStats(tooltip, cached.data, show);
+            } else {
+                // Fetch fresh data
+                try {
+                    const stats = await fetchAnimeStats(show.id);
+                    if (stats) {
+                        // Cache the result
+                        statsCache.set(cacheKey, {
+                            data: stats,
+                            timestamp: Date.now()
+                        });
+                        updateTooltipWithStats(tooltip, stats, show);
+                    } else {
+                        updateTooltipWithStats(tooltip, null, show);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch stats:', error);
+                    updateTooltipWithStats(tooltip, null, show);
+                }
+            }
+        }, 500); // 500ms delay before showing tooltip
+    });
+
+    showItem.addEventListener('mouseleave', () => {
+        if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+            hoverTimeout = null;
+        }
+
+        // Delay hiding tooltip to allow moving to tooltip
+        tooltipTimeout = setTimeout(() => {
+            hideStatsTooltip();
+        }, 300);
+    });
+
+    // Keep tooltip visible when hovering over it
+    showItem.addEventListener('mousemove', (e) => {
+        if (currentTooltip) {
+            // Update tooltip position to follow mouse
+            currentTooltip.style.left = `${e.clientX + 10}px`;
+            currentTooltip.style.top = `${e.clientY - 10}px`;
+        }
+    });
 }
 
 export function renderShowList(shows, container, view = 'shows', titles = {}, onTitleFetched = null) {
@@ -310,7 +496,14 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
             itemsPerPage = currentView === 'grid' ? (window.innerWidth >= 1920 ? 18 : 12) : 20;
             let filteredShows = (groups[currentStatus] || []).filter(item => {
                 if (!searchQuery) return true;
-                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
+                const query = searchQuery.toLowerCase();
+                // Search across all available titles: stored English, imported English, and original title
+                const storedTitle = titles[item.id];
+                const importedTitle = item.title_english;
+                const originalTitle = item.title || item.name || '';
+                return storedTitle?.toLowerCase().includes(query) ||
+                    importedTitle?.toLowerCase().includes(query) ||
+                    originalTitle.toLowerCase().includes(query);
             });
 
             // Reset current page if we're beyond the last page
@@ -347,8 +540,10 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
                 const div = document.createElement('div');
                 div.className = `show-item show-item-${currentView}`;
 
+                let gridContent, listContent;
+
                 if (currentView === 'grid') {
-                    const gridContent = document.createElement('div');
+                    gridContent = document.createElement('div');
                     gridContent.className = 'grid-content';
 
                     if (item.image_url) {
@@ -413,9 +608,8 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
                         });
                     }
 
-                    div.appendChild(gridContent);
                 } else {
-                    const listContent = document.createElement('div');
+                    listContent = document.createElement('div');
                     listContent.className = 'list-content';
 
                     if (item.image_url) {
@@ -477,15 +671,20 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
                             fetchBtn.style.display = 'none';
                         });
                     }
+                }
 
+                if (currentView === 'grid') {
+                    div.appendChild(gridContent);
+                } else {
                     div.appendChild(listContent);
                 }
+
+                // Setup stats hover for all show items
+                setupStatsHover(div, item);
 
                 showsContainer.appendChild(div);
             });
         }
-
-        // Event listeners
         statusTabs.addEventListener('click', (e) => {
             if (e.target.classList.contains('status-btn')) {
                 statusTabs.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
@@ -518,7 +717,14 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
             // Get currently filtered shows
             let filteredShows = (groups[currentStatus] || []).filter(item => {
                 if (!searchQuery) return true;
-                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
+                const query = searchQuery.toLowerCase();
+                // Search across all available titles: stored English, imported English, and original title
+                const storedTitle = titles[item.id];
+                const importedTitle = item.title_english;
+                const originalTitle = item.title || item.name || '';
+                return storedTitle?.toLowerCase().includes(query) ||
+                    importedTitle?.toLowerCase().includes(query) ||
+                    originalTitle.toLowerCase().includes(query);
             });
 
             // Filter to shows that don't have English titles yet (neither stored nor from import)
