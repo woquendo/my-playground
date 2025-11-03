@@ -149,8 +149,9 @@ export function renderSchedule(shows, container, selectedDate, currentView, item
         content.className = 'show-content';
         // Use custom episodes if available, otherwise use original episodes (default to 12 if null)
         const totalEpisodes = show.custom_episodes !== undefined ? show.custom_episodes : (show.episodes || 12);
+        const displayTitle = show.title_english || show.title || 'Untitled';
         content.innerHTML = `
-            <strong>${show.url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer">${show.title}</a>` : show.title}</strong>
+            <strong>${show.url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer">${displayTitle}</a>` : displayTitle}</strong>
             <div class="small metadata-row">
                 Episode ${episode}${totalEpisodes ? ` of ${totalEpisodes}` : ''} • 
                 <span class="air-day-edit">${formatDate(selectedDate)}</span>
@@ -238,7 +239,7 @@ export function renderScheduleContent(shows, container, selectedDate, view) {
             imgContainer.innerHTML = imgHtml;
             div.appendChild(imgContainer);
         }
-        const title = show.title || show.name || 'Untitled';
+        const title = show.title_english || show.title || show.name || 'Untitled';
         const url = show.url || '';
         const meta = url ? `<a href="${show.url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
 

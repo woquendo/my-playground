@@ -8,6 +8,7 @@ import {
     formatDate,
     renderScheduleView
 } from './scheduleManager.js';
+import { saveTitlesToServer } from './dataManager.js';
 
 export async function fetchAnimelistAll(username) {
     const logEl = document.getElementById('import-log');
@@ -34,25 +35,57 @@ export async function fetchAnimelistAll(username) {
                 const jsonStr = decodeURIComponent(match[1].replace(/&quot;/g, '"'));
                 try {
                     const items = JSON.parse(jsonStr);
-                    const parsed = items.map(item => ({
-                        title: item.anime_title,
-                        status: statusName,
-                        url: `https://myanimelist.net/anime/${item.anime_id}`,
-                        score: item.score,
-                        episodes: item.anime_num_episodes || 12,
-                        type: item.anime_media_type_string || null,
-                        image_url: item.anime_image_path || null,
-                        watching_status: item.status_watching_state || null,
-                        id: item.anime_id || null,
-                        start_date: item.anime_start_date_string || null,
-                        end_date: item.anime_end_date_string || null,
-                        studios: item.anime_studios || null,
-                        licensors: item.anime_licensors || null,
-                        rating: item.anime_mpaa_rating_string || null,
-                        airing_status: item.anime_airing_status || null,
-                        season: item.anime_season || null,
-                        season_year: item.anime_season_year || null
-                    }));
+                    const parsed = items.map(item => {
+                        // Extract English title from HTML
+                        let englishTitle = null;
+                        try {
+                            // Create a temporary DOM element to parse the HTML
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = html;
+
+                            // Find the title link for this anime by href containing the anime id
+                            const allLinks = tempDiv.querySelectorAll('a[href*="/anime/"]');
+                            console.log(`Found ${allLinks.length} anime links for anime ${item.anime_id}`);
+                            for (const link of allLinks) {
+                                const href = link.getAttribute('href') || link.href;
+                                console.log(`Checking link: ${href}, text: "${link.textContent.trim()}"`);
+                                if (href && href.includes(`/anime/${item.anime_id}`)) {
+                                    englishTitle = link.textContent.trim();
+                                    console.log(`Found English title for ${item.anime_id}: "${englishTitle}"`);
+                                    break;
+                                }
+                            }
+
+                            if (!englishTitle) {
+                                console.warn(`Could not find title link for anime ${item.anime_id} (${item.anime_title})`);
+                            }
+                        } catch (e) {
+                            // If HTML parsing fails, fall back to API title
+                            console.warn('Failed to parse English title from HTML:', e);
+                        }
+
+                        return {
+                            title: englishTitle || item.anime_title, // Use English title if available, otherwise Japanese
+                            title_english: englishTitle,
+                            title_japanese: item.anime_title,
+                            status: statusName,
+                            url: `https://myanimelist.net/anime/${item.anime_id}`,
+                            score: item.score,
+                            episodes: item.anime_num_episodes || 12,
+                            type: item.anime_media_type_string || null,
+                            image_url: item.anime_image_path || null,
+                            watching_status: item.status_watching_state || null,
+                            id: item.anime_id || null,
+                            start_date: item.anime_start_date_string || null,
+                            end_date: item.anime_end_date_string || null,
+                            studios: item.anime_studios || null,
+                            licensors: item.anime_licensors || null,
+                            rating: item.anime_mpaa_rating_string || null,
+                            airing_status: item.anime_airing_status || null,
+                            season: item.anime_season || null,
+                            season_year: item.anime_season_year || null
+                        };
+                    });
                     combined = combined.concat(parsed);
                     logs.push(`  -> Found ${parsed.length} items`);
                 } catch (e) {
@@ -73,6 +106,8 @@ export async function fetchAnimelistAll(username) {
 function normalizeEntry(entry) {
     const node = entry.anime || entry.node || entry.entry || entry;
     const title = node.title || node.name || node.title_english || node.name_en || (node.mal_id && ("#" + node.mal_id)) || 'Untitled';
+    const title_english = node.title_english || entry.title_english || null;
+    const title_japanese = node.title_japanese || entry.title_japanese || node.title || null;
     const url = node.url || node.mal_url || '';
     const episodes = node.episodes || node.episodes_aired || node.episode_count || 12;
     const status = (entry.status || (entry.list_status && entry.list_status.status) || (entry.animelist_status && entry.animelist_status.status) || '').toString().toLowerCase();
@@ -80,7 +115,7 @@ function normalizeEntry(entry) {
 
     // Preserve all additional metadata if present
     const metadata = {
-        title, url, episodes, score, status,
+        title, title_english, title_japanese, url, episodes, score, status,
         type: node.type || entry.type || null,
         image_url: node.image_url || entry.image_url || null,
         watching_status: node.watching_status || entry.watching_status || null,
@@ -99,11 +134,96 @@ function normalizeEntry(entry) {
 }
 
 export async function importAnimeList(username) {
-    const raw = await fetchAnimelistAll(username);
-    return raw.map(normalizeEntry);
+    const combined = await fetchAnimelistAll(username);
+    return combined.map(normalizeEntry);
 }
 
-export function renderShowList(shows, container, view = 'shows') {
+export async function fetchEnglishTitle(showId) {
+    try {
+        const proxyUrl = `/proxy-anime?id=${showId}`;
+        const res = await fetch(proxyUrl);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        const data = await res.json();
+        const html = data.html;
+
+        // Extract English title
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const englishTitleEl = tempDiv.querySelector('p.title-english.title-inherit');
+        if (englishTitleEl) {
+            const englishTitle = englishTitleEl.textContent.trim();
+            if (englishTitle) {
+                return englishTitle;
+            }
+        }
+        return null;
+    } catch (e) {
+        console.error(`Error fetching English title for ${showId}:`, e);
+        return null;
+    }
+}
+
+// Custom alert dialog function
+function showCustomAlert(message) {
+    // Remove any existing alert
+    const existingAlert = document.querySelector('.alert-dialog-overlay');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'alert-dialog-overlay';
+
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'alert-dialog';
+
+    // Create message
+    const messageEl = document.createElement('p');
+    messageEl.textContent = message;
+
+    // Create OK button
+    const okBtn = document.createElement('button');
+    okBtn.className = 'btn';
+    okBtn.textContent = 'OK';
+    okBtn.addEventListener('click', () => {
+        overlay.remove();
+        document.removeEventListener('keydown', handleKeyDown);
+    });
+
+    // Assemble dialog
+    dialog.appendChild(messageEl);
+    dialog.appendChild(okBtn);
+    overlay.appendChild(dialog);
+
+    // Add click outside to close
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    });
+
+    // Add ESC key to close
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Add to body
+    document.body.appendChild(overlay);
+
+    // Focus the button
+    okBtn.focus();
+}
+
+export function renderShowList(shows, container, view = 'shows', titles = {}, onTitleFetched = null) {
     if (!container) return;
 
     container.innerHTML = '';
@@ -163,10 +283,18 @@ export function renderShowList(shows, container, view = 'shows') {
             <input type="text" id="show-search" class="search-input" placeholder="Search shows...">
         `;
 
+        // Fetch all titles button
+        const fetchAllBtn = document.createElement('button');
+        fetchAllBtn.className = 'btn small';
+        fetchAllBtn.id = 'fetch-all-titles-btn';
+        fetchAllBtn.textContent = 'Fetch All English Titles';
+        fetchAllBtn.title = 'Fetch English titles for all shows in current filter';
+
         // Add controls to container
         controlsContainer.appendChild(viewToggle);
         controlsContainer.appendChild(statusTabs);
         controlsContainer.appendChild(searchContainer);
+        controlsContainer.appendChild(fetchAllBtn);
         container.appendChild(controlsContainer);
 
         // Create shows container
@@ -231,7 +359,7 @@ export function renderShowList(shows, container, view = 'shows') {
                         gridContent.appendChild(imgContainer);
                     }
 
-                    const title = item.title || item.name || 'Untitled';
+                    const title = titles[item.id] || item.title_english || item.title || item.name || 'Untitled';
                     const url = item.url || '';
                     const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
 
@@ -250,6 +378,41 @@ export function renderShowList(shows, container, view = 'shows') {
                         </div>
                     `;
                     gridContent.appendChild(infoContainer);
+
+                    // Add fetch title button if no title in titles.json and no title_english from import
+                    if (!titles[item.id] && !item.title_english && item.id && onTitleFetched) {
+                        const fetchBtn = document.createElement('button');
+                        fetchBtn.className = 'fetch-title-btn';
+                        fetchBtn.innerHTML = '🔍';
+                        fetchBtn.title = 'Fetch English title';
+                        fetchBtn.style.display = 'none';
+                        fetchBtn.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            fetchBtn.disabled = true;
+                            fetchBtn.textContent = '⏳';
+                            const englishTitle = await fetchEnglishTitle(item.id);
+                            if (englishTitle) {
+                                titles[item.id] = englishTitle;
+                                await saveTitlesToServer(titles);
+                                onTitleFetched(titles);
+                            } else {
+                                showCustomAlert('Could not find English title for this show.');
+                            }
+                            fetchBtn.disabled = false;
+                            fetchBtn.innerHTML = '🔍';
+                        });
+                        gridContent.appendChild(fetchBtn);
+
+                        // Show on hover
+                        div.addEventListener('mouseenter', () => {
+                            fetchBtn.style.display = 'block';
+                        });
+                        div.addEventListener('mouseleave', () => {
+                            fetchBtn.style.display = 'none';
+                        });
+                    }
+
                     div.appendChild(gridContent);
                 } else {
                     const listContent = document.createElement('div');
@@ -262,7 +425,7 @@ export function renderShowList(shows, container, view = 'shows') {
                         listContent.appendChild(imgContainer);
                     }
 
-                    const title = item.title || item.name || 'Untitled';
+                    const title = titles[item.id] || item.title_english || item.title || item.name || 'Untitled';
                     const url = item.url || '';
                     const meta = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
 
@@ -280,6 +443,41 @@ export function renderShowList(shows, container, view = 'shows') {
                         <div class="show-meta small">${metadataArr.join(' • ')}</div>
                     `;
                     listContent.appendChild(infoContainer);
+
+                    // Add fetch title button if no title in titles.json and no title_english from import
+                    if (!titles[item.id] && !item.title_english && item.id && onTitleFetched) {
+                        const fetchBtn = document.createElement('button');
+                        fetchBtn.className = 'fetch-title-btn';
+                        fetchBtn.innerHTML = '🔍';
+                        fetchBtn.title = 'Fetch English title';
+                        fetchBtn.style.display = 'none';
+                        fetchBtn.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            fetchBtn.disabled = true;
+                            fetchBtn.textContent = '⏳';
+                            const englishTitle = await fetchEnglishTitle(item.id);
+                            if (englishTitle) {
+                                titles[item.id] = englishTitle;
+                                await saveTitlesToServer(titles);
+                                onTitleFetched(titles);
+                            } else {
+                                showCustomAlert('Could not find English title for this show.');
+                            }
+                            fetchBtn.disabled = false;
+                            fetchBtn.innerHTML = '🔍';
+                        });
+                        listContent.appendChild(fetchBtn);
+
+                        // Show on hover
+                        div.addEventListener('mouseenter', () => {
+                            fetchBtn.style.display = 'block';
+                        });
+                        div.addEventListener('mouseleave', () => {
+                            fetchBtn.style.display = 'none';
+                        });
+                    }
+
                     div.appendChild(listContent);
                 }
 
@@ -313,6 +511,82 @@ export function renderShowList(shows, container, view = 'shows') {
         searchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value;
             renderFilteredShows();
+        });
+
+        // Fetch all titles functionality
+        fetchAllBtn.addEventListener('click', async () => {
+            // Get currently filtered shows
+            let filteredShows = (groups[currentStatus] || []).filter(item => {
+                if (!searchQuery) return true;
+                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
+            });
+
+            // Filter to shows that don't have English titles yet (neither stored nor from import)
+            const showsToFetch = filteredShows.filter(item =>
+                !titles[item.id] && !item.title_english && item.id
+            );
+
+            if (showsToFetch.length === 0) {
+                showCustomAlert('All shows in the current filter already have English titles (either stored or imported).');
+                return;
+            }
+
+            // Confirm with user
+            const confirmed = confirm(`Fetch English titles for ${showsToFetch.length} shows? This may take a while.`);
+            if (!confirmed) return;
+
+            // Disable button and show progress
+            fetchAllBtn.disabled = true;
+            fetchAllBtn.textContent = `Fetching... (0/${showsToFetch.length})`;
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Fetch titles one by one with small delay to avoid overwhelming the server
+            for (let i = 0; i < showsToFetch.length; i++) {
+                const show = showsToFetch[i];
+                fetchAllBtn.textContent = `Fetching... (${i + 1}/${showsToFetch.length})`;
+
+                try {
+                    const englishTitle = await fetchEnglishTitle(show.id);
+                    if (englishTitle) {
+                        titles[show.id] = englishTitle;
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch title for ${show.title}:`, e);
+                    errorCount++;
+                }
+
+                // Small delay between requests
+                if (i < showsToFetch.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+
+            // Save titles to server
+            try {
+                await saveTitlesToServer(titles);
+                if (onTitleFetched) {
+                    onTitleFetched(titles);
+                }
+            } catch (e) {
+                console.error('Failed to save titles:', e);
+                showCustomAlert('Titles were fetched but failed to save to server.');
+                fetchAllBtn.disabled = false;
+                fetchAllBtn.textContent = 'Fetch All English Titles';
+                return;
+            }
+
+            // Show results
+            const message = `Fetched ${successCount} English titles successfully.${errorCount > 0 ? ` ${errorCount} shows had no English title available.` : ''}`;
+            showCustomAlert(message);
+
+            // Re-enable button
+            fetchAllBtn.disabled = false;
+            fetchAllBtn.textContent = 'Fetch All English Titles';
         });
 
         // Navigation buttons

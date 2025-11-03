@@ -13,34 +13,63 @@ class MALProxyHandler(SimpleHTTPRequestHandler):
         
         # Handle proxy requests
         try:
-            # Parse the username and status from the query
-            params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            username = params.get('username', [''])[0]
-            status = params.get('status', ['1'])[0]
-            
-            if not username:
-                self.send_error(400, "Missing username parameter")
-                return
-            
-            # Fetch the MAL page
-            url = f"https://myanimelist.net/animelist/{urllib.parse.quote(username)}?status={status}"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-            req = urllib.request.Request(url, headers=headers)
-            
-            with urllib.request.urlopen(req) as response:
-                html = response.read().decode('utf-8')
+            if self.path.startswith('/proxy-anime'):
+                # Parse the anime id from the query
+                params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                anime_id = params.get('id', [''])[0]
                 
-                # Send response headers
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
+                if not anime_id:
+                    self.send_error(400, "Missing anime id parameter")
+                    return
                 
-                # Return the HTML content
-                self.wfile.write(json.dumps({'html': html}).encode())
+                # Fetch the MAL anime page
+                url = f"https://myanimelist.net/anime/{anime_id}"
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                req = urllib.request.Request(url, headers=headers)
                 
+                with urllib.request.urlopen(req) as response:
+                    html = response.read().decode('utf-8')
+                    
+                    # Send response headers
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    
+                    # Return the HTML content
+                    self.wfile.write(json.dumps({'html': html}).encode())
+                    
+            elif self.path.startswith('/proxy'):
+                # Parse the username and status from the query
+                params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                username = params.get('username', [''])[0]
+                status = params.get('status', ['1'])[0]
+                
+                if not username:
+                    self.send_error(400, "Missing username parameter")
+                    return
+                
+                # Fetch the MAL page
+                url = f"https://myanimelist.net/animelist/{urllib.parse.quote(username)}?status={status}"
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                req = urllib.request.Request(url, headers=headers)
+                
+                with urllib.request.urlopen(req) as response:
+                    html = response.read().decode('utf-8')
+                    
+                    # Send response headers
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    
+                    # Return the HTML content
+                    self.wfile.write(json.dumps({'html': html}).encode())
+                    
         except URLError as e:
             self.send_error(500, f"Error fetching MAL page: {str(e)}")
         except Exception as e:
@@ -90,6 +119,27 @@ class MALProxyHandler(SimpleHTTPRequestHandler):
                 
             except Exception as e:
                 self.send_error(500, f"Error saving schedule updates: {str(e)}")
+        elif self.path == '/save-titles':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                titles_data = json.loads(post_data.decode('utf-8'))
+                
+                # Save to titles.json
+                titles_file = os.path.join(os.path.dirname(__file__), 'data', 'titles.json')
+                with open(titles_file, 'w', encoding='utf-8') as f:
+                    json.dump(titles_data, f, indent=2)
+                
+                # Send success response
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'POST')
+                self.end_headers()
+                self.wfile.write(json.dumps({'success': True}).encode())
+                
+            except Exception as e:
+                self.send_error(500, f"Error saving titles: {str(e)}")
         else:
             self.send_error(404, "Not found")
 

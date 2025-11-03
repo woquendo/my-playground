@@ -37,10 +37,11 @@ export async function fetchLocalOrRemote(onDataUpdate) {
 
     try {
         // Fetch fresh data from server
-        const [showsRes, songsRes, updatesRes] = await Promise.all([
+        const [showsRes, songsRes, updatesRes, titlesRes] = await Promise.all([
             fetch('./data/shows.json?t=' + Date.now()),
             fetch('./data/songs.json?t=' + Date.now()),
-            fetch('./data/schedule_updates.json?t=' + Date.now()).catch(() => ({ ok: false }))
+            fetch('./data/schedule_updates.json?t=' + Date.now()).catch(() => ({ ok: false })),
+            fetch('./data/titles.json?t=' + Date.now()).catch(() => ({ ok: false }))
         ]);
 
         if (!showsRes.ok || !songsRes.ok) {
@@ -56,12 +57,14 @@ export async function fetchLocalOrRemote(onDataUpdate) {
             songsRes.json()
         ]);
         const updatesData = updatesRes.ok ? await updatesRes.json() : { updates: {} };
-        console.log('Loaded data:', { shows: showsData, songs: songsData, updates: updatesData });
+        const titlesData = titlesRes.ok ? await titlesRes.json() : {};
+        console.log('Loaded data:', { shows: showsData, songs: songsData, updates: updatesData, titles: titlesData });
 
         // Ensure we have the correct data structure
         const packaged = {
             shows: showsData && showsData.shows ? showsData.shows : (Array.isArray(showsData) ? showsData : []),
-            songs: songsData && songsData.songs ? songsData.songs : (Array.isArray(songsData) ? songsData : [])
+            songs: songsData && songsData.songs ? songsData.songs : (Array.isArray(songsData) ? songsData : []),
+            titles: titlesData
         };
 
         // Apply schedule updates from file
@@ -100,17 +103,17 @@ export async function fetchLocalOrRemote(onDataUpdate) {
     }
 }
 
-export async function saveShowsToServer(shows) {
-    const res = await fetch('/save-shows', {
+export async function saveTitlesToServer(titles) {
+    const res = await fetch('/save-titles', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(shows)
+        body: JSON.stringify(titles)
     });
 
     if (!res.ok) {
-        throw new Error('Failed to save shows to file');
+        throw new Error('Failed to save titles to file');
     }
 
     return res.json();

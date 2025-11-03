@@ -25,7 +25,10 @@ function renderPage(pageName, data) {
         const showsEl = document.getElementById('shows');
         const shows = data.shows || [];
         console.log('Rendering shows:', shows.length);
-        renderShowList(shows, showsEl, 'shows');
+        renderShowList(shows, showsEl, 'shows', data.titles || {}, (updatedTitles) => {
+            loadedData.titles = updatedTitles;
+            renderPage('shows', loadedData);
+        });
     }
     else if (pageName === 'songs') {
         const songsEl = document.getElementById('songs');
@@ -38,7 +41,10 @@ function renderPage(pageName, data) {
         const showsEl = document.getElementById('schedule-container');
         const shows = data.shows || [];
         console.log('Rendering schedule:', shows.length);
-        renderShowList(shows, showsEl, 'schedule');
+        renderShowList(shows, showsEl, 'schedule', data.titles || {}, (updatedTitles) => {
+            loadedData.titles = updatedTitles;
+            renderPage('schedule', loadedData);
+        });
     }
 }
 
@@ -149,9 +155,7 @@ async function initializeApp() {
         } finally {
             document.getElementById('import-btn').textContent = 'Import anime list';
         }
-    });
-
-    document.getElementById('download-btn').addEventListener('click', () => {
+    }); document.getElementById('download-btn').addEventListener('click', () => {
         const data = initialData || loadLocalData() || fallbackData;
         downloadJSON(data);
     });
@@ -166,9 +170,10 @@ async function initializeApp() {
             document.getElementById('reload-packaged').textContent = 'Reloading...';
 
             // Fetch both files separately
-            const [showsRes, songsRes] = await Promise.all([
+            const [showsRes, songsRes, titlesRes] = await Promise.all([
                 fetch('./data/shows.json?t=' + Date.now()),
-                fetch('./data/songs.json?t=' + Date.now())
+                fetch('./data/songs.json?t=' + Date.now()),
+                fetch('./data/titles.json?t=' + Date.now())
             ]);
 
             if (!showsRes.ok || !songsRes.ok) {
@@ -179,10 +184,12 @@ async function initializeApp() {
                 showsRes.json(),
                 songsRes.json()
             ]);
+            const titles = titlesRes.ok ? await titlesRes.json() : {};
 
             const json = {
                 shows: shows.shows || shows,
-                songs: songs.songs || songs
+                songs: songs.songs || songs,
+                titles: titles
             };
 
             saveLocalData(json);

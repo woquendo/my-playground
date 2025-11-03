@@ -10,7 +10,8 @@ export const fallbackData = {
     songs: [
         { title: "Morning Light", artist: "The Skylines", youtube: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
         { title: "Midnight Run", artist: "The Skylines", youtube: "https://www.youtube.com/watch?v=kXYiU_JCYtU" }
-    ]
+    ],
+    titles: {}
 };
 
 export const statusMap = {
@@ -18,5 +19,5 @@ export const statusMap = {
     '2': 'completed',
     '3': 'on_hold',
     '4': 'dropped',
-    '5': 'plan_to_watch'
+    '6': 'plan_to_watch'
 };
