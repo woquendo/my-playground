@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music & Anime Hub - Data Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #555;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-watching {
+            color: #28a745;
+        }
+
+        .status-completed {
+            color: #6c757d;
+        }
+
+        .status-plan_to_watch {
+            color: #007bff;
+        }
+
+        .status-on_hold {
+            color: #ffc107;
+        }
+
+        .status-dropped {
+            color: #dc3545;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .summary {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .summary-item {
+            display: inline-block;
+            margin-right: 20px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Music & Anime Hub - Data Viewer</h1>
+        <p>This page displays the raw data from the Music & Anime Hub project. View the source code on <a
+                href="https://github.com/woquendo/my-playground" target="_blank">GitHub</a>.</p>
+
+        <div id="loading" class="loading">Loading data...</div>
+
+        <div id="content" style="display: none;">
+            <div class="section">
+                <h2>Anime Shows</h2>
+                <div class="summary" id="shows-summary"></div>
+                <table id="shows-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Episodes</th>
+                            <th>Score</th>
+                            <th>Type</th>
+                            <th>Start Date</th>
+                            <th>ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shows-body"></tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>Songs</h2>
+                <div class="summary" id="songs-summary"></div>
+                <table id="songs-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Artist</th>
+                            <th>Album</th>
+                            <th>Duration</th>
+                            <th>Genre</th>
+                        </tr>
+                    </thead>
+                    <tbody id="songs-body"></tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>Schedule Updates</h2>
+                <div class="summary" id="updates-summary"></div>
+                <table id="updates-table">
+                    <thead>
+                        <tr>
+                            <th>Show ID</th>
+                            <th>Custom Air Day</th>
+                            <th>Custom Start Date</th>
+                            <th>Custom Episodes</th>
+                            <th>Skipped Weeks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="updates-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                const [showsRes, songsRes, updatesRes] = await Promise.all([
+                    fetch('https://raw.githubusercontent.com/woquendo/my-playground/main/my-playground/data/shows.json'),
+                    fetch('https://raw.githubusercontent.com/woquendo/my-playground/main/my-playground/data/songs.json'),
+                    fetch('https://raw.githubusercontent.com/woquendo/my-playground/main/my-playground/data/schedule_updates.json')
+                ]);
+
+                if (!showsRes.ok || !songsRes.ok || !updatesRes.ok) {
+                    throw new Error('Failed to load data files');
+                }
+
+                const showsData = await showsRes.json();
+                const songsData = await songsRes.json();
+                const updatesData = await updatesRes.json();
+
+                displayData(showsData.shows || showsData, songsData.songs || songsData, updatesData);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').innerHTML =
+                    '<div class="error">Error loading data. Please check the console for details.</div>';
+            }
+        }
+
+        function displayData(shows, songs, updates) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            // Shows
+            const showsBody = document.getElementById('shows-body');
+            const statusCounts = {};
+
+            shows.forEach(show => {
+                const status = (show.status || '').toLowerCase();
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+                const row = showsBody.insertRow();
+                row.innerHTML = `
+                    <td>${show.title_english || show.title || 'Unknown'}</td>
+                    <td><span class="status-${status}">${status.replace('_', ' ')}</span></td>
+                    <td>${show.episodes || 'N/A'}</td>
+                    <td>${show.score || 'N/A'}</td>
+                    <td>${show.type || 'N/A'}</td>
+                    <td>${show.start_date || 'N/A'}</td>
+                    <td>${show.id || 'N/A'}</td>
+                `;
+            });
+
+            const showsSummary = Object.entries(statusCounts)
+                .map(([status, count]) => `<span class="summary-item">${status.replace('_', ' ')}: ${count}</span>`)
+                .join('');
+            document.getElementById('shows-summary').innerHTML = showsSummary;
+
+            // Songs
+            const songsBody = document.getElementById('songs-body');
+            songs.forEach(song => {
+                const row = songsBody.insertRow();
+                row.innerHTML = `
+                    <td>${song.title || 'Unknown'}</td>
+                    <td>${song.artist || 'Unknown'}</td>
+                    <td>${song.album || 'N/A'}</td>
+                    <td>${song.duration || 'N/A'}</td>
+                    <td>${song.genre || 'N/A'}</td>
+                `;
+            });
+            document.getElementById('songs-summary').innerHTML = `<span class="summary-item">Total songs: ${songs.length}</span>`;
+
+            // Updates
+            const updatesBody = document.getElementById('updates-body');
+            const updateEntries = updates.updates || {};
+            Object.entries(updateEntries).forEach(([id, update]) => {
+                const row = updatesBody.insertRow();
+                const airDay = typeof update === 'number' ? update : update.custom_air_day;
+                const startDate = update.custom_start_date;
+                const episodes = update.custom_episodes;
+                const skipped = update.skipped_weeks;
+
+                row.innerHTML = `
+                    <td>${id}</td>
+                    <td>${airDay !== undefined ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][airDay] || airDay : 'N/A'}</td>
+                    <td>${startDate || 'N/A'}</td>
+                    <td>${episodes || 'N/A'}</td>
+                    <td>${skipped || 'N/A'}</td>
+                `;
+            });
+            document.getElementById('updates-summary').innerHTML = `<span class="summary-item">Total updates: ${Object.keys(updateEntries).length}</span>`;
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>
