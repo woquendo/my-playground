@@ -271,7 +271,7 @@ export function renderShowList(shows, container, view = 'shows') {
 
     // State for pagination and view mode
     let currentPage = 1;
-    const itemsPerPage = 20;
+    let itemsPerPage = 20;
 
     // Remember selected tab and view
     let currentStatus = localStorage.getItem('showsStatus') || 'watching';
@@ -330,6 +330,7 @@ export function renderShowList(shows, container, view = 'shows') {
         let searchQuery = '';
 
         function renderFilteredShows() {
+            itemsPerPage = currentView === 'grid' ? (window.innerWidth >= 1920 ? 18 : 12) : 20;
             let filteredShows = (groups[currentStatus] || []).filter(item => {
                 if (!searchQuery) return true;
                 return item.title.toLowerCase().includes(searchQuery.toLowerCase());
