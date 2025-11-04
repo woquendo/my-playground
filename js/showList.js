@@ -392,7 +392,7 @@ function setupStatsHover(showItem, show) {
     });
 }
 
-export function renderShowList(shows, container, view = 'shows', titles = {}, onTitleFetched = null) {
+export async function renderShowList(shows, container, view = 'shows', titles = {}, onTitleFetched = null) {
     if (!container) return;
 
     container.innerHTML = '';
@@ -403,7 +403,7 @@ export function renderShowList(shows, container, view = 'shows', titles = {}, on
 
     // If this is the schedule view, directly render the schedule
     if (view === 'schedule') {
-        renderScheduleView(shows, container, titles);
+        await renderScheduleView(shows, container, titles);
         return;
     }
 

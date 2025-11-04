@@ -170,10 +170,11 @@ async function initializeApp() {
             document.getElementById('reload-packaged').textContent = 'Reloading...';
 
             // Fetch both files separately
-            const [showsRes, songsRes, titlesRes] = await Promise.all([
+            const [showsRes, songsRes, titlesRes, updatesRes] = await Promise.all([
                 fetch('./data/shows.json?t=' + Date.now()),
                 fetch('./data/songs.json?t=' + Date.now()),
-                fetch('./data/titles.json?t=' + Date.now())
+                fetch('./data/titles.json?t=' + Date.now()),
+                fetch('./data/schedule_updates.json?t=' + Date.now()).catch(() => ({ ok: false }))
             ]);
 
             if (!showsRes.ok || !songsRes.ok) {
@@ -185,12 +186,40 @@ async function initializeApp() {
                 songsRes.json()
             ]);
             const titles = titlesRes.ok ? await titlesRes.json() : {};
+            const updatesData = updatesRes.ok ? await updatesRes.json() : { updates: {} };
 
             const json = {
                 shows: shows.shows || shows,
                 songs: songs.songs || songs,
                 titles: titles
             };
+
+            // Apply schedule updates
+            json.shows.forEach(show => {
+                if (updatesData.updates && updatesData.updates[show.id] !== undefined) {
+                    const update = updatesData.updates[show.id];
+                    if (typeof update === 'number') {
+                        // Legacy format: just custom air day
+                        if (update >= 0 && update <= 6) {
+                            show.custom_air_day = update;
+                        }
+                    } else if (typeof update === 'object') {
+                        // New format: object with multiple properties
+                        if (typeof update.custom_air_day === 'number' && update.custom_air_day >= 0 && update.custom_air_day <= 6) {
+                            show.custom_air_day = update.custom_air_day;
+                        }
+                        if (typeof update.custom_start_date === 'string' && /^(\d{2})-(\d{2})-(\d{2})$/.test(update.custom_start_date)) {
+                            show.custom_start_date = update.custom_start_date;
+                        }
+                        if (typeof update.custom_episodes === 'number' && update.custom_episodes > 0) {
+                            show.custom_episodes = update.custom_episodes;
+                        }
+                        if (typeof update.skipped_weeks === 'number' && update.skipped_weeks >= 0) {
+                            show.skipped_weeks = update.skipped_weeks;
+                        }
+                    }
+                }
+            });
 
             saveLocalData(json);
             initialData = json;
