@@ -91,6 +91,11 @@
     </div>
   </div>
 
+  <!-- Load modernized infrastructure first -->
+  <script type="module" src="../src/Core/index.js"></script>
+  <script type="module" src="../src/Bootstrap/BackwardCompatibility.js"></script>
+
+  <!-- Load existing application -->
   <script type="module" src="js/app.js"></script>
 </body>
 
