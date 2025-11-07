@@ -304,6 +304,14 @@ export class ScheduleViewModel extends BaseViewModel {
     }
 
     /**
+     * Set filter (alias for setFilterStatus for backward compatibility)
+     * @param {string} status - Status to filter by
+     */
+    setFilter(status) {
+        this.setFilterStatus(status);
+    }
+
+    /**
      * Set sort order
      * @param {string} sortBy - Sort field (airDay, title, etc.)
      */

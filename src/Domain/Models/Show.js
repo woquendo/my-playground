@@ -38,7 +38,13 @@ export class Show {
             if (!dateValue) return null;
             if (dateValue instanceof ShowDate) return dateValue;
             // Accept strings for flexibility in deserialization
-            return new ShowDate(dateValue);
+            try {
+                return new ShowDate(dateValue);
+            } catch (error) {
+                // Invalid date format (e.g., "00-00-00") - return null
+                this.logger?.warn?.(`Invalid date format: ${dateValue}`, error);
+                return null;
+            }
         };
 
         this.startDate = parseDate(data.start_date || data.startDate);

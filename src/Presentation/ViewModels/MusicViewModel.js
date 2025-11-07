@@ -332,6 +332,21 @@ export class MusicViewModel extends BaseViewModel {
     }
 
     /**
+     * Set filter (generic filter setter for backward compatibility)
+     * @param {string} filterType - Filter type (artist, rating, etc.)
+     * @param {any} value - Filter value
+     */
+    setFilter(filterType, value) {
+        if (filterType === 'artist') {
+            this.setFilterArtist(value);
+        } else if (filterType === 'rating') {
+            this.setMinRating(value);
+        } else {
+            this._logger.warn(`Unknown filter type: ${filterType}`);
+        }
+    }
+
+    /**
      * Set minimum rating filter
      * @param {number|null} rating - Minimum rating
      */

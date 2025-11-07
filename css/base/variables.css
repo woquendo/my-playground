@@ -1,0 +1,171 @@
+/**
+ * Base Variables
+ * Global CSS custom properties that don't fit into tokens
+ */
+
+:root {
+    /* Import design tokens */
+    /* Colors, spacing, typography, and animations are in separate token files */
+
+    /* Viewport Units */
+    --vh: 1vh;
+    --vw: 1vw;
+
+    /* Safe Area Insets (for mobile notches) */
+    --safe-area-top: env(safe-area-inset-top, 0);
+    --safe-area-right: env(safe-area-inset-right, 0);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0);
+    --safe-area-left: env(safe-area-inset-left, 0);
+
+    /* App-Specific Variables */
+    --header-height: 60px;
+    --footer-height: 40px;
+    --sidebar-width: 280px;
+    --content-max-width: 1280px;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-base: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+    /* Focus Ring */
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+    --focus-ring-color: var(--color-primary);
+
+    /* Backdrop Blur */
+    --backdrop-blur-sm: blur(4px);
+    --backdrop-blur-base: blur(8px);
+    --backdrop-blur-md: blur(12px);
+    --backdrop-blur-lg: blur(16px);
+    --backdrop-blur-xl: blur(24px);
+}
+
+/* Base Styles */
+html {
+    font-size: 16px;
+    font-family: var(--font-family-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+}
+
+body {
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-family-heading);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    color: var(--color-text-primary);
+}
+
+h1 {
+    font-size: var(--heading-h1-size);
+    font-weight: var(--heading-h1-weight);
+    line-height: var(--heading-h1-line-height);
+}
+
+h2 {
+    font-size: var(--heading-h2-size);
+    font-weight: var(--heading-h2-weight);
+    line-height: var(--heading-h2-line-height);
+}
+
+h3 {
+    font-size: var(--heading-h3-size);
+    font-weight: var(--heading-h3-weight);
+    line-height: var(--heading-h3-line-height);
+}
+
+h4 {
+    font-size: var(--heading-h4-size);
+    font-weight: var(--heading-h4-weight);
+    line-height: var(--heading-h4-line-height);
+}
+
+h5 {
+    font-size: var(--heading-h5-size);
+    font-weight: var(--heading-h5-weight);
+    line-height: var(--heading-h5-line-height);
+}
+
+h6 {
+    font-size: var(--heading-h6-size);
+    font-weight: var(--heading-h6-weight);
+    line-height: var(--heading-h6-line-height);
+}
+
+/* Links */
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: var(--transition-colors);
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+}
+
+a:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+    border-radius: var(--radius-sm);
+}
+
+/* Code */
+code,
+kbd,
+samp,
+pre {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+}
+
+/* Selection */
+::selection {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* Scrollbar Styling (Webkit) */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border-light);
+}
+
+/* Focus Visible */
+:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}

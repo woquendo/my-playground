@@ -361,9 +361,18 @@ export class HttpMusicRepository extends IMusicRepository {
 
         return tracksArray.map(rawTrack => {
             try {
+                // Generate consistent ID if not provided
+                const generateConsistentId = (track) => {
+                    const text = `${track.title || 'unknown'}-${track.artist || 'unknown'}`.toLowerCase()
+                        .replace(/[^a-z0-9]/g, '-')
+                        .replace(/-+/g, '-')
+                        .replace(/^-|-$/g, '');
+                    return text;
+                };
+
                 // Transform to domain object format
                 const trackData = {
-                    id: rawTrack.id || rawTrack.song_id,
+                    id: rawTrack.id || rawTrack.song_id || generateConsistentId(rawTrack),
                     title: rawTrack.title || rawTrack.name,
                     artist: rawTrack.artist,
                     album: rawTrack.album,

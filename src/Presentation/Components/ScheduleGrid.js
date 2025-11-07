@@ -62,7 +62,10 @@ export class ScheduleGrid extends BaseComponent {
                     <div class="schedule-grid__day" data-day="${day}">
                         <h2 class="schedule-grid__day-header">${day}</h2>
                         <div class="schedule-grid__day-content" data-day-content="${day}">
-                            ${shows.map(show => `<div data-show-container="${show.getId()}"></div>`).join('')}
+                            ${shows.map(item => {
+                    const show = item.show || item;
+                    return `<div data-show-container="${show.getId()}"></div>`;
+                }).join('')}
                         </div>
                     </div>
                 `;
@@ -86,7 +89,8 @@ export class ScheduleGrid extends BaseComponent {
 
         // Create show cards for each show
         Object.entries(schedule).forEach(([day, shows]) => {
-            shows.forEach(show => {
+            shows.forEach(item => {
+                const show = item.show || item;
                 const container = this._querySelector(`[data-show-container="${show.getId()}"]`);
 
                 if (container) {

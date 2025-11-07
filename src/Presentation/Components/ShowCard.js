@@ -41,8 +41,9 @@ export class ShowCard extends BaseComponent {
         const total = show.getTotalEpisodes();
         const latest = show.getCurrentEpisode(new Date());
         const status = show.getStatus();
-        const title = this._escapeHtml(show.getTitle());
+        const title = this._escapeHtml(show.getPrimaryTitle());
         const airDay = show.getAirDay() || 'Unknown';
+        const imageUrl = show.imageUrl || show.getImageUrl?.() || '';
 
         const isBehind = current < latest;
         const behindClass = isBehind ? 'show-card--behind' : '';
@@ -50,6 +51,11 @@ export class ShowCard extends BaseComponent {
 
         return `
             <div class="show-card ${statusClass} ${behindClass}" data-show-id="${show.getId()}">
+                ${imageUrl ? `
+                    <div class="show-card__image">
+                        <img src="${imageUrl}" alt="${title}" loading="lazy" />
+                    </div>
+                ` : ''}
                 <div class="show-card__header">
                     <h3 class="show-card__title">${title}</h3>
                     <span class="show-card__status show-card__status--${status}">

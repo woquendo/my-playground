@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="My Playground - Music & Anime Hub - Track your anime schedule and music library">
+    <title>My Playground - Music & Anime Hub</title>
+
+    <!-- Design Tokens -->
+    <link rel="stylesheet" href="css/tokens/colors.css">
+    <link rel="stylesheet" href="css/tokens/spacing.css">
+    <link rel="stylesheet" href="css/tokens/typography.css">
+    <link rel="stylesheet" href="css/tokens/animations.css">
+
+    <!-- Base Styles -->
+    <link rel="stylesheet" href="css/base/reset.css">
+    <link rel="stylesheet" href="css/base/variables.css">
+    <link rel="stylesheet" href="css/base/utilities.css">
+
+    <!-- Layout -->
+    <link rel="stylesheet" href="css/layout/grid-system.css">
+    <link rel="stylesheet" href="css/layout/container.css">
+
+    <!-- Components -->
+    <link rel="stylesheet" href="css/components/button.css">
+    <link rel="stylesheet" href="css/components/card.css">
+    <link rel="stylesheet" href="css/components/input.css">
+    <link rel="stylesheet" href="css/components/nav.css">
+    <link rel="stylesheet" href="css/components/show-card.css">
+    <link rel="stylesheet" href="css/components/modal.css">
+    <link rel="stylesheet" href="css/components/toast.css">
+
+    <!-- App-specific styles -->
+    <style>
+        /* App Container Layout */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: var(--color-bg-primary);
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: var(--z-sticky);
+            background-color: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            backdrop-filter: var(--backdrop-blur-md);
+        }
+
+        .app-content {
+            flex: 1;
+            min-height: 0;
+            padding: var(--spacing-lg);
+        }
+
+        .app-footer {
+            padding: var(--spacing-md);
+            text-align: center;
+            font-size: var(--font-size-sm);
+            color: var(--color-text-tertiary);
+            border-top: 1px solid var(--color-border);
+            background-color: var(--color-surface);
+        }
+
+        /* Loading State */
+        .app-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin var(--duration-slower) linear infinite;
+        }
+
+        /* Error State */
+        .error-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            padding: var(--spacing-3xl);
+            text-align: center;
+        }
+
+        .error-state__icon {
+            font-size: var(--font-size-6xl);
+        }
+
+        .error-state__title {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+        }
+
+        .error-state__message {
+            font-size: var(--font-size-base);
+            color: var(--color-text-secondary);
+            max-width: 500px;
+        }
+
+        /* Page Transitions */
+        .page-transition-enter {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .page-transition-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity var(--duration-normal), transform var(--duration-normal);
+        }
+
+        .page-transition-exit {
+            opacity: 1;
+        }
+
+        .page-transition-exit-active {
+            opacity: 0;
+            transition: opacity var(--duration-fast);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Application Root -->
+    <div id="app" class="app-container">
+
+        <!-- Loading State (shown initially) -->
+        <div id="app-loading" class="app-loading">
+            <div class="spinner"></div>
+            <p>Loading My Playground...</p>
+        </div>
+
+        <!-- Application Header (hidden until loaded) -->
+        <header id="app-header" class="app-header" style="display: none;">
+            <!-- Header content will be rendered by HeaderComponent -->
+        </header>
+
+        <!-- Main Content Area (hidden until loaded) -->
+        <main id="app-content" class="app-content" style="display: none;">
+            <!-- Page content will be rendered by Router -->
+        </main>
+
+        <!-- Application Footer (hidden until loaded) -->
+        <footer id="app-footer" class="app-footer" style="display: none;">
+            <p>© 2025 My Playground - Music & Anime Hub</p>
+        </footer>
+
+        <!-- Toast Notifications Container -->
+        <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+        <!-- Modal Container -->
+        <div id="modal-container" class="modal-container"></div>
+
+    </div>
+
+    <!-- Modern Architecture Bootstrap -->
+    <script type="module">
+        // Temporary bootstrap until AppBootstrap.js is created
+        console.log('%c🚀 My Playground', 'font-size: 24px; font-weight: bold; color: #2563eb;');
+        console.log('%cModern Architecture Loading...', 'color: #10b981;');
+
+        // Import and initialize application
+        import('./src/Application/Bootstrap/AppBootstrap.js')
+            .then(module => {
+                console.log('%c✓ Application Bootstrap Complete', 'color: #10b981;');
+            })
+            .catch(error => {
+                console.error('%c✗ Bootstrap Failed', 'color: #ef4444;', error);
+
+                // Show error state
+                const loading = document.getElementById('app-loading');
+                loading.innerHTML = `
+          <div class="error-state">
+            <div class="error-state__icon">⚠️</div>
+            <h2 class="error-state__title">Failed to Load Application</h2>
+            <p class="error-state__message">${error.message}</p>
+            <button class="btn btn--primary" onclick="location.reload()">
+              Retry
+            </button>
+            <a href="index.html" class="btn btn--secondary">
+              Use Legacy Version
+            </a>
+          </div>
+        `;
+            });
+    </script>
+
+    <!-- Fallback for browsers without module support -->
+    <script nomodule>
+        document.getElementById('app-loading').innerHTML = `
+      <div class="error-state">
+        <div class="error-state__icon">⚠️</div>
+        <h2 class="error-state__title">Browser Not Supported</h2>
+        <p class="error-state__message">
+          This application requires a modern browser that supports ES modules.
+          Please update your browser or use the legacy version.
+        </p>
+        <a href="index.html" class="btn btn--primary">
+          Use Legacy Version
+        </a>
+      </div>
+    `;
+    </script>
+</body>
+
+</html>

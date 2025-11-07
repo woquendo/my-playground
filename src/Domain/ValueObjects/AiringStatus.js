@@ -69,7 +69,8 @@ export class AiringStatus {
             const numericMap = {
                 0: AiringStatus.FINISHED_AIRING,
                 1: AiringStatus.CURRENTLY_AIRING,
-                2: AiringStatus.NOT_YET_AIRED
+                2: AiringStatus.NOT_YET_AIRED,
+                3: AiringStatus.NOT_YET_AIRED  // Alternative mapping
             };
 
             if (numericMap[status] !== undefined) {

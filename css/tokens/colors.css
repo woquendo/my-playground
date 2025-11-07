@@ -1,0 +1,104 @@
+/**
+ * Design Tokens - Colors
+ * Semantic color definitions for consistent theming
+ */
+
+:root {
+    /* Primary Colors */
+    --color-primary: #2563eb;
+    --color-primary-hover: #1d4ed8;
+    --color-primary-active: #1e40af;
+    --color-primary-light: #3b82f6;
+    --color-primary-dark: #1e3a8a;
+
+    /* Secondary Colors */
+    --color-secondary: #64748b;
+    --color-secondary-hover: #475569;
+    --color-secondary-active: #334155;
+
+    /* Status Colors */
+    --color-success: #10b981;
+    --color-success-light: #34d399;
+    --color-success-dark: #059669;
+
+    --color-warning: #f59e0b;
+    --color-warning-light: #fbbf24;
+    --color-warning-dark: #d97706;
+
+    --color-error: #ef4444;
+    --color-error-light: #f87171;
+    --color-error-dark: #dc2626;
+
+    --color-info: #3b82f6;
+    --color-info-light: #60a5fa;
+    --color-info-dark: #2563eb;
+
+    /* Background Colors */
+    --color-bg-primary: #0b0b0b;
+    --color-bg-secondary: #111111;
+    --color-bg-tertiary: #1a1a1a;
+    --color-bg-elevated: #1f1f1f;
+
+    /* Surface Colors */
+    --color-surface: #111111;
+    --color-surface-elevated: #1a1a1a;
+    --color-surface-hover: #222222;
+
+    /* Text Colors */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #cfcfcf;
+    --color-text-tertiary: #9ca3af;
+    --color-text-muted: #6b7280;
+    --color-text-disabled: #4b5563;
+
+    /* Border Colors */
+    --color-border: #333333;
+    --color-border-light: #404040;
+    --color-border-dark: #262626;
+    --color-border-focus: #2563eb;
+
+    /* Show Status Colors */
+    --color-status-watching: #3b82f6;
+    --color-status-completed: #10b981;
+    --color-status-on-hold: #f59e0b;
+    --color-status-dropped: #ef4444;
+    --color-status-plan-to-watch: #8b5cf6;
+    --color-status-rewatching: #06b6d4;
+
+    /* Airing Status Colors */
+    --color-airing-current: #10b981;
+    --color-airing-finished: #64748b;
+    --color-airing-not-yet: #8b5cf6;
+
+    /* Overlay Colors */
+    --color-overlay: rgba(0, 0, 0, 0.5);
+    --color-overlay-light: rgba(0, 0, 0, 0.3);
+    --color-overlay-dark: rgba(0, 0, 0, 0.7);
+
+    /* Gradient Definitions */
+    --gradient-primary: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --gradient-surface: linear-gradient(180deg, #1a1a1a 0%, #111111 100%);
+}
+
+/* Light Theme (optional) */
+[data-theme="light"] {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    --color-bg-tertiary: #f3f4f6;
+    --color-bg-elevated: #ffffff;
+
+    --color-surface: #ffffff;
+    --color-surface-elevated: #f9fafb;
+    --color-surface-hover: #f3f4f6;
+
+    --color-text-primary: #111827;
+    --color-text-secondary: #374151;
+    --color-text-tertiary: #6b7280;
+    --color-text-muted: #9ca3af;
+
+    --color-border: #e5e7eb;
+    --color-border-light: #f3f4f6;
+    --color-border-dark: #d1d5db;
+}

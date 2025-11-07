@@ -283,10 +283,18 @@ export class HttpShowRepository extends IShowRepository {
 
         return showsArray.map(rawShow => {
             try {
+                // Ensure ID exists and convert to string
+                const rawId = rawShow.id || rawShow.show_id || rawShow.mal_id;
+                if (!rawId && rawId !== 0) {
+                    console.warn(`Show missing ID:`, rawShow.title || 'unknown');
+                    return null;
+                }
+
                 // Transform to domain object format
+                const title = rawShow.title || rawShow.name;
                 const showData = {
-                    id: rawShow.id || rawShow.show_id,
-                    title: rawShow.title || rawShow.name,
+                    id: String(rawId),
+                    title: (typeof title === 'string' ? title.trim() : null) || `Show ${rawId}`,
                     startDate: rawShow.start_date || rawShow.startDate,
                     episodes: rawShow.episodes || rawShow.totalEpisodes || rawShow.total_episodes,
                     totalEpisodes: rawShow.totalEpisodes || rawShow.total_episodes || rawShow.episodes,

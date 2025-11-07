@@ -42,8 +42,8 @@ export class ScheduleService {
 
             // Determine week start date
             const startDate = weekStart
-                ? ShowDate.parse(weekStart)
-                : ShowDate.getCurrentWeekStart();
+                ? new ShowDate(weekStart)
+                : ShowDate.today().getCurrentWeekStart();
 
             // Get shows based on status filter
             let shows;
@@ -88,7 +88,7 @@ export class ScheduleService {
 
             // Filter shows that air on this date
             const scheduledShows = shows.filter(show => {
-                const showDate = show.getStartDate();
+                const showDate = show.getEffectiveStartDate();
                 const dayOfWeek = this._getDayOfWeek(targetDate);
                 const showDayOfWeek = this._getDayOfWeek(showDate);
 
@@ -252,12 +252,12 @@ export class ScheduleService {
 
         // Group shows by their air day
         shows.forEach(show => {
-            const dayOfWeek = this._getDayOfWeek(show.getStartDate());
+            const dayOfWeek = this._getDayOfWeek(show.getEffectiveStartDate());
             const dayName = daysOfWeek[dayOfWeek];
 
             schedule[dayName].push({
                 show,
-                airTime: show.getStartDate().format(),
+                airTime: show.getEffectiveStartDate().format(),
                 episode: show.getCurrentEpisode() + 1, // Next episode to watch
                 totalEpisodes: show.getTotalEpisodes()
             });
@@ -280,7 +280,7 @@ export class ScheduleService {
      * @returns {number} Day of week
      */
     _getDayOfWeek(date) {
-        const jsDate = date.toJSDate();
+        const jsDate = date.toDate();
         return jsDate.getDay();
     }
 }
