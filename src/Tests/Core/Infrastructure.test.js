@@ -158,6 +158,9 @@ describe('Phase 1 - Foundation Infrastructure', () => {
         });
 
         test('should handle errors in event handlers gracefully', () => {
+            // Suppress expected console.error output during this test
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
             const errorHandler = jest.fn(() => { throw new Error('Handler error'); });
             const normalHandler = jest.fn();
 
@@ -165,6 +168,8 @@ describe('Phase 1 - Foundation Infrastructure', () => {
             eventBus.subscribe('test', normalHandler);
 
             expect(() => eventBus.emitSync('test')).toThrow('Handler error');
+
+            consoleErrorSpy.mockRestore();
         });
 
         test('should provide diagnostic information', () => {
@@ -435,7 +440,10 @@ describe('Phase 1 - Foundation Infrastructure', () => {
             expect(handler).toHaveBeenCalledWith('data');
         });
 
-        test('Error handling with dependency injection', () => {
+        test('ErrorHandler integration', () => {
+            // Suppress expected console.error output during this test
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
             const container = new Container();
             const errorHandler = new ErrorHandler();
 
@@ -447,6 +455,8 @@ describe('Phase 1 - Foundation Infrastructure', () => {
             // Test error handling
             service.handle(new Error('Test error'));
             expect(service.getStats().totalErrors).toBe(1);
+
+            consoleErrorSpy.mockRestore();
         });
 
         test('Logger with EventBus integration', () => {

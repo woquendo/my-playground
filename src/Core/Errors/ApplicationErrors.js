@@ -108,3 +108,17 @@ export class ConfigurationError extends ApplicationError {
         this.configKey = options.configKey;
     }
 }
+
+/**
+ * Storage-related errors (LocalStorage, SessionStorage, etc.)
+ */
+export class StorageError extends ApplicationError {
+    constructor(message, options = {}) {
+        super(message, {
+            code: 'STORAGE_ERROR',
+            ...options
+        });
+
+        this.key = options.key;
+    }
+}

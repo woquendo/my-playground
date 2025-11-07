@@ -4,9 +4,9 @@
     "description": "Modernized My Playground application with SOLID principles and clean architecture",
     "type": "module",
     "scripts": {
-        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-        "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-        "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+        "test": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js",
+        "test:watch": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+        "test:coverage": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
         "dev": "python my-playground/server.py",
         "build": "echo 'No build step required for ES modules'",
         "lint": "eslint src/ my-playground/js/",
