@@ -30,6 +30,20 @@ export class SeasonTabs extends BaseComponent {
     }
 
     /**
+     * Get icon for season
+     * @private
+     * @param {string} season - Season name (e.g., "Winter 2026")
+     * @returns {string} Season icon
+     */
+    _getSeasonIcon(season) {
+        if (season.startsWith('Winter')) return '❄️';
+        if (season.startsWith('Spring')) return '🌸';
+        if (season.startsWith('Summer')) return '☀️';
+        if (season.startsWith('Fall')) return '🍂';
+        return '📅';
+    }
+
+    /**
      * Get component template
      * @returns {string} HTML template
      * @protected
@@ -70,6 +84,7 @@ export class SeasonTabs extends BaseComponent {
                     ${futureSeasons.map(season => {
             const count = schedule[season]?.length || 0;
             const isActive = selectedSeason === season;
+            const icon = this._getSeasonIcon(season);
 
             return `
                             <button 
@@ -77,6 +92,7 @@ export class SeasonTabs extends BaseComponent {
                                 data-season="${season}"
                                 aria-pressed="${isActive}"
                             >
+                                <span class="season-tab__icon">${icon}</span>
                                 <span class="season-tab__label">${season}</span>
                                 <span class="season-tab__count">${count}</span>
                             </button>
@@ -88,6 +104,7 @@ export class SeasonTabs extends BaseComponent {
                             data-season="Airing Date Not Yet Scheduled"
                             aria-pressed="${selectedSeason === 'Airing Date Not Yet Scheduled'}"
                         >
+                            <span class="season-tab__icon">📆</span>
                             <span class="season-tab__label">Unscheduled</span>
                             <span class="season-tab__count">${unscheduledCount}</span>
                         </button>

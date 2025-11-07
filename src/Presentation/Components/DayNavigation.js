@@ -238,6 +238,13 @@ export class DayNavigation extends BaseComponent {
             let count;
             if (day === 'all') {
                 count = Object.values(schedule).reduce((sum, shows) => sum + shows.length, 0);
+            } else if (day === 'future-unscheduled') {
+                // Calculate future & unscheduled count
+                const futureSeasons = Object.keys(schedule)
+                    .filter(key => /^(Winter|Spring|Summer|Fall) \d{4}$/.test(key));
+                const futureCount = futureSeasons.reduce((sum, season) => sum + (schedule[season]?.length || 0), 0);
+                const unscheduledCount = schedule['Airing Date Not Yet Scheduled']?.length || 0;
+                count = futureCount + unscheduledCount;
             } else {
                 count = schedule[day]?.length || 0;
             }

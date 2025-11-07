@@ -90,7 +90,7 @@
 }
 
 .page-header__search-input {
-    min-width: 280px;
+    min-width: 380px;
     padding: var(--spacing-sm) var(--spacing-lg);
     padding-left: var(--spacing-3xl);
     font-size: var(--font-size-base);

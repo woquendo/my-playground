@@ -22,6 +22,8 @@ export class HttpShowRepository extends IShowRepository {
         this.cache = cache;
         this.cacheTTL = options.cacheTTL || 300000; // 5 minutes
         this.endpoint = options.endpoint || '/data/shows.json';
+        this.titlesEndpoint = options.titlesEndpoint || '/data/titles.json';
+        this.titles = null; // Cache for English titles
     }
 
     /**
@@ -37,6 +39,9 @@ export class HttpShowRepository extends IShowRepository {
                 const cached = this.cache.get(cacheKey);
                 if (cached) return cached;
             }
+
+            // Load English titles if not already loaded
+            await this._loadTitles();
 
             // Fetch from HTTP
             const data = await this.httpClient.get(this.endpoint);
@@ -272,6 +277,25 @@ export class HttpShowRepository extends IShowRepository {
     }
 
     /**
+     * Load English titles from titles.json
+     * @private
+     * @returns {Promise<void>}
+     */
+    async _loadTitles() {
+        // Only load once
+        if (this.titles !== null) {
+            return;
+        }
+
+        try {
+            this.titles = await this.httpClient.get(this.titlesEndpoint);
+        } catch (error) {
+            console.warn('Failed to load English titles from titles.json:', error);
+            this.titles = {}; // Set to empty object to avoid retrying
+        }
+    }
+
+    /**
      * Transform raw data to Show domain objects
      * @private
      * @param {any} data - Raw data from HTTP response
@@ -292,10 +316,14 @@ export class HttpShowRepository extends IShowRepository {
 
                 // Transform to domain object format
                 const title = rawShow.title || rawShow.name;
+
+                // Get English title from titles.json if available, otherwise use title_english from shows.json
+                const englishTitle = this.titles?.[String(rawId)] || rawShow.title_english || rawShow.titleEnglish;
+
                 const showData = {
                     id: String(rawId),
                     title: (typeof title === 'string' ? title.trim() : null) || `Show ${rawId}`,
-                    titleEnglish: rawShow.title_english || rawShow.titleEnglish,
+                    titleEnglish: englishTitle,
                     titleJapanese: rawShow.title_japanese || rawShow.titleJapanese,
                     startDate: rawShow.start_date || rawShow.startDate,
                     episodes: rawShow.episodes || rawShow.totalEpisodes || rawShow.total_episodes,

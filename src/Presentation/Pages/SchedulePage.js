@@ -20,6 +20,8 @@ export class SchedulePage {
         this.container = container;
         this.element = null;
         this.pageHeader = new PageHeader();
+        this.searchQuery = ''; // Track search query for filtering
+        this.sortBy = 'airing'; // Track sort criteria
     }
 
     /**
@@ -184,16 +186,20 @@ export class SchedulePage {
                         seasonTabsContainer.innerHTML = '';
                         this.seasonTabs.mount();
                     } else {
+                        // Reset to default season if not set or invalid
+                        if (!this.selectedSeason) {
+                            const { SeasonTabs } = await import('../Components/SeasonTabs.js');
+                            this.selectedSeason = SeasonTabs.getDefaultSeason(fullSchedule);
+                        }
                         // Update existing season tabs
                         this.seasonTabs.updateSchedule(fullSchedule, this.selectedSeason);
                     }
                     seasonTabsContainer.style.display = 'block';
                 } else {
-                    // Hide season tabs
+                    // Hide season tabs but don't reset selectedSeason yet (will reset on day change)
                     if (seasonTabsContainer) {
                         seasonTabsContainer.style.display = 'none';
                     }
-                    this.selectedSeason = null;
                 }
             }
 
@@ -208,6 +214,9 @@ export class SchedulePage {
                 // Normal day filtering
                 schedule = this.filterScheduleByDay(fullSchedule, selectedDay);
             }
+
+            // Apply search and sort filters
+            schedule = this.applySearchAndSort(schedule);
 
             // Check if schedule has any shows
             const showCount = Object.values(schedule).reduce((sum, day) => sum + day.length, 0);
@@ -303,6 +312,107 @@ export class SchedulePage {
     }
 
     /**
+     * Apply search and sort filters to schedule
+     * @param {object} schedule - Schedule to filter
+     * @returns {object} Filtered and sorted schedule
+     */
+    applySearchAndSort(schedule) {
+        let filteredSchedule = { ...schedule };
+
+        // Apply search filter if query exists
+        if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            filteredSchedule = {};
+
+            this.logger.info('🔍 Applying search filter:', { query, searchQuery: this.searchQuery });
+
+            Object.keys(schedule).forEach(key => {
+                const filteredShows = schedule[key].filter(item => {
+                    // Schedule items have a 'show' property containing the Show domain object
+                    const show = item.show || item;
+
+                    // Get titles - handle both Show objects and plain objects
+                    const englishTitle = show.titleEnglish ||
+                        (typeof show.getPrimaryTitle === 'function' ? show.getPrimaryTitle() : null);
+                    const originalTitle = show.title ||
+                        (typeof show.getTitle === 'function' ? show.getTitle() : null);
+
+                    // Debug first show to see structure
+                    if (schedule[key].indexOf(item) === 0) {
+                        this.logger.info('📋 Sample show structure:', {
+                            hasShowProperty: !!item.show,
+                            englishTitle,
+                            originalTitle,
+                            hasGetPrimaryTitle: typeof show.getPrimaryTitle === 'function',
+                            hasGetTitle: typeof show.getTitle === 'function',
+                            showId: show.id || (typeof show.getId === 'function' ? show.getId() : undefined),
+                            allItemKeys: Object.keys(item).slice(0, 10),
+                            allShowKeys: Object.keys(show).slice(0, 20)
+                        });
+                    }
+
+                    const matchesEnglish = englishTitle && englishTitle.toLowerCase().includes(query);
+                    const matchesOriginal = originalTitle && originalTitle.toLowerCase().includes(query);
+
+                    return matchesEnglish || matchesOriginal;
+                });
+
+                if (filteredShows.length > 0) {
+                    filteredSchedule[key] = filteredShows;
+                }
+            });
+
+            this.logger.info('✅ Search results:', {
+                originalDays: Object.keys(schedule).length,
+                filteredDays: Object.keys(filteredSchedule).length,
+                originalShows: Object.values(schedule).reduce((sum, arr) => sum + arr.length, 0),
+                filteredShows: Object.values(filteredSchedule).reduce((sum, arr) => sum + arr.length, 0)
+            });
+        }
+
+        // Apply sorting
+        if (this.sortBy && this.sortBy !== 'airing') {
+            Object.keys(filteredSchedule).forEach(key => {
+                const items = filteredSchedule[key];
+
+                if (this.sortBy === 'title') {
+                    // Sort alphabetically by primary title (English if available)
+                    filteredSchedule[key] = [...items].sort((a, b) => {
+                        // Items have a 'show' property containing the Show domain object
+                        const showA = a.show || a;
+                        const showB = b.show || b;
+
+                        // Handle both Show objects and plain objects
+                        const titleA = (showA.titleEnglish ||
+                            (typeof showA.getPrimaryTitle === 'function' ? showA.getPrimaryTitle() : showA.title) ||
+                            '').toLowerCase();
+                        const titleB = (showB.titleEnglish ||
+                            (typeof showB.getPrimaryTitle === 'function' ? showB.getPrimaryTitle() : showB.title) ||
+                            '').toLowerCase();
+                        return titleA.localeCompare(titleB);
+                    });
+                } else if (this.sortBy === 'progress') {
+                    // Sort by episodes behind (most behind first)
+                    filteredSchedule[key] = [...items].sort((a, b) => {
+                        try {
+                            const showA = a.show || a;
+                            const showB = b.show || b;
+
+                            const behindA = typeof showA.getEpisodesBehind === 'function' ? showA.getEpisodesBehind() : 0;
+                            const behindB = typeof showB.getEpisodesBehind === 'function' ? showB.getEpisodesBehind() : 0;
+                            return behindB - behindA; // Descending order
+                        } catch (e) {
+                            return 0;
+                        }
+                    });
+                }
+            });
+        }
+
+        return filteredSchedule;
+    }
+
+    /**
      * Handle season header click
      * @param {string} season - Season to filter by (e.g., "Winter 2026")
      */
@@ -341,16 +451,8 @@ export class SchedulePage {
      * @param {string} query - Search query
      */
     async handleSearch(query) {
-        this.logger.debug('Search:', query);
-
-        if (!query || query.trim() === '') {
-            // Reload all shows with current filter
-            await this.viewModel.loadShowsByStatus(this.viewModel.get('filterStatus') || 'watching');
-        } else {
-            // Search shows
-            await this.viewModel.searchShows(query);
-        }
-
+        this.logger.info('🔍 Search triggered:', { query, trimmed: query.trim() });
+        this.searchQuery = query.trim();
         await this.loadSchedule();
     }
 
@@ -384,7 +486,7 @@ export class SchedulePage {
      */
     handleSort(sortBy) {
         this.logger.debug('Sort by:', sortBy);
-        this.viewModel.setSortBy(sortBy);
+        this.sortBy = sortBy;
         this.loadSchedule();
     }
 

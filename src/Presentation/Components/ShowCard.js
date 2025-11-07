@@ -126,20 +126,23 @@ export class ShowCard extends BaseComponent {
             </div>
             
             <div class="show-card__actions">
-                <button class="btn btn--primary btn--sm" data-action="progress" title="Mark next episode as watched">
-                    <span class="btn-icon">▶</span>
-                    <span class="btn-text">Next</span>
+                <button class="show-card__action-btn show-card__action-btn--primary" data-action="progress" title="Mark next episode as watched">
+                    <span class="action-btn__icon">✓</span>
+                    <span class="action-btn__text">Mark Watched</span>
                 </button>
-                <select class="show-card__status-select" data-action="status-change" title="Change watch status">
-                    <option value="watching" ${status === 'watching' ? 'selected' : ''}>Watching</option>
-                    <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
-                    <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>On Hold</option>
-                    <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Dropped</option>
-                    <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>Plan to Watch</option>
-                </select>
+                <div class="show-card__status-wrapper">
+                    <label class="status-label" for="status-${show.getId()}">Status:</label>
+                    <select class="show-card__status-select" id="status-${show.getId()}" data-action="status-change" title="Change watch status">
+                        <option value="watching" ${status === 'watching' ? 'selected' : ''}>📺 Watching</option>
+                        <option value="completed" ${status === 'completed' ? 'selected' : ''}>✅ Completed</option>
+                        <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>⏸️ On Hold</option>
+                        <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>❌ Dropped</option>
+                        <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>📋 Plan to Watch</option>
+                    </select>
+                </div>
                 <div class="show-card__menu">
-                    <button class="btn btn--ghost btn--icon btn--sm" data-action="menu-toggle" title="More options" aria-label="Show menu">
-                        ⋮
+                    <button class="show-card__action-btn show-card__action-btn--ghost" data-action="menu-toggle" title="More options" aria-label="Show menu" aria-expanded="false">
+                        <span class="action-btn__icon">⋮</span>
                     </button>
                     <div class="show-card__dropdown" data-dropdown hidden>
                         <a href="${this._escapeHtml(showUrl)}" target="_blank" rel="noopener noreferrer" class="show-card__dropdown-item">
@@ -290,7 +293,7 @@ export class ShowCard extends BaseComponent {
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            < div class="modal-content" >
+            <div class="modal-content">
                 <h3>Update Air Date</h3>
                 <p class="text-secondary">Enter the new air date for: <strong>${this._escapeHtml(show.getTitle())}</strong></p>
                 <div class="form-group">
@@ -310,8 +313,8 @@ export class ShowCard extends BaseComponent {
                     <button class="btn btn--secondary" data-action="cancel">Cancel</button>
                     <button class="btn btn--primary" data-action="save">Save</button>
                 </div>
-            </div >
-            `;
+            </div>
+        `;
 
         document.body.appendChild(modal);
 
@@ -399,7 +402,7 @@ export class ShowCard extends BaseComponent {
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            < div class="modal-content" >
+            <div class="modal-content">
                 <h3>Update Skipped Weeks</h3>
                 <p class="text-secondary">Set skipped weeks for: <strong>${this._escapeHtml(show.getTitle())}</strong></p>
                 <div class="form-group">
@@ -418,8 +421,8 @@ export class ShowCard extends BaseComponent {
                     <button class="btn btn--secondary" data-action="cancel">Cancel</button>
                     <button class="btn btn--primary" data-action="save">Save</button>
                 </div>
-            </div >
-            `;
+            </div>
+        `;
 
         document.body.appendChild(modal);
 

@@ -11,6 +11,8 @@
     flex-direction: column;
     gap: var(--spacing-sm);
     width: 100%;
+    position: relative;
+    overflow: visible;
 }
 
 /* ============================================
@@ -322,6 +324,9 @@
 /* ============================================
    Actions Section (Below Card)
    ============================================ */
+/* ============================================
+   Actions Section
+   ============================================ */
 .show-card__actions {
     display: flex;
     align-items: center;
@@ -332,8 +337,96 @@
     border-radius: var(--radius-lg);
     flex-wrap: wrap;
     /* Allow wrapping on smaller screens */
+    position: relative;
+    /* Create stacking context but don't clip dropdown */
+    overflow: visible;
 }
 
+/* Modern Action Buttons */
+.show-card__action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+
+.show-card__action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.show-card__action-btn:active {
+    transform: translateY(0);
+}
+
+/* Primary Button */
+.show-card__action-btn--primary {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.show-card__action-btn--primary:hover {
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.3);
+}
+
+/* Ghost Button */
+.show-card__action-btn--ghost {
+    background: transparent;
+    border-color: var(--color-border);
+    padding: var(--spacing-xs);
+    min-width: 36px;
+    justify-content: center;
+}
+
+.show-card__action-btn--ghost:hover {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+}
+
+/* Action Button Icon */
+.action-btn__icon {
+    font-size: 1.1em;
+    line-height: 1;
+    transition: transform var(--duration-fast);
+}
+
+.show-card__action-btn:hover .action-btn__icon {
+    transform: scale(1.1);
+}
+
+.action-btn__text {
+    font-size: var(--font-size-sm);
+}
+
+/* Status Wrapper */
+.show-card__status-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex: 1;
+    min-width: 180px;
+}
+
+.status-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+/* Legacy button support (keep for backwards compatibility) */
 .show-card__actions .btn {
     flex-shrink: 0;
 }
@@ -366,31 +459,47 @@
 /* Status select dropdown */
 .show-card__status-select {
     flex: 1;
-    min-width: 100px;
-    padding: var(--spacing-2xs) var(--spacing-xs);
+    min-width: 140px;
+    padding: var(--spacing-xs) var(--spacing-sm);
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-base);
-    font-size: var(--font-size-xs);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
     color: var(--color-text-primary);
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-xs) center;
+    padding-right: var(--spacing-lg);
 }
 
 /* Horizontal layout: larger select */
 .show-card--horizontal .show-card__status-select {
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+    padding-right: var(--spacing-xl);
     font-size: var(--font-size-sm);
 }
 
 .show-card__status-select:hover {
     border-color: var(--color-primary);
-    background: var(--color-surface-elevated);
+    background-color: var(--color-surface-elevated);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .show-card__status-select:focus {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 1px;
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.show-card__status-select option {
+    padding: var(--spacing-xs);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
 }
 
 /* ============================================
@@ -398,6 +507,8 @@
    ============================================ */
 .show-card__menu {
     position: relative;
+    /* Ensure dropdown can escape */
+    z-index: 1;
 }
 
 .show-card__menu .btn--icon {
@@ -412,15 +523,26 @@
 .show-card__dropdown {
     position: absolute;
     right: 0;
-    bottom: calc(100% + var(--spacing-xs));
+    top: calc(100% + var(--spacing-xs));
     min-width: 200px;
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 2px solid var(--color-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    z-index: 100;
+    z-index: 1000;
     animation: dropdownSlideIn var(--duration-fast) var(--ease-out);
+    /* Prevent click-through */
+    pointer-events: auto;
+    /* Ensure fully opaque */
+    opacity: 1;
+    backdrop-filter: blur(10px);
+    isolation: isolate;
+}
+
+/* Ensure dropdown content doesn't get clipped */
+.show-card__dropdown>* {
+    pointer-events: auto;
 }
 
 .show-card__dropdown[hidden] {
@@ -430,7 +552,7 @@
 @keyframes dropdownSlideIn {
     from {
         opacity: 0;
-        transform: translateY(4px);
+        transform: translateY(-4px);
     }
 
     to {
@@ -445,22 +567,28 @@
     gap: var(--spacing-sm);
     width: 100%;
     padding: var(--spacing-sm) var(--spacing-md);
-    background: transparent;
+    background: var(--color-surface);
     border: none;
     text-align: left;
     font-size: var(--font-size-sm);
     color: var(--color-text-primary);
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
+    text-decoration: none;
+    /* Prevent click-through */
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .show-card__dropdown-item:hover {
-    background: var(--color-surface-elevated);
-    color: var(--color-primary);
+    background: var(--color-primary);
+    color: white;
 }
 
 .show-card__dropdown-item:active {
-    background: var(--color-bg-secondary);
+    background: var(--color-primary-dark);
+    transform: scale(0.98);
 }
 
 .show-card__dropdown-item:not(:last-child) {
@@ -592,13 +720,27 @@
         padding: var(--spacing-sm);
     }
 
-    .show-card__status-select {
+    .show-card__status-wrapper {
         flex-basis: 100%;
         order: 3;
     }
 
+    .show-card__status-select {
+        flex: 1;
+    }
+
     .show-card__title {
         font-size: var(--font-size-sm);
+    }
+
+    .action-btn__text {
+        display: none;
+    }
+
+    .show-card__action-btn {
+        padding: var(--spacing-xs);
+        min-width: 40px;
+        justify-content: center;
     }
 }
 
@@ -608,11 +750,23 @@
         /* Maintain MAL aspect ratio on mobile */
     }
 
-    .show-card__actions .btn-text {
+    .show-card__actions .btn-text,
+    .action-btn__text {
         display: none;
     }
 
-    .show-card__actions .btn {
+    .show-card__actions .btn,
+    .show-card__action-btn {
+        padding: var(--spacing-xs);
+        min-width: 36px;
+    }
+
+    .status-label {
+        font-size: var(--font-size-xs);
+    }
+
+    .show-card__status-select {
+        font-size: var(--font-size-xs);
         padding: var(--spacing-xs);
     }
 }
@@ -631,7 +785,8 @@
 }
 
 [data-theme="dark"] .show-card__dropdown {
-    background: rgba(var(--color-surface-rgb, 25, 25, 30), 0.98);
-    border-color: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    background: rgb(var(--color-surface-rgb, 25, 25, 30));
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    backdrop-filter: none;
 }
