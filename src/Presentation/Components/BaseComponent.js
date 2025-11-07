@@ -179,14 +179,14 @@ export class BaseComponent {
     }
 
     /**
-     * Subscribe to component events
-     * @param {string} eventName - Event name (without prefix)
+     * Subscribe to component event
+     * @param {string} eventName - Event name
      * @param {function} callback - Event callback
      * @returns {function} Unsubscribe function
      */
     on(eventName, callback) {
         const fullEventName = `component:${this._name}:${eventName}`;
-        return this._eventBus.on(fullEventName, callback);
+        return this._eventBus.subscribe(fullEventName, callback);
     }
 
     /**

@@ -42,12 +42,26 @@ export class DayNavigation extends BaseComponent {
             'Wednesday',
             'Thursday',
             'Friday',
-            'Saturday',
-            'Airing Date Not Yet Scheduled'
+            'Saturday'
         ];
 
         const schedule = this._props.schedule;
         const selectedDay = this._props.selectedDay;
+
+        // Get future seasons and special categories
+        const futureSeasons = Object.keys(schedule)
+            .filter(key => /^(Winter|Spring|Summer|Fall) \d{4}$/.test(key))
+            .sort((a, b) => {
+                const [seasonA, yearA] = a.split(' ');
+                const [seasonB, yearB] = b.split(' ');
+                const seasonOrder = { Winter: 0, Spring: 1, Summer: 2, Fall: 3 };
+                if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
+                return seasonOrder[seasonA] - seasonOrder[seasonB];
+            });
+
+        const unscheduledCount = schedule['Airing Date Not Yet Scheduled']?.length || 0;
+        const futureCount = futureSeasons.reduce((sum, season) => sum + (schedule[season]?.length || 0), 0);
+        const totalFutureUnscheduled = unscheduledCount + futureCount;
 
         // Add "All Days" option at the beginning
         const allCount = Object.values(schedule).reduce((sum, shows) => sum + shows.length, 0);
@@ -82,6 +96,16 @@ export class DayNavigation extends BaseComponent {
                             </button>
                         `;
         }).join('')}
+                    <button 
+                        class="day-tab day-tab--future ${selectedDay === 'future-unscheduled' ? 'day-tab--active' : ''}"
+                        data-day="future-unscheduled"
+                        aria-pressed="${selectedDay === 'future-unscheduled'}"
+                    >
+                        <span class="day-tab__label">
+                            <span class="day-tab__text">Future & Unscheduled</span>
+                        </span>
+                        <span class="day-tab__count">${totalFutureUnscheduled}</span>
+                    </button>
                 </div>
             </div>
         `;
@@ -130,8 +154,6 @@ export class DayNavigation extends BaseComponent {
      * @returns {boolean} True if day is today
      */
     _isToday(day) {
-        if (day === 'Airing Date Not Yet Scheduled') return false;
-
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const todayIndex = new Date().getDay();
         const todayName = daysOfWeek[todayIndex];
@@ -146,10 +168,6 @@ export class DayNavigation extends BaseComponent {
      * @returns {string} Formatted label
      */
     _formatDayLabel(day) {
-        if (day === 'Airing Date Not Yet Scheduled') {
-            return '<span class="day-tab__text">Unscheduled</span>';
-        }
-
         // For regular days, show full name with abbreviated version for mobile
         const abbrev = {
             'Sunday': 'Sun',

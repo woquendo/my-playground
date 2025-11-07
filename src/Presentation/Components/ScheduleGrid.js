@@ -44,7 +44,27 @@ export class ScheduleGrid extends BaseComponent {
      */
     _template() {
         const schedule = this._props.schedule;
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        // Define order: weekdays first, then future seasons, then special categories
+        const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const specialCategories = ['Ended'];
+
+        // Extract future season categories (they follow pattern "Season YYYY")
+        const futureSeasons = Object.keys(schedule)
+            .filter(key => /^(Winter|Spring|Summer|Fall) \d{4}$/.test(key))
+            .sort((a, b) => {
+                // Sort by year first, then by season order
+                const [seasonA, yearA] = a.split(' ');
+                const [seasonB, yearB] = b.split(' ');
+                const seasonOrder = { Winter: 0, Spring: 1, Summer: 2, Fall: 3 };
+
+                if (yearA !== yearB) {
+                    return parseInt(yearA) - parseInt(yearB);
+                }
+                return seasonOrder[seasonA] - seasonOrder[seasonB];
+            });
+
+        const days = [...weekDays, ...futureSeasons, 'Airing Date Not Yet Scheduled', ...specialCategories];
 
         if (Object.keys(schedule).length === 0) {
             return `
@@ -62,13 +82,19 @@ export class ScheduleGrid extends BaseComponent {
             const shows = schedule[day] || [];
 
             if (shows.length > 0) {
+                const isFutureSeason = /^(Winter|Spring|Summer|Fall) \d{4}$/.test(day);
+                const isFutureUnscheduled = isFutureSeason || day === 'Airing Date Not Yet Scheduled';
+
+                // Regular headers (no longer clickable - tabs handle season filtering)
+                const headerElement = `<h2 class="schedule-grid__day-header">${day}${isFutureSeason ? ` <span class="season-count">(${shows.length})</span>` : ''}</h2>`;
+
                 gridHTML += `
-                    <div class="schedule-grid__day" data-day="${day}">
-                        <h2 class="schedule-grid__day-header">${day}</h2>
+                    <div class="schedule-grid__day ${isFutureSeason ? 'schedule-grid__day--future' : ''} ${isFutureUnscheduled ? 'schedule-grid__day--future-unscheduled' : ''}" data-day="${day}">
+                        ${headerElement}
                         <div class="schedule-grid__day-content" data-day-content="${day}">
                             ${shows.map(item => {
                     const show = item.show || item;
-                    return `<div data-show-container="${show.getId()}"></div>`;
+                    return `<div data-show-container="${show.getId()}" data-air-time="${item.airTime || ''}"></div>`;
                 }).join('')}
                         </div>
                     </div>
@@ -98,9 +124,13 @@ export class ScheduleGrid extends BaseComponent {
                 const container = this._querySelector(`[data-show-container="${show.getId()}"]`);
 
                 if (container) {
+                    // Pass airTime to ShowCard for future/unscheduled shows
+                    const airTime = container.dataset.airTime || null;
+
                     const showCard = new ShowCard({
                         container,
                         show,
+                        airTime,
                         onProgress: this._props.onShowProgress,
                         onStatusChange: this._props.onShowStatusChange,
                         onSelect: this._props.onShowSelect,

@@ -270,17 +270,38 @@ export class ScheduleService {
     _groupShowsByDay(shows, weekStart) {
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const schedule = {};
+        const today = ShowDate.today();
 
         // Initialize each day
         daysOfWeek.forEach(day => {
             schedule[day] = [];
         });
 
-        // Initialize special category for shows without scheduled air dates
+        // Initialize special categories
         schedule['Airing Date Not Yet Scheduled'] = [];
+        schedule['Ended'] = [];
+
+        // Initialize future seasons categories
+        const futureSeasons = this._getFutureSeasonCategories();
+        futureSeasons.forEach(season => {
+            schedule[season] = [];
+        });
 
         // Group shows by their air day
         shows.forEach(show => {
+            const airingStatus = show.getAiringStatus();
+
+            // Shows that have ended go to "Ended" category
+            if (airingStatus === 'finished_airing') {
+                schedule['Ended'].push({
+                    show,
+                    airTime: null,
+                    episode: show.getCurrentEpisode() + 1,
+                    totalEpisodes: show.getTotalEpisodes()
+                });
+                return;
+            }
+
             const effectiveStartDate = show.getEffectiveStartDate();
 
             // Shows without a valid start date go to "Airing Date Not Yet Scheduled"
@@ -289,10 +310,24 @@ export class ScheduleService {
                 schedule['Airing Date Not Yet Scheduled'].push({
                     show,
                     airTime: null,
-                    episode: show.getCurrentEpisode() + 1, // Next episode to watch
+                    episode: show.getCurrentEpisode() + 1,
                     totalEpisodes: show.getTotalEpisodes()
                 });
                 return;
+            }
+
+            // Check if show starts in the future
+            if (effectiveStartDate.isAfter(today)) {
+                const seasonCategory = this._getSeasonCategory(effectiveStartDate);
+                if (schedule[seasonCategory]) {
+                    schedule[seasonCategory].push({
+                        show,
+                        airTime: effectiveStartDate.format(),
+                        episode: show.getCurrentEpisode() + 1,
+                        totalEpisodes: show.getTotalEpisodes()
+                    });
+                    return;
+                }
             }
 
             const dayOfWeek = this._getDayOfWeek(effectiveStartDate);
@@ -301,7 +336,7 @@ export class ScheduleService {
             schedule[dayName].push({
                 show,
                 airTime: effectiveStartDate.format(),
-                episode: show.getCurrentEpisode() + 1, // Next episode to watch
+                episode: show.getCurrentEpisode() + 1,
                 totalEpisodes: show.getTotalEpisodes()
             });
         });
@@ -318,7 +353,80 @@ export class ScheduleService {
             a.show.getTitle().localeCompare(b.show.getTitle())
         );
 
+        // Sort future season shows by air date, then title
+        futureSeasons.forEach(season => {
+            schedule[season].sort((a, b) => {
+                if (a.airTime && b.airTime) {
+                    return a.airTime.localeCompare(b.airTime);
+                }
+                return a.show.getTitle().localeCompare(b.show.getTitle());
+            });
+        });
+
         return schedule;
+    }
+
+    /**
+     * Get future season categories
+     * @private
+     * @returns {string[]} Array of season category names
+     */
+    _getFutureSeasonCategories() {
+        const today = ShowDate.today();
+        const currentYear = today.toDate().getFullYear();
+        const currentMonth = today.toDate().getMonth() + 1; // 1-12
+
+        const seasons = [];
+        const currentSeason = this._getSeasonFromMonth(currentMonth);
+
+        // Generate next 4 seasons (1 year ahead)
+        const seasonOrder = ['Winter', 'Spring', 'Summer', 'Fall'];
+        const currentSeasonIndex = seasonOrder.indexOf(currentSeason);
+
+        for (let i = 0; i < 4; i++) {
+            const seasonIndex = (currentSeasonIndex + i) % 4;
+            const season = seasonOrder[seasonIndex];
+            const yearOffset = Math.floor((currentSeasonIndex + i) / 4);
+            const year = currentYear + yearOffset;
+
+            seasons.push(`${season} ${year}`);
+        }
+
+        return seasons;
+    }
+
+    /**
+     * Get season category for a date
+     * @private
+     * @param {ShowDate} date - Date to categorize
+     * @returns {string} Season category name
+     */
+    _getSeasonCategory(date) {
+        const jsDate = date.toDate();
+        const month = jsDate.getMonth() + 1; // 1-12
+        const year = jsDate.getFullYear();
+        const season = this._getSeasonFromMonth(month);
+
+        return `${season} ${year}`;
+    }
+
+    /**
+     * Get anime season from month
+     * @private
+     * @param {number} month - Month (1-12)
+     * @returns {string} Season name
+     */
+    _getSeasonFromMonth(month) {
+        // Anime seasons:
+        // Winter: January (1), February (2), March (3)
+        // Spring: April (4), May (5), June (6)
+        // Summer: July (7), August (8), September (9)
+        // Fall: October (10), November (11), December (12)
+
+        if (month >= 1 && month <= 3) return 'Winter';
+        if (month >= 4 && month <= 6) return 'Spring';
+        if (month >= 7 && month <= 9) return 'Summer';
+        return 'Fall';
     }
 
     /**

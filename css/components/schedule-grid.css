@@ -48,13 +48,98 @@
     border-bottom: 2px solid var(--color-border);
 }
 
+/* Clickable season headers */
+.schedule-grid__day-header--clickable {
+    background: none;
+    border: none;
+    border-bottom: 2px solid var(--color-border);
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    padding: var(--spacing-sm);
+    margin: 0 calc(-1 * var(--spacing-sm));
+    border-radius: var(--border-radius-md);
+}
+
+.schedule-grid__day-header--clickable:hover {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    transform: translateX(4px);
+}
+
+.schedule-grid__day-header--clickable:active {
+    transform: translateX(2px);
+}
+
+.schedule-grid__day-header--clickable .season-count {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+    margin-left: var(--spacing-sm);
+}
+
+/* Special styling for ended shows section */
+.schedule-grid__day[data-day="Ended"] .schedule-grid__day-header {
+    color: var(--color-text-secondary);
+    border-bottom-color: var(--color-border-dark);
+}
+
+.schedule-grid__day[data-day="Ended"] .schedule-grid__day-header::before {
+    content: '🏁 ';
+    opacity: 0.7;
+}
+
+/* Special styling for not yet scheduled section */
+.schedule-grid__day[data-day="Airing Date Not Yet Scheduled"] .schedule-grid__day-header::before {
+    content: '📅 ';
+    opacity: 0.7;
+}
+
+/* ============================================
+   Future Season Sections
+   ============================================ */
+.schedule-grid__day--future {
+    background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.03) 0%, rgba(var(--color-secondary-rgb), 0.03) 100%);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.1);
+}
+
+.schedule-grid__day--future .schedule-grid__day-header {
+    color: var(--color-primary);
+    border-bottom-color: rgba(var(--color-primary-rgb), 0.3);
+}
+
+/* Winter season icon */
+.schedule-grid__day[data-day^="Winter"] .schedule-grid__day-header::before {
+    content: '❄️ ';
+}
+
+/* Spring season icon */
+.schedule-grid__day[data-day^="Spring"] .schedule-grid__day-header::before {
+    content: '🌸 ';
+}
+
+/* Summer season icon */
+.schedule-grid__day[data-day^="Summer"] .schedule-grid__day-header::before {
+    content: '☀️ ';
+}
+
+/* Fall season icon */
+.schedule-grid__day[data-day^="Fall"] .schedule-grid__day-header::before {
+    content: '🍂 ';
+}
+
 /* ============================================
    Day Content Grid
    ============================================ */
 .schedule-grid__day-content {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 220px));
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    gap: var(--spacing-md);
     width: 100%;
 }
 

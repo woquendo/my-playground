@@ -266,3 +266,27 @@
 .day-tab:nth-child(9) {
     animation-delay: 0.45s;
 }
+
+/* Future & Unscheduled Filter Button Styling */
+.day-tab--future {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.day-tab--future:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.day-tab--future::before {
+    background: linear-gradient(90deg, #8b5cf6 0%, #3b82f6 100%);
+}
+
+.day-tab--future.day-tab--active {
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    border-color: #7c3aed;
+}
+
+.day-tab--future.day-tab--active:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+}

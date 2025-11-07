@@ -11,6 +11,7 @@ export class ShowCard extends BaseComponent {
      * @param {object} options - Configuration options
      * @param {HTMLElement} options.container - Container element
      * @param {Show} options.show - Show to display
+     * @param {string} options.airTime - Air time for future shows (MM-DD-YY format)
      * @param {function} options.onProgress - Callback for progress button
      * @param {function} options.onStatusChange - Callback for status change
      * @param {function} options.onSelect - Callback for card click
@@ -25,6 +26,7 @@ export class ShowCard extends BaseComponent {
             name: 'ShowCard',
             props: {
                 show: options.show,
+                airTime: options.airTime || null,
                 onProgress: options.onProgress || (() => { }),
                 onStatusChange: options.onStatusChange || (() => { }),
                 onSelect: options.onSelect || (() => { }),
@@ -46,7 +48,19 @@ export class ShowCard extends BaseComponent {
         const latest = show.getCurrentEpisode(new Date());
         const status = show.getStatus();
         const title = this._escapeHtml(show.getPrimaryTitle());
-        const airDay = show.getAirDay() || 'Unknown';
+        const showUrl = show.getUrl?.() || show.url || '#';
+
+        // Determine the air day/date display
+        let airDay;
+        const airTime = this._props.airTime;
+
+        if (airTime) {
+            // For future/unscheduled shows with airTime, format the date
+            airDay = this._formatAirDate(airTime);
+        } else {
+            // For regular shows, use the standard air day
+            airDay = show.getAirDay() || 'Unknown';
+        }
 
         // Use getter method for image URL
         const imageUrl = show.getImageUrl?.() || '';
@@ -56,86 +70,98 @@ export class ShowCard extends BaseComponent {
         const statusClass = `show-card--${status}`;
 
         return `
-            <div class="show-card ${statusClass} ${behindClass}" data-show-id="${show.getId()}">
-                ${imageUrl ? `
-                    <div class="show-card__image">
-                        <img src="${this._escapeHtml(imageUrl)}" 
-                             alt="${title}" 
-                             loading="lazy" 
-                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='none';" />
-                        <div class="show-card__image-overlay"></div>
-                    </div>
-                ` : `
-                    <div class="show-card__image show-card__image--placeholder">
-                        <div class="placeholder-icon">📺</div>
-                    </div>
-                `}
+            <div class="show-card-wrapper">
+            <div class="show-card show-card--horizontal ${statusClass} ${behindClass}" data-show-id="${show.getId()}">
+                <a href="${this._escapeHtml(showUrl)}" target="_blank" rel="noopener noreferrer" class="show-card__image-link" title="View on MyAnimeList">
+                    ${imageUrl ? `
+                        <div class="show-card__image">
+                            <img src="${this._escapeHtml(imageUrl)}" 
+                                 alt="${title}" 
+                                 loading="lazy" 
+                                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='none';" />
+                            <div class="show-card__image-overlay">
+                                <span class="image-overlay-icon">🔗</span>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="show-card__image show-card__image--placeholder">
+                            <div class="placeholder-icon">📺</div>
+                        </div>
+                    `}
+                </a>
                 <div class="show-card__content">
-                    <div class="show-card__header">
-                        <h3 class="show-card__title">${title}</h3>
+                <div class="show-card__header">
+                    <div class="show-card__title-wrapper">
+                        <h3 class="show-card__title" title="${title}">${title}</h3>
                         <span class="show-card__badge badge badge--${status}">
                             ${this._formatStatus(status)}
                         </span>
                     </div>
-                    
-                    <div class="show-card__body">
-                        <div class="show-card__info">
-                            <div class="show-card__info-item">
-                                <span class="info-label">Airs:</span>
-                                <span class="info-value">${airDay}</span>
-                            </div>
-                            <div class="show-card__info-item">
-                                <span class="info-label">Episode:</span>
-                                <span class="info-value">${current} / ${total}</span>
-                            </div>
-                            <div class="show-card__info-item">
-                                <span class="info-label">Latest:</span>
-                                <span class="info-value">${latest}</span>
-                            </div>
+                </div>
+
+                <div class="show-card__body">
+                    <div class="show-card__info">
+                        <div class="show-card__info-item">
+                            <span class="info-label">Airs:</span>
+                            <span class="info-value">${airDay}</span>
                         </div>
-                        
-                        ${isBehind ? `
+                        <div class="show-card__info-item">
+                            <span class="info-label">Episode:</span>
+                            <span class="info-value">${current} / ${total}</span>
+                        </div>
+                        <div class="show-card__info-item">
+                            <span class="info-label">Latest:</span>
+                            <span class="info-value">${latest}</span>
+                        </div>
+                    </div>
+
+                    ${isBehind ? `
                             <div class="show-card__alert">
                                 <span class="alert-icon">⚠️</span>
-                                <span class="alert-text">${latest - current} episode${latest - current > 1 ? 's' : ''} behind</span>
+                                <span class="alert-text">${latest - current} ep${latest - current > 1 ? 's' : ''} behind</span>
                             </div>
                         ` : ''}
                     </div>
-                    
-                    <div class="show-card__actions">
-                        <button class="btn btn--primary btn--sm" data-action="progress" title="Mark next episode as watched">
-                            <span class="btn-icon">▶</span>
-                            <span class="btn-text">Progress</span>
+                </div>
+            </div>
+            
+            <div class="show-card__actions">
+                <button class="btn btn--primary btn--sm" data-action="progress" title="Mark next episode as watched">
+                    <span class="btn-icon">▶</span>
+                    <span class="btn-text">Next</span>
+                </button>
+                <select class="show-card__status-select" data-action="status-change" title="Change watch status">
+                    <option value="watching" ${status === 'watching' ? 'selected' : ''}>Watching</option>
+                    <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
+                    <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>On Hold</option>
+                    <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Dropped</option>
+                    <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>Plan to Watch</option>
+                </select>
+                <div class="show-card__menu">
+                    <button class="btn btn--ghost btn--icon btn--sm" data-action="menu-toggle" title="More options" aria-label="Show menu">
+                        ⋮
+                    </button>
+                    <div class="show-card__dropdown" data-dropdown hidden>
+                        <a href="${this._escapeHtml(showUrl)}" target="_blank" rel="noopener noreferrer" class="show-card__dropdown-item">
+                            <span class="dropdown-icon">🔗</span>
+                            <span class="dropdown-text">View on MAL</span>
+                        </a>
+                        <button class="show-card__dropdown-item" data-action="update-air-date">
+                            <span class="dropdown-icon">📅</span>
+                            <span class="dropdown-text">Update Air Date</span>
                         </button>
-                        <select class="show-card__status-select" data-action="status-change" title="Change watch status">
-                            <option value="watching" ${status === 'watching' ? 'selected' : ''}>Watching</option>
-                            <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
-                            <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>On Hold</option>
-                            <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Dropped</option>
-                            <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>Plan to Watch</option>
-                        </select>
-                        <div class="show-card__menu">
-                            <button class="btn btn--ghost btn--icon btn--sm" data-action="menu-toggle" title="More options" aria-label="Show menu">
-                                ⋮
-                            </button>
-                            <div class="show-card__dropdown" data-dropdown hidden>
-                                <button class="show-card__dropdown-item" data-action="update-air-date">
-                                    <span class="dropdown-icon">📅</span>
-                                    <span class="dropdown-text">Update Air Date</span>
-                                </button>
-                                <button class="show-card__dropdown-item" data-action="update-skipped-weeks">
-                                    <span class="dropdown-icon">⏩</span>
-                                    <span class="dropdown-text">Update Skipped Weeks</span>
-                                </button>
-                                <button class="show-card__dropdown-item" data-action="skip-week">
-                                    <span class="dropdown-icon">⏭️</span>
-                                    <span class="dropdown-text">Skip This Week</span>
-                                </button>
-                            </div>
-                        </div>
+                        <button class="show-card__dropdown-item" data-action="update-skipped-weeks">
+                            <span class="dropdown-icon">⏩</span>
+                            <span class="dropdown-text">Update Skipped Weeks</span>
+                        </button>
+                        <button class="show-card__dropdown-item" data-action="skip-week">
+                            <span class="dropdown-icon">⏭️</span>
+                            <span class="dropdown-text">Skip This Week</span>
+                        </button>
                     </div>
                 </div>
             </div>
+        </div>
         `;
     }
 
@@ -264,7 +290,7 @@ export class ShowCard extends BaseComponent {
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
+            < div class="modal-content" >
                 <h3>Update Air Date</h3>
                 <p class="text-secondary">Enter the new air date for: <strong>${this._escapeHtml(show.getTitle())}</strong></p>
                 <div class="form-group">
@@ -284,8 +310,8 @@ export class ShowCard extends BaseComponent {
                     <button class="btn btn--secondary" data-action="cancel">Cancel</button>
                     <button class="btn btn--primary" data-action="save">Save</button>
                 </div>
-            </div>
-        `;
+            </div >
+            `;
 
         document.body.appendChild(modal);
 
@@ -373,7 +399,7 @@ export class ShowCard extends BaseComponent {
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
+            < div class="modal-content" >
                 <h3>Update Skipped Weeks</h3>
                 <p class="text-secondary">Set skipped weeks for: <strong>${this._escapeHtml(show.getTitle())}</strong></p>
                 <div class="form-group">
@@ -392,8 +418,8 @@ export class ShowCard extends BaseComponent {
                     <button class="btn btn--secondary" data-action="cancel">Cancel</button>
                     <button class="btn btn--primary" data-action="save">Save</button>
                 </div>
-            </div>
-        `;
+            </div >
+            `;
 
         document.body.appendChild(modal);
 
@@ -478,6 +504,83 @@ export class ShowCard extends BaseComponent {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Format air date for display
+     * @param {string} airTime - Air time in MM-DD-YY format
+     * @returns {string} Formatted air date or "Unscheduled"
+     * @private
+     */
+    /**
+     * Format air date for future shows
+     * @private
+     * @param {string} airTime - Air time in MM-DD-YY format
+     * @returns {string} Formatted date or "Unscheduled"
+     */
+    _formatAirDate(airTime) {
+        // First, try to get the actual start date from the show
+        const show = this._props.show;
+        const startDate = show.getStartDate?.() || show.startDate;
+
+        // If show has a valid start date, use it
+        if (startDate) {
+            try {
+                // Check if it's a ShowDate value object
+                if (startDate.toDate && typeof startDate.toDate === 'function') {
+                    const date = startDate.toDate();
+                    if (date && !isNaN(date.getTime())) {
+                        const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                        return date.toLocaleDateString('en-US', options);
+                    }
+                }
+                // If it's already a Date object
+                else if (startDate instanceof Date && !isNaN(startDate.getTime())) {
+                    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                    return startDate.toLocaleDateString('en-US', options);
+                }
+            } catch (error) {
+                this._logger?.debug('Could not format show start date, falling back to airTime', error);
+            }
+        }
+
+        // Fall back to airTime parameter if provided
+        if (!airTime) {
+            return 'Unscheduled';
+        }
+
+        try {
+            // Parse MM-DD-YY format
+            const parts = airTime.split('-');
+            if (parts.length !== 3) {
+                return 'Unscheduled';
+            }
+
+            const [month, day, year] = parts;
+
+            // Check for invalid date (00-00-00 or similar)
+            if (month === '00' || day === '00' || year === '00') {
+                return 'Unscheduled';
+            }
+
+            // Convert 2-digit year to 4-digit
+            const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
+
+            // Create date object
+            const date = new Date(`${fullYear}-${month}-${day}`);
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return 'Unscheduled';
+            }
+
+            // Format as "Mon DD, YYYY"
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        } catch (error) {
+            this._logger?.warn('Failed to format air date:', airTime, error);
+            return 'Unscheduled';
+        }
     }
 
     /**

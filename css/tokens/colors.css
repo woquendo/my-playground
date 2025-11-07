@@ -17,6 +17,7 @@
     --color-secondary: #64748b;
     --color-secondary-hover: #475569;
     --color-secondary-active: #334155;
+    --color-secondary-rgb: 100, 116, 139;
 
     /* Status Colors */
     --color-success: #10b981;

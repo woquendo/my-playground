@@ -4,6 +4,16 @@
  */
 
 /* ============================================
+   Show Card Wrapper (contains card + actions)
+   ============================================ */
+.show-card-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    width: 100%;
+}
+
+/* ============================================
    Show Card Container
    ============================================ */
 .show-card {
@@ -18,6 +28,15 @@
     overflow: hidden;
     transition: all var(--duration-normal) var(--ease-out);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Horizontal Layout Variant */
+.show-card--horizontal {
+    flex-direction: row;
+    max-width: 100%;
+    min-height: 240px;
+    height: 240px;
+    /* Fixed height for consistency across all cards */
 }
 
 .show-card:hover {
@@ -50,6 +69,12 @@
 /* ============================================
    Image Section
    ============================================ */
+.show-card__image-link {
+    display: block;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
 .show-card__image {
     position: relative;
     width: 100%;
@@ -59,6 +84,18 @@
     background: linear-gradient(135deg,
             var(--color-surface-elevated) 0%,
             var(--color-bg-secondary) 100%);
+}
+
+/* Horizontal layout image sizing */
+.show-card--horizontal .show-card__image,
+.show-card--horizontal .show-card__image--placeholder {
+    width: 170px;
+    /* Increased from 141px for better visibility */
+    height: 240px;
+    /* Increased from 200px to match new card height */
+    aspect-ratio: 192 / 272;
+    /* Preserve MAL aspect ratio */
+    flex-shrink: 0;
 }
 
 .show-card__image img {
@@ -81,10 +118,25 @@
             rgba(0, 0, 0, 0.4) 100%);
     opacity: 0;
     transition: opacity var(--duration-normal) var(--ease-out);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.show-card:hover .show-card__image-overlay {
+.show-card__image-link:hover .show-card__image-overlay {
     opacity: 1;
+}
+
+.image-overlay-icon {
+    font-size: 2rem;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.show-card__image-link:hover .image-overlay-icon {
+    opacity: 1;
+    transform: scale(1);
 }
 
 /* Placeholder image */
@@ -111,6 +163,20 @@
     flex-direction: column;
     padding: var(--spacing-sm);
     gap: var(--spacing-xs);
+    min-width: 0;
+    /* Allow content to shrink and prevent overflow */
+}
+
+/* Horizontal layout: ensure content fills available space */
+.show-card--horizontal .show-card__content {
+    padding: var(--spacing-md);
+    gap: var(--spacing-sm);
+    justify-content: space-between;
+    /* Distribute space evenly */
+    min-height: 240px;
+    /* Match image height */
+    overflow: hidden;
+    /* Prevent content from breaking card height */
 }
 
 /* ============================================
@@ -123,6 +189,20 @@
     gap: var(--spacing-xs);
     padding-bottom: var(--spacing-xs);
     border-bottom: 1px solid var(--color-border);
+}
+
+.show-card__title-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    flex: 1;
+}
+
+/* Horizontal layout: title and badge side by side */
+.show-card--horizontal .show-card__title-wrapper {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .show-card__title {
@@ -139,6 +219,13 @@
     word-break: break-word;
 }
 
+/* Horizontal layout: larger title, no truncation */
+.show-card--horizontal .show-card__title {
+    font-size: var(--font-size-base);
+    -webkit-line-clamp: 2;
+    line-height: 1.4;
+}
+
 .show-card__badge {
     flex-shrink: 0;
 }
@@ -151,12 +238,27 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
+    min-height: 0;
+    /* Prevent overflow */
+}
+
+/* Horizontal layout: larger text */
+.show-card--horizontal .show-card__body {
+    gap: var(--spacing-sm);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 .show-card__info {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+}
+
+.show-card--horizontal .show-card__info {
+    gap: var(--spacing-sm);
 }
 
 .show-card__info-item {
@@ -166,16 +268,29 @@
     font-size: var(--font-size-xs);
 }
 
+/* Horizontal layout: larger info text */
+.show-card--horizontal .show-card__info-item {
+    font-size: var(--font-size-sm);
+}
+
 .info-label {
     color: var(--color-text-secondary);
     font-weight: var(--font-weight-medium);
     font-size: var(--font-size-xs);
 }
 
+.show-card--horizontal .info-label {
+    font-size: var(--font-size-sm);
+}
+
 .info-value {
     color: var(--color-text-primary);
     font-weight: var(--font-weight-semibold);
     font-size: var(--font-size-xs);
+}
+
+.show-card--horizontal .info-value {
+    font-size: var(--font-size-sm);
 }
 
 /* ============================================
@@ -205,16 +320,18 @@
 }
 
 /* ============================================
-   Actions Section
+   Actions Section (Below Card)
    ============================================ */
 .show-card__actions {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-top: 1px solid var(--color-border);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
     background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     flex-wrap: wrap;
+    /* Allow wrapping on smaller screens */
 }
 
 .show-card__actions .btn {
@@ -226,6 +343,12 @@
     font-size: var(--font-size-xs);
 }
 
+/* Horizontal layout: larger buttons */
+.show-card--horizontal .show-card__actions .btn--sm {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+}
+
 .show-card__actions .btn-icon {
     margin-right: var(--spacing-2xs);
 }
@@ -233,6 +356,11 @@
 .show-card__actions .btn-text {
     display: none;
     /* Hide text on small cards, show icon only */
+}
+
+/* Show button text in horizontal layout */
+.show-card--horizontal .show-card__actions .btn-text {
+    display: inline;
 }
 
 /* Status select dropdown */
@@ -247,6 +375,12 @@
     color: var(--color-text-primary);
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
+}
+
+/* Horizontal layout: larger select */
+.show-card--horizontal .show-card__status-select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
 }
 
 .show-card__status-select:hover {

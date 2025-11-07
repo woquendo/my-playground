@@ -76,6 +76,7 @@ export class SchedulePage {
         page.innerHTML = `
             ${headerHTML}
             <div id="day-navigation-container"></div>
+            <div id="season-tabs-container"></div>
             <div class="page__content">
                 <div id="schedule-grid-container"></div>
             </div>
@@ -129,6 +130,7 @@ export class SchedulePage {
         try {
             const container = this.element.querySelector('#schedule-grid-container');
             const dayNavContainer = this.element.querySelector('#day-navigation-container');
+            const seasonTabsContainer = this.element.querySelector('#season-tabs-container');
             if (!container) return;
 
             // Show loading state
@@ -160,8 +162,52 @@ export class SchedulePage {
                 }
             }
 
-            // Filter schedule by selected day
-            const schedule = this.filterScheduleByDay(fullSchedule, selectedDay);
+            // Handle season tabs for future & unscheduled filter
+            if (seasonTabsContainer) {
+                if (selectedDay === 'future-unscheduled') {
+                    // Show season tabs
+                    if (!this.seasonTabs) {
+                        const { SeasonTabs } = await import('../Components/SeasonTabs.js');
+
+                        // Get default season (first with unaired shows)
+                        const defaultSeason = SeasonTabs.getDefaultSeason(fullSchedule);
+                        this.selectedSeason = defaultSeason;
+
+                        this.seasonTabs = new SeasonTabs({
+                            container: seasonTabsContainer,
+                            selectedSeason: this.selectedSeason,
+                            schedule: fullSchedule,
+                            onSeasonChange: (season) => this.handleSeasonChange(season),
+                            eventBus: this.eventBus,
+                            logger: this.logger
+                        });
+                        seasonTabsContainer.innerHTML = '';
+                        this.seasonTabs.mount();
+                    } else {
+                        // Update existing season tabs
+                        this.seasonTabs.updateSchedule(fullSchedule, this.selectedSeason);
+                    }
+                    seasonTabsContainer.style.display = 'block';
+                } else {
+                    // Hide season tabs
+                    if (seasonTabsContainer) {
+                        seasonTabsContainer.style.display = 'none';
+                    }
+                    this.selectedSeason = null;
+                }
+            }
+
+            // Filter schedule by selected day/season
+            let schedule;
+            if (selectedDay === 'future-unscheduled' && this.selectedSeason) {
+                // Show only the selected season
+                schedule = {
+                    [this.selectedSeason]: fullSchedule[this.selectedSeason] || []
+                };
+            } else {
+                // Normal day filtering
+                schedule = this.filterScheduleByDay(fullSchedule, selectedDay);
+            }
 
             // Check if schedule has any shows
             const showCount = Object.values(schedule).reduce((sum, day) => sum + day.length, 0);
@@ -194,6 +240,11 @@ export class SchedulePage {
             container.innerHTML = '';
             scheduleGrid.mount();
 
+            // Listen for season selection events (from clickable headers, if any)
+            scheduleGrid.on('season-selected', ({ season }) => {
+                this.handleSeasonClick(season);
+            });
+
         } catch (error) {
             this.logger.error('Failed to load schedule:', error);
             const container = this.element.querySelector('#schedule-grid-container');
@@ -219,10 +270,56 @@ export class SchedulePage {
             return fullSchedule;
         }
 
+        if (selectedDay === 'future-unscheduled') {
+            // Include all future seasons and unscheduled shows
+            const filtered = {};
+
+            Object.keys(fullSchedule).forEach(key => {
+                // Include future seasons (Winter YYYY, Spring YYYY, etc.)
+                const isFutureSeason = /^(Winter|Spring|Summer|Fall) \d{4}$/.test(key);
+                // Include unscheduled shows
+                const isUnscheduled = key === 'Airing Date Not Yet Scheduled';
+
+                if (isFutureSeason || isUnscheduled) {
+                    filtered[key] = fullSchedule[key];
+                }
+            });
+
+            return filtered;
+        }
+
+        // Check if it's a specific season (e.g., "Winter 2026")
+        const isSeason = /^(Winter|Spring|Summer|Fall) \d{4}$/.test(selectedDay);
+        if (isSeason && fullSchedule[selectedDay]) {
+            return {
+                [selectedDay]: fullSchedule[selectedDay]
+            };
+        }
+
         // Return only the selected day
         return {
             [selectedDay]: fullSchedule[selectedDay] || []
         };
+    }
+
+    /**
+     * Handle season header click
+     * @param {string} season - Season to filter by (e.g., "Winter 2026")
+     */
+    async handleSeasonClick(season) {
+        this.logger.debug('Season clicked:', season);
+        this.viewModel.setSelectedDay(season);
+        await this.loadSchedule();
+    }
+
+    /**
+     * Handle season tab change (from SeasonTabs component)
+     * @param {string} season - Selected season
+     */
+    async handleSeasonChange(season) {
+        this.logger.debug('Season tab changed:', season);
+        this.selectedSeason = season;
+        await this.loadSchedule();
     }
 
     /**
@@ -232,6 +329,10 @@ export class SchedulePage {
     async handleDayChange(day) {
         this.logger.debug('Day filter changed:', day);
         this.viewModel.setSelectedDay(day);
+
+        // Reset selected season when changing days
+        this.selectedSeason = null;
+
         await this.loadSchedule();
     }
 
