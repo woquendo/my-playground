@@ -78,12 +78,12 @@ export class MusicManagementService {
                 title: updates.title ?? existingTrack.getTitle(),
                 artist: updates.artist ?? existingTrack.getArtist(),
                 album: updates.album ?? existingTrack.getAlbum(),
-                genre: updates.genre ?? existingTrack.getGenre(),
+                genre: updates.genre ?? existingTrack.genre,
                 duration: updates.duration ?? existingTrack.getDuration(),
                 rating: updates.rating ?? existingTrack.getRating(),
                 playCount: updates.playCount ?? existingTrack.getPlayCount(),
                 lastPlayed: updates.lastPlayed ?? existingTrack.getLastPlayed(),
-                addedDate: updates.addedDate ?? existingTrack.getAddedDate(),
+                dateAdded: updates.dateAdded ?? existingTrack.getDateAdded(),
                 tags: updates.tags ?? existingTrack.getTags()
             };
 

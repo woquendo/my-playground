@@ -33,7 +33,7 @@ export class FilterStrategy {
 export class AiringShowsStrategy extends FilterStrategy {
     filter(shows) {
         return shows.filter(show => {
-            const status = show.getStatus();
+            const status = show.getStatusObject();
             return status.isWatching() || status.isOnHold();
         });
     }
@@ -45,7 +45,7 @@ export class AiringShowsStrategy extends FilterStrategy {
  */
 export class CompletedShowsStrategy extends FilterStrategy {
     filter(shows) {
-        return shows.filter(show => show.getStatus().isCompleted());
+        return shows.filter(show => show.getStatusObject().isCompleted());
     }
 }
 

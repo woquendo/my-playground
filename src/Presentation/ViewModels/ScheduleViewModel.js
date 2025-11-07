@@ -5,7 +5,7 @@
  */
 
 import { BaseViewModel } from './BaseViewModel.js';
-import { StrategyFactory } from '../../Application/Strategies/index.js';
+import { StrategyFactory, TitleSortStrategy } from '../../Application/Strategies/index.js';
 
 export class ScheduleViewModel extends BaseViewModel {
     /**
@@ -62,15 +62,13 @@ export class ScheduleViewModel extends BaseViewModel {
 
         this.defineComputed('behindCount', () => {
             const shows = this.get('shows');
-            return shows.filter(show =>
-                show.getCurrentEpisode() < show.getLatestEpisode()
-            ).length;
+            return shows.filter(show => show.getEpisodesBehind() > 0).length;
         });
 
         this.defineComputed('completedCount', () => {
             const shows = this.get('shows');
             return shows.filter(show =>
-                show.getStatus().isCompleted()
+                show.getStatusObject().isCompleted()
             ).length;
         });
     }
@@ -388,8 +386,8 @@ export class ScheduleViewModel extends BaseViewModel {
             const context = StrategyFactory.createAiringShowsContext();
             shows = context.apply(shows);
         } else if (sortBy === 'title') {
-            const context = StrategyFactory.createCompletedShowsContext();
-            shows = context.apply(shows);
+            const sortStrategy = new TitleSortStrategy();
+            shows = sortStrategy.sort(shows);
         }
 
         return shows;

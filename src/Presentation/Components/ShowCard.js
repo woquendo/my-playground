@@ -37,10 +37,10 @@ export class ShowCard extends BaseComponent {
      */
     _template() {
         const show = this._props.show;
-        const current = show.getCurrentEpisode();
+        const current = show.getWatchingStatus();
         const total = show.getTotalEpisodes();
-        const latest = show.getLatestEpisode();
-        const status = show.getStatus().getValue();
+        const latest = show.getCurrentEpisode(new Date());
+        const status = show.getStatus();
         const title = this._escapeHtml(show.getTitle());
         const airDay = show.getAirDay() || 'Unknown';
 

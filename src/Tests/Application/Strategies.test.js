@@ -37,10 +37,14 @@ describe('Filter Strategies', () => {
 
     describe('AiringShowsStrategy', () => {
         test('should filter watching shows', () => {
+            const statusWatching = new ShowStatus('watching');
+            const statusCompleted = new ShowStatus('completed');
+            const statusOnHold = new ShowStatus('on_hold');
+
             const shows = [
-                { getStatus: () => new ShowStatus('watching') },
-                { getStatus: () => new ShowStatus('completed') },
-                { getStatus: () => new ShowStatus('on_hold') }
+                { getStatus: () => statusWatching, getStatusObject: () => statusWatching },
+                { getStatus: () => statusCompleted, getStatusObject: () => statusCompleted },
+                { getStatus: () => statusOnHold, getStatusObject: () => statusOnHold }
             ];
 
             const strategy = new AiringShowsStrategy();
@@ -54,10 +58,13 @@ describe('Filter Strategies', () => {
 
     describe('CompletedShowsStrategy', () => {
         test('should filter completed shows', () => {
+            const statusWatching = new ShowStatus('watching');
+            const statusCompleted = new ShowStatus('completed');
+
             const shows = [
-                { getStatus: () => new ShowStatus('watching') },
-                { getStatus: () => new ShowStatus('completed') },
-                { getStatus: () => new ShowStatus('completed') }
+                { getStatus: () => statusWatching, getStatusObject: () => statusWatching },
+                { getStatus: () => statusCompleted, getStatusObject: () => statusCompleted },
+                { getStatus: () => statusCompleted, getStatusObject: () => statusCompleted }
             ];
 
             const strategy = new CompletedShowsStrategy();
@@ -433,10 +440,13 @@ describe('StrategyContext', () => {
 
     describe('Applying Strategies', () => {
         test('should apply filter strategies in order', () => {
+            const statusWatching = new ShowStatus('watching');
+            const statusCompleted = new ShowStatus('completed');
+
             const shows = [
-                { getStatus: () => new ShowStatus('watching'), getCurrentEpisode: () => 5, getLatestEpisode: () => 10 },
-                { getStatus: () => new ShowStatus('watching'), getCurrentEpisode: () => 10, getLatestEpisode: () => 10 },
-                { getStatus: () => new ShowStatus('completed'), getCurrentEpisode: () => 12, getLatestEpisode: () => 12 }
+                { getStatus: () => statusWatching, getStatusObject: () => statusWatching, getCurrentEpisode: () => 5, getLatestEpisode: () => 10 },
+                { getStatus: () => statusWatching, getStatusObject: () => statusWatching, getCurrentEpisode: () => 10, getLatestEpisode: () => 10 },
+                { getStatus: () => statusCompleted, getStatusObject: () => statusCompleted, getCurrentEpisode: () => 12, getLatestEpisode: () => 12 }
             ];
 
             const context = new StrategyContext()
@@ -450,10 +460,13 @@ describe('StrategyContext', () => {
         });
 
         test('should apply sort strategy after filters', () => {
+            const statusWatching = new ShowStatus('watching');
+            const statusCompleted = new ShowStatus('completed');
+
             const shows = [
-                { getStatus: () => new ShowStatus('watching'), getTitle: () => 'Zebra' },
-                { getStatus: () => new ShowStatus('watching'), getTitle: () => 'Apple' },
-                { getStatus: () => new ShowStatus('completed'), getTitle: () => 'Banana' }
+                { getStatus: () => statusWatching, getStatusObject: () => statusWatching, getTitle: () => 'Zebra' },
+                { getStatus: () => statusWatching, getStatusObject: () => statusWatching, getTitle: () => 'Apple' },
+                { getStatus: () => statusCompleted, getStatusObject: () => statusCompleted, getTitle: () => 'Banana' }
             ];
 
             const context = new StrategyContext()

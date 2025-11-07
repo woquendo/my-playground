@@ -765,6 +765,7 @@ export class Show {
     getCustomEpisodes() { return this.customEpisodes; }
     getSkippedWeeks() { return this.skippedWeeks; }
     getStatus() { return this.status.getValue(); }
+    getStatusObject() { return this.status; }  // For getting ShowStatus object
     getAiringStatus() { return this.airingStatus.getValue(); }
     getScore() { return this.score; }
     getType() { return this.type; }
