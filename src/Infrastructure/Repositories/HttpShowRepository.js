@@ -23,7 +23,9 @@ export class HttpShowRepository extends IShowRepository {
         this.cacheTTL = options.cacheTTL || 300000; // 5 minutes
         this.endpoint = options.endpoint || '/data/shows.json';
         this.titlesEndpoint = options.titlesEndpoint || '/data/titles.json';
+        this.scheduleUpdatesEndpoint = options.scheduleUpdatesEndpoint || '/data/schedule_updates.json';
         this.titles = null; // Cache for English titles
+        this.scheduleUpdates = null; // Cache for schedule updates
     }
 
     /**
@@ -42,6 +44,9 @@ export class HttpShowRepository extends IShowRepository {
 
             // Load English titles if not already loaded
             await this._loadTitles();
+
+            // Load schedule updates if not already loaded
+            await this._loadScheduleUpdates();
 
             // Fetch from HTTP
             const data = await this.httpClient.get(this.endpoint);
@@ -296,6 +301,26 @@ export class HttpShowRepository extends IShowRepository {
     }
 
     /**
+     * Load schedule updates from schedule_updates.json
+     * @private
+     * @returns {Promise<void>}
+     */
+    async _loadScheduleUpdates() {
+        // Only load once
+        if (this.scheduleUpdates !== null) {
+            return;
+        }
+
+        try {
+            const data = await this.httpClient.get(this.scheduleUpdatesEndpoint);
+            this.scheduleUpdates = data.updates || data;
+        } catch (error) {
+            console.warn('Failed to load schedule updates from schedule_updates.json:', error);
+            this.scheduleUpdates = {}; // Set to empty object to avoid retrying
+        }
+    }
+
+    /**
      * Transform raw data to Show domain objects
      * @private
      * @param {any} data - Raw data from HTTP response
@@ -320,6 +345,9 @@ export class HttpShowRepository extends IShowRepository {
                 // Get English title from titles.json if available, otherwise use title_english from shows.json
                 const englishTitle = this.titles?.[String(rawId)] || rawShow.title_english || rawShow.titleEnglish;
 
+                // Get schedule updates for this show if available
+                const updates = this.scheduleUpdates?.[String(rawId)] || {};
+
                 const showData = {
                     id: String(rawId),
                     title: (typeof title === 'string' ? title.trim() : null) || `Show ${rawId}`,
@@ -339,9 +367,10 @@ export class HttpShowRepository extends IShowRepository {
                     tags: rawShow.tags || [],
                     notes: rawShow.notes || '',
                     endDate: rawShow.end_date || rawShow.endDate,
-                    customStartDate: rawShow.custom_start_date || rawShow.customStartDate,
-                    customEpisodes: rawShow.custom_episodes || rawShow.customEpisodes,
-                    skippedWeeks: rawShow.skipped_weeks || rawShow.skippedWeeks,
+                    // Merge schedule updates - prioritize updates over raw data
+                    customStartDate: updates.custom_start_date || rawShow.custom_start_date || rawShow.customStartDate,
+                    customEpisodes: updates.custom_episodes || rawShow.custom_episodes || rawShow.customEpisodes,
+                    skippedWeeks: updates.skipped_weeks || rawShow.skipped_weeks || rawShow.skippedWeeks,
                     studios: rawShow.studios,
                     licensors: rawShow.licensors,
                     season: rawShow.season,
