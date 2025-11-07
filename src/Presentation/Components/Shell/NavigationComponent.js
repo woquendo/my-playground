@@ -1,6 +1,7 @@
 /**
  * NavigationComponent.js
- * Main navigation menu for the application
+ * Modern, reactive main navigation menu for the application
+ * Follows SOLID principles with clean separation of concerns
  */
 
 import { BaseComponent } from '../BaseComponent.js';
@@ -16,6 +17,15 @@ export class NavigationComponent extends BaseComponent {
         super({ eventBus, logger });
         this.router = router;
         this.element = null;
+        this.currentPath = '/schedule';
+
+        // Navigation items configuration (Single Source of Truth)
+        this.navItems = [
+            { path: '/schedule', label: 'Schedule', icon: '📅', ariaLabel: 'View anime schedule' },
+            { path: '/shows', label: 'Shows', icon: '📺', ariaLabel: 'Browse all shows' },
+            { path: '/music', label: 'Music', icon: '🎵', ariaLabel: 'Music player' },
+            { path: '/import', label: 'Import', icon: '📥', ariaLabel: 'Import data' }
+        ];
     }
 
     /**
@@ -32,30 +42,14 @@ export class NavigationComponent extends BaseComponent {
      */
     render() {
         const nav = document.createElement('nav');
-        nav.className = 'nav';
+        nav.className = 'app-nav';
+        nav.setAttribute('role', 'navigation');
+        nav.setAttribute('aria-label', 'Main navigation');
+
         nav.innerHTML = `
-            <ul class="nav__list">
-                <li class="nav__list-item">
-                    <a href="/schedule" class="nav__item nav__item--active" data-route="/schedule">
-                        📅 Schedule
-                    </a>
-                </li>
-                <li class="nav__list-item">
-                    <a href="/shows" class="nav__item" data-route="/shows">
-                        📺 Shows
-                    </a>
-                </li>
-                <li class="nav__list-item">
-                    <a href="/music" class="nav__item" data-route="/music">
-                        🎵 Music
-                    </a>
-                </li>
-                <li class="nav__list-item">
-                    <a href="/import" class="nav__item" data-route="/import">
-                        📥 Import
-                    </a>
-                </li>
-            </ul>
+            <div class="app-nav__container">
+                ${this.navItems.map(item => this._renderNavItem(item)).join('')}
+            </div>
         `;
 
         this.element = nav;
@@ -66,12 +60,65 @@ export class NavigationComponent extends BaseComponent {
     }
 
     /**
+     * Render a single navigation item
+     * @param {Object} item - Navigation item data
+     * @returns {string} HTML string for nav item
+     * @private
+     */
+    _renderNavItem(item) {
+        const isActive = this.currentPath === item.path;
+        const activeClass = isActive ? 'app-nav__link--active' : '';
+
+        return `
+            <a href="${item.path}" 
+               class="app-nav__link ${activeClass}" 
+               data-route="${item.path}"
+               aria-label="${item.ariaLabel}"
+               aria-current="${isActive ? 'page' : 'false'}">
+                <span class="app-nav__icon" aria-hidden="true">${item.icon}</span>
+                <span class="app-nav__label">${item.label}</span>
+                <span class="app-nav__indicator" aria-hidden="true"></span>
+            </a>
+        `;
+    }
+
+    /**
      * Attach event listeners
      * @param {HTMLElement} element - Navigation element
      */
     attachEventListeners(element) {
-        // Navigation items are handled by Router's global link interceptor
-        // But we can add hover effects or other UI enhancements here
+        // Add ripple effect on click for visual feedback
+        const links = element.querySelectorAll('.app-nav__link');
+        links.forEach(link => {
+            link.addEventListener('click', (e) => {
+                this._createRippleEffect(e.currentTarget, e);
+            });
+        });
+    }
+
+    /**
+     * Create ripple effect on click
+     * @param {HTMLElement} element - Element to add ripple to
+     * @param {MouseEvent} event - Click event
+     * @private
+     */
+    _createRippleEffect(element, event) {
+        const ripple = document.createElement('span');
+        ripple.className = 'app-nav__ripple';
+
+        const rect = element.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const x = event.clientX - rect.left - size / 2;
+        const y = event.clientY - rect.top - size / 2;
+
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${x}px`;
+        ripple.style.top = `${y}px`;
+
+        element.appendChild(ripple);
+
+        // Remove ripple after animation
+        setTimeout(() => ripple.remove(), 600);
     }
 
     /**
@@ -84,23 +131,33 @@ export class NavigationComponent extends BaseComponent {
     }
 
     /**
-     * Update the active navigation item
+     * Update the active navigation item (Reactive Update)
      * @param {string} path - Current route path
      */
     updateActiveItem(path) {
         if (!this.element) return;
 
+        // Only update if path actually changed
+        if (this.currentPath === path) return;
+
+        this.currentPath = path;
+
         // Remove active class from all items
-        const items = this.element.querySelectorAll('.nav__item');
+        const items = this.element.querySelectorAll('.app-nav__link');
         items.forEach(item => {
-            item.classList.remove('nav__item--active');
+            const itemPath = item.getAttribute('data-route');
+            const isActive = itemPath === path;
+
+            // Update classes with smooth transition
+            item.classList.toggle('app-nav__link--active', isActive);
+            item.setAttribute('aria-current', isActive ? 'page' : 'false');
+
+            // Add transition class for animation
+            item.classList.add('app-nav__link--transitioning');
+            setTimeout(() => item.classList.remove('app-nav__link--transitioning'), 300);
         });
 
-        // Add active class to matching item
-        const activeItem = this.element.querySelector(`[data-route="${path}"]`);
-        if (activeItem) {
-            activeItem.classList.add('nav__item--active');
-        }
+        this._logger?.debug('Navigation updated to:', path);
     }
 
     /**

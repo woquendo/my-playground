@@ -1,34 +1,258 @@
 /**
  * Navigation Component Styles
+ * Modern, polished navigation with reactive design patterns
  */
 
-.nav {
-    display: flex;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background-color: var(--color-surface);
+/* ============================================
+   Navigation Container
+   ============================================ */
+.app-nav {
+    position: relative;
+    background: linear-gradient(135deg,
+            var(--color-surface) 0%,
+            var(--color-surface-elevated) 100%);
     border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(10px);
 }
 
-.nav-btn {
-    padding: var(--spacing-sm) var(--spacing-md);
+.app-nav__container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md) var(--spacing-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   Navigation Links
+   ============================================ */
+.app-nav__link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-secondary);
+    text-decoration: none;
     background-color: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     cursor: pointer;
-    transition: var(--transition-all);
+    overflow: hidden;
+    transition: all var(--duration-normal) var(--ease-out);
+    user-select: none;
 }
 
-.nav-btn:hover {
+/* Hover State */
+.app-nav__link:hover {
     color: var(--color-text-primary);
     background-color: var(--color-surface-hover);
+    transform: translateY(-1px);
 }
 
-.nav-btn.active {
+/* Active State */
+.app-nav__link--active {
     color: var(--color-primary);
-    background-color: var(--color-surface-elevated);
-    border-color: var(--color-primary);
+    background: linear-gradient(135deg,
+            rgba(var(--color-primary-rgb), 0.15) 0%,
+            rgba(var(--color-primary-rgb), 0.08) 100%);
+    box-shadow:
+        0 2px 8px rgba(var(--color-primary-rgb), 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.app-nav__link--active:hover {
+    background: linear-gradient(135deg,
+            rgba(var(--color-primary-rgb), 0.2) 0%,
+            rgba(var(--color-primary-rgb), 0.12) 100%);
+    transform: translateY(-2px);
+}
+
+/* Focus State (Accessibility) */
+.app-nav__link:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* ============================================
+   Icon & Label
+   ============================================ */
+.app-nav__icon {
+    font-size: var(--font-size-xl);
+    line-height: 1;
+    transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.app-nav__link:hover .app-nav__icon {
+    transform: scale(1.1);
+}
+
+.app-nav__link--active .app-nav__icon {
+    transform: scale(1.15);
+    filter: drop-shadow(0 2px 4px rgba(var(--color-primary-rgb), 0.3));
+}
+
+.app-nav__label {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.01em;
+}
+
+/* ============================================
+   Active Indicator
+   ============================================ */
+.app-nav__indicator {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 80%;
+    height: 3px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            var(--color-primary) 50%,
+            transparent 100%);
+    border-radius: var(--radius-full);
+    transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.app-nav__link--active .app-nav__indicator {
+    transform: translateX(-50%) scaleX(1);
+}
+
+/* ============================================
+   Ripple Effect
+   ============================================ */
+.app-nav__ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(var(--color-primary-rgb), 0.3);
+    pointer-events: none;
+    transform: scale(0);
+    animation: ripple 0.6s var(--ease-out);
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   Transition State
+   ============================================ */
+.app-nav__link--transitioning {
+    animation: navTransition 0.3s var(--ease-out);
+}
+
+@keyframes navTransition {
+    0% {
+        transform: scale(0.98);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+@media (max-width: 768px) {
+    .app-nav__container {
+        gap: var(--spacing-2xs);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .app-nav__link {
+        padding: var(--spacing-sm) var(--spacing-md);
+        gap: var(--spacing-xs);
+    }
+
+    .app-nav__label {
+        font-size: var(--font-size-sm);
+    }
+
+    .app-nav__icon {
+        font-size: var(--font-size-lg);
+    }
+}
+
+@media (max-width: 480px) {
+    .app-nav__container {
+        justify-content: space-between;
+        gap: 0;
+    }
+
+    .app-nav__link {
+        flex-direction: column;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        gap: var(--spacing-2xs);
+        flex: 1;
+        text-align: center;
+    }
+
+    .app-nav__label {
+        font-size: var(--font-size-xs);
+    }
+
+    .app-nav__icon {
+        font-size: var(--font-size-base);
+    }
+}
+
+/* ============================================
+   Loading State (Optional Enhancement)
+   ============================================ */
+.app-nav__link[aria-busy="true"] {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.app-nav__link[aria-busy="true"]::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ============================================
+   Dark Theme Adjustments
+   ============================================ */
+[data-theme="dark"] .app-nav {
+    background: linear-gradient(135deg,
+            rgba(var(--color-surface-rgb, 20, 20, 25), 0.95) 0%,
+            rgba(var(--color-surface-elevated-rgb, 25, 25, 30), 0.95) 100%);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .app-nav__link--active {
+    box-shadow:
+        0 2px 12px rgba(var(--color-primary-rgb), 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+    .app-nav {
+        display: none;
+    }
 }

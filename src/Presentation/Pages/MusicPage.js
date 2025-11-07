@@ -3,6 +3,8 @@
  * Music page controller - music player and track management
  */
 
+import { PageHeader } from '../Components/PageHeader.js';
+
 export class MusicPage {
     /**
      * @param {Object} dependencies - Page dependencies
@@ -21,6 +23,7 @@ export class MusicPage {
         this.musicPlayer = null;
         this.tracks = [];
         this.currentTrackIndex = -1;
+        this.pageHeader = new PageHeader();
     }
 
     /**
@@ -32,30 +35,36 @@ export class MusicPage {
 
         const page = document.createElement('div');
         page.className = 'page page--music';
+
+        // Render page header
+        const headerHTML = this.pageHeader.render({
+            title: 'Music Player',
+            subtitle: 'Your anime music collection',
+            icon: '🎵',
+            actions: [
+                {
+                    type: 'search',
+                    id: 'music-search',
+                    placeholder: 'Search tracks...'
+                },
+                {
+                    type: 'select',
+                    id: 'music-type-filter',
+                    label: 'Type:',
+                    options: [
+                        { value: 'all', label: 'All Types', selected: true },
+                        { value: 'op', label: 'Opening' },
+                        { value: 'ed', label: 'Ending' },
+                        { value: 'ost', label: 'OST' }
+                    ]
+                }
+            ]
+        });
+
         page.innerHTML = `
-            <div class="page__header">
-                <h2 class="page__title">Music Player</h2>
-                <p class="page__subtitle">Your anime music collection</p>
-            </div>
+            ${headerHTML}
             <div class="page__player">
                 <div id="music-player-container"></div>
-            </div>
-            <div class="page__filters">
-                <div class="filters">
-                    <input 
-                        type="text" 
-                        class="input" 
-                        id="music-search" 
-                        placeholder="Search tracks..."
-                        aria-label="Search tracks"
-                    />
-                    <select class="input" id="music-type-filter" aria-label="Filter by type">
-                        <option value="all">All Types</option>
-                        <option value="op">Opening</option>
-                        <option value="ed">Ending</option>
-                        <option value="ost">OST</option>
-                    </select>
-                </div>
             </div>
             <div class="page__content">
                 <div id="track-list-container"></div>
@@ -72,6 +81,9 @@ export class MusicPage {
 
         // Initialize music player
         await this.initializeMusicPlayer();
+
+        // Don't auto-show global player - let users control visibility via toggle button
+        // Users can click the music icon in the header to show/hide the player
 
         return page;
     }
@@ -131,6 +143,21 @@ export class MusicPage {
             // Attach track event listeners
             this.attachTrackListeners(container);
 
+            // Auto-load first track with autoplay enabled
+            // Note: Music model has autoplay as a direct property, not a getter
+            const autoplayTrack = tracks.find(track => track.autoplay === true);
+            if (autoplayTrack) {
+                this.logger.info('Auto-loading and playing first autoplay track:', autoplayTrack.getTitle());
+                this.currentTrackIndex = tracks.indexOf(autoplayTrack);
+                // Pass true to trigger playback via global player
+                this.setCurrentTrack(autoplayTrack, true);
+            } else if (tracks.length > 0 && !this.currentTrack) {
+                // If no autoplay track, just load the first one without playing
+                this.logger.info('Loading first track (no autoplay):', tracks[0].getTitle());
+                this.currentTrackIndex = 0;
+                this.setCurrentTrack(tracks[0], false);
+            }
+
         } catch (error) {
             this.logger.error('Failed to load tracks:', error);
             const container = this.element.querySelector('#track-list-container');
@@ -151,17 +178,22 @@ export class MusicPage {
      * @returns {string} HTML string
      */
     renderTrack(track) {
+        const title = track.getTitle ? track.getTitle() : track.title;
+        const artist = track.getArtist ? track.getArtist() : (track.artist || 'Unknown Artist');
+        const id = track.getId ? track.getId() : track.id;
+        const type = track.genre || track.type || 'TRACK';
+
         return `
-            <div class="track-item" data-track-id="${track.id}">
+            <div class="track-item" data-track-id="${id}">
                 <button class="track-item__play btn btn--ghost btn--icon" data-action="play" aria-label="Play track">
                     ▶️
                 </button>
                 <div class="track-item__info">
-                    <div class="track-item__title">${this.escapeHtml(track.title)}</div>
-                    <div class="track-item__artist">${this.escapeHtml(track.artist || 'Unknown Artist')}</div>
+                    <div class="track-item__title">${this.escapeHtml(title)}</div>
+                    <div class="track-item__artist">${this.escapeHtml(artist)}</div>
                 </div>
                 <div class="track-item__meta">
-                    <span class="badge badge--${track.type}">${track.type?.toUpperCase() || 'TRACK'}</span>
+                    <span class="badge badge--${type}">${type?.toUpperCase() || 'TRACK'}</span>
                 </div>
             </div>
         `;
@@ -195,13 +227,11 @@ export class MusicPage {
                 throw new Error('Track not found');
             }
 
-            // Set as current track in player
-            this.setCurrentTrack(track);
+            // Set as current track and delegate playback to global player
+            this.setCurrentTrack(track, true);
 
-            // Update ViewModel
-            await this.viewModel.playTrack(track);
-
-            this.logger.info('Playing track:', trackId);
+            // Don't call viewModel.playTrack - global player handles all playback
+            this.logger.info('Delegating track playback to global player:', trackId);
 
             const toastService = this.container.get('toastService');
             if (toastService) {
@@ -279,25 +309,50 @@ export class MusicPage {
         if (!container) return;
 
         try {
-            const { MusicPlayer } = await import('../Components/MusicPlayer.js');
+            // Don't initialize the actual MusicPlayer component
+            // Global player handles all playback
+            // Just show a simple UI instead
+            container.innerHTML = `
+                <div class="music-player music-player--display-only">
+                    <div class="music-player__info">
+                        <div class="music-player__track">
+                            <div class="music-player__title">Select a track to play</div>
+                            <div class="music-player__artist">All playback handled by global player</div>
+                        </div>
+                    </div>
+                    <div class="music-player__controls">
+                        <button class="btn btn--ghost btn--icon" data-action="previous" disabled>
+                            ⏮️
+                        </button>
+                        <button class="btn btn--primary btn--icon btn--play-pause" data-action="play-global">
+                            ▶️
+                        </button>
+                        <button class="btn btn--ghost btn--icon" data-action="next" disabled>
+                            ⏭️
+                        </button>
+                    </div>
+                    <div class="music-player__note">
+                        <small>💡 Use the global player (top right) to control playback across all pages</small>
+                    </div>
+                </div>
+            `;
 
-            this.musicPlayer = new MusicPlayer({
-                container,
-                track: this.currentTrack,
-                onPlay: () => this.handlePlayerPlay(),
-                onPause: () => this.handlePlayerPause(),
-                onStop: () => this.handlePlayerStop(),
-                onNext: () => this.handleNextTrack(),
-                onPrevious: () => this.handlePreviousTrack(),
-                eventBus: this.eventBus,
-                logger: this.logger
-            });
+            // Add click handler for the play button to open global player
+            const playBtn = container.querySelector('[data-action="play-global"]');
+            if (playBtn) {
+                playBtn.addEventListener('click', () => {
+                    if (this.currentTrack) {
+                        this.eventBus.emitSync('music:play', this.currentTrack);
+                    }
+                    // Also show the global player
+                    this.eventBus.emitSync('globalPlayer:toggle');
+                });
+            }
 
-            this.musicPlayer.mount();
-            this.logger.info('Music player initialized');
+            this.logger.info('Display-only music player UI initialized');
 
         } catch (error) {
-            this.logger.error('Failed to initialize music player:', error);
+            this.logger.error('Failed to initialize music player UI:', error);
             container.innerHTML = `
                 <div class="error-state">
                     <p>Failed to load music player.</p>
@@ -310,9 +365,17 @@ export class MusicPage {
      * Handle player play event
      */
     handlePlayerPlay() {
-        this.logger.info('Player play event');
+        this.logger.info('Local player play button clicked - delegating to global player');
+
+        // Stop the local player immediately to prevent double playback
+        if (this.musicPlayer && this.musicPlayer._handleStop) {
+            this.musicPlayer._handleStop();
+        }
+
         if (this.currentTrack) {
-            this.eventBus.emit('track:playing', { track: this.currentTrack });
+            // Delegate playback to global player
+            this.eventBus.emitSync('music:play', this.currentTrack);
+            this.logger.info('Play delegated to global player, local player stopped');
         }
     }
 
@@ -344,7 +407,7 @@ export class MusicPage {
 
         this.currentTrackIndex = (this.currentTrackIndex + 1) % this.tracks.length;
         const nextTrack = this.tracks[this.currentTrackIndex];
-        this.setCurrentTrack(nextTrack);
+        this.setCurrentTrack(nextTrack, true); // Auto-play next track
     }
 
     /**
@@ -357,28 +420,49 @@ export class MusicPage {
             ? this.tracks.length - 1
             : this.currentTrackIndex - 1;
         const previousTrack = this.tracks[this.currentTrackIndex];
-        this.setCurrentTrack(previousTrack);
+        this.setCurrentTrack(previousTrack, true); // Auto-play previous track
     }
 
     /**
      * Set current track
      * @param {Music} track - Track to set as current
+     * @param {boolean} shouldPlay - Whether to trigger playback (delegates to global player)
      */
-    setCurrentTrack(track) {
+    setCurrentTrack(track, shouldPlay = false) {
         this.currentTrack = track;
 
         // Update track index
         this.currentTrackIndex = this.tracks.findIndex(t => t.getId() === track.getId());
 
-        // Update music player
-        if (this.musicPlayer) {
-            this.musicPlayer.updateTrack(track);
+        // Update the display-only player UI
+        const playerTitle = this.element?.querySelector('.music-player__title');
+        const playerArtist = this.element?.querySelector('.music-player__artist');
+        if (playerTitle && playerArtist) {
+            playerTitle.textContent = track.getTitle();
+            playerArtist.textContent = track.getArtist() || 'Unknown Artist';
         }
 
         // Update UI playing state
         this.updatePlayingState(track.getId());
 
-        this.logger.info('Current track set:', track.getTitle());
+        // If we should play, delegate to global player
+        if (shouldPlay) {
+            // Log EventBus diagnostics
+            const diagnostics = this.eventBus.getDiagnostics();
+            this.logger.info('=== EventBus Diagnostics ===', diagnostics);
+
+            this.logger.info('=== EMITTING music:play event ===', {
+                trackId: track.getId(),
+                trackTitle: track.getTitle(),
+                hasSubscribers: diagnostics.eventStats['music:play'] || 0
+            });
+
+            // Use emitSync to avoid async timing issues
+            this.eventBus.emitSync('music:play', track);
+            this.logger.info('Event emitted (sync) - Delegating playback to global player:', track.getTitle());
+        } else {
+            this.logger.info('Current track set (no playback):', track.getTitle());
+        }
     }
 
     /**
@@ -397,13 +481,7 @@ export class MusicPage {
      */
     async destroy() {
         this.logger.info('Destroying music page');
-        // Stop playback if needed
-        if (this.currentTrack) {
-            try {
-                await this.viewModel.stopPlayback();
-            } catch (error) {
-                this.logger.error('Failed to stop playback:', error);
-            }
-        }
+        // Don't stop playback - the global player handles all playback
+        // Music should continue playing when navigating away from this page
     }
 }

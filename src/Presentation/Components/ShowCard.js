@@ -47,7 +47,9 @@ export class ShowCard extends BaseComponent {
         const status = show.getStatus();
         const title = this._escapeHtml(show.getPrimaryTitle());
         const airDay = show.getAirDay() || 'Unknown';
-        const imageUrl = show.imageUrl || show.getImageUrl?.() || '';
+
+        // Use getter method for image URL
+        const imageUrl = show.getImageUrl?.() || '';
 
         const isBehind = current < latest;
         const behindClass = isBehind ? 'show-card--behind' : '';
@@ -57,66 +59,79 @@ export class ShowCard extends BaseComponent {
             <div class="show-card ${statusClass} ${behindClass}" data-show-id="${show.getId()}">
                 ${imageUrl ? `
                     <div class="show-card__image">
-                        <img src="${imageUrl}" alt="${title}" loading="lazy" />
+                        <img src="${this._escapeHtml(imageUrl)}" 
+                             alt="${title}" 
+                             loading="lazy" 
+                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='none';" />
+                        <div class="show-card__image-overlay"></div>
                     </div>
-                ` : ''}
-                <div class="show-card__header">
-                    <h3 class="show-card__title">${title}</h3>
-                    <span class="show-card__status show-card__status--${status}">
-                        ${this._formatStatus(status)}
-                    </span>
-                </div>
-                
-                <div class="show-card__body">
-                    <div class="show-card__info">
-                        <div class="show-card__air-day">
-                            <span class="label">Airs:</span>
-                            <span class="value">${airDay}</span>
-                        </div>
-                        <div class="show-card__episode">
-                            <span class="label">Episode:</span>
-                            <span class="value">${current} / ${total}</span>
-                        </div>
-                        <div class="show-card__latest">
-                            <span class="label">Latest:</span>
-                            <span class="value">${latest}</span>
-                        </div>
+                ` : `
+                    <div class="show-card__image show-card__image--placeholder">
+                        <div class="placeholder-icon">📺</div>
+                    </div>
+                `}
+                <div class="show-card__content">
+                    <div class="show-card__header">
+                        <h3 class="show-card__title">${title}</h3>
+                        <span class="show-card__badge badge badge--${status}">
+                            ${this._formatStatus(status)}
+                        </span>
                     </div>
                     
-                    ${isBehind ? `
-                        <div class="show-card__alert">
-                            <span class="alert-icon">⚠️</span>
-                            <span class="alert-text">${latest - current} episodes behind</span>
+                    <div class="show-card__body">
+                        <div class="show-card__info">
+                            <div class="show-card__info-item">
+                                <span class="info-label">Airs:</span>
+                                <span class="info-value">${airDay}</span>
+                            </div>
+                            <div class="show-card__info-item">
+                                <span class="info-label">Episode:</span>
+                                <span class="info-value">${current} / ${total}</span>
+                            </div>
+                            <div class="show-card__info-item">
+                                <span class="info-label">Latest:</span>
+                                <span class="info-value">${latest}</span>
+                            </div>
                         </div>
-                    ` : ''}
-                </div>
-                
-                <div class="show-card__actions">
-                    <button class="btn btn--primary btn--progress" data-action="progress">
-                        <span class="btn-icon">▶</span>
-                        Progress
-                    </button>
-                    <select class="select select--status" data-action="status-change">
-                        <option value="watching" ${status === 'watching' ? 'selected' : ''}>Watching</option>
-                        <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
-                        <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>On Hold</option>
-                        <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Dropped</option>
-                        <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>Plan to Watch</option>
-                    </select>
-                    <div class="show-card__menu">
-                        <button class="btn btn--ghost btn--icon" data-action="menu-toggle" title="More options">
-                            ⋮
+                        
+                        ${isBehind ? `
+                            <div class="show-card__alert">
+                                <span class="alert-icon">⚠️</span>
+                                <span class="alert-text">${latest - current} episode${latest - current > 1 ? 's' : ''} behind</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="show-card__actions">
+                        <button class="btn btn--primary btn--sm" data-action="progress" title="Mark next episode as watched">
+                            <span class="btn-icon">▶</span>
+                            <span class="btn-text">Progress</span>
                         </button>
-                        <div class="show-card__dropdown" data-dropdown style="display: none;">
-                            <button class="dropdown-item" data-action="update-air-date">
-                                📅 Update Air Date
+                        <select class="show-card__status-select" data-action="status-change" title="Change watch status">
+                            <option value="watching" ${status === 'watching' ? 'selected' : ''}>Watching</option>
+                            <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
+                            <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>On Hold</option>
+                            <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Dropped</option>
+                            <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>Plan to Watch</option>
+                        </select>
+                        <div class="show-card__menu">
+                            <button class="btn btn--ghost btn--icon btn--sm" data-action="menu-toggle" title="More options" aria-label="Show menu">
+                                ⋮
                             </button>
-                            <button class="dropdown-item" data-action="update-skipped-weeks">
-                                ⏩ Update Skipped Weeks
-                            </button>
-                            <button class="dropdown-item" data-action="skip-week">
-                                ⏭️ Skip This Week
-                            </button>
+                            <div class="show-card__dropdown" data-dropdown hidden>
+                                <button class="show-card__dropdown-item" data-action="update-air-date">
+                                    <span class="dropdown-icon">📅</span>
+                                    <span class="dropdown-text">Update Air Date</span>
+                                </button>
+                                <button class="show-card__dropdown-item" data-action="update-skipped-weeks">
+                                    <span class="dropdown-icon">⏩</span>
+                                    <span class="dropdown-text">Update Skipped Weeks</span>
+                                </button>
+                                <button class="show-card__dropdown-item" data-action="skip-week">
+                                    <span class="dropdown-icon">⏭️</span>
+                                    <span class="dropdown-text">Skip This Week</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -164,14 +179,30 @@ export class ShowCard extends BaseComponent {
         if (menuToggle && dropdown) {
             this._addEventListener(menuToggle, 'click', (e) => {
                 e.stopPropagation();
-                const isVisible = dropdown.style.display !== 'none';
-                dropdown.style.display = isVisible ? 'none' : 'block';
+                const isHidden = dropdown.hasAttribute('hidden');
+
+                // Close all other dropdowns first
+                document.querySelectorAll('.show-card__dropdown').forEach(d => {
+                    if (d !== dropdown) {
+                        d.setAttribute('hidden', '');
+                    }
+                });
+
+                // Toggle this dropdown
+                if (isHidden) {
+                    dropdown.removeAttribute('hidden');
+                    menuToggle.setAttribute('aria-expanded', 'true');
+                } else {
+                    dropdown.setAttribute('hidden', '');
+                    menuToggle.setAttribute('aria-expanded', 'false');
+                }
             });
 
             // Close dropdown when clicking outside
             this._addEventListener(document, 'click', (e) => {
                 if (!this._element.contains(e.target)) {
-                    dropdown.style.display = 'none';
+                    dropdown.setAttribute('hidden', '');
+                    menuToggle.setAttribute('aria-expanded', 'false');
                 }
             });
         }
@@ -195,7 +226,7 @@ export class ShowCard extends BaseComponent {
 
                 // Close dropdown
                 if (dropdown) {
-                    dropdown.style.display = 'none';
+                    dropdown.setAttribute('hidden', '');
                 }
             });
         }
@@ -209,7 +240,7 @@ export class ShowCard extends BaseComponent {
 
                 // Close dropdown
                 if (dropdown) {
-                    dropdown.style.display = 'none';
+                    dropdown.setAttribute('hidden', '');
                 }
             });
         }
@@ -326,7 +357,7 @@ export class ShowCard extends BaseComponent {
         // Close dropdown
         const dropdown = this._querySelector('[data-dropdown]');
         if (dropdown) {
-            dropdown.style.display = 'none';
+            dropdown.setAttribute('hidden', '');
         }
     }
 

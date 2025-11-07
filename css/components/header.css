@@ -1,0 +1,411 @@
+/**
+ * Header Component Styles
+ * Modern, polished header with branding and theme toggle
+ */
+
+/* ============================================
+   Header Wrapper & Container
+   ============================================ */
+.app-header__wrapper {
+    background: linear-gradient(135deg,
+            var(--color-surface) 0%,
+            var(--color-surface-elevated) 100%);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.app-header__container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-sm);
+    gap: var(--spacing-lg);
+}
+
+/* ============================================
+   Branding Section
+   ============================================ */
+.app-header__branding {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.app-header__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg,
+            var(--color-primary) 0%,
+            var(--color-primary-dark) 100%);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        0 4px 12px rgba(var(--color-primary-rgb), 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.app-header__logo-icon {
+    font-size: var(--font-size-2xl);
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.app-header__brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+}
+
+.app-header__title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    line-height: 1.2;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.app-header__subtitle {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    line-height: 1.3;
+}
+
+/* ============================================
+   Actions Section
+   ============================================ */
+.app-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================
+   Action Button (Music Toggle, etc.)
+   ============================================ */
+.header-action-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: var(--color-surface-elevated);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    overflow: hidden;
+    transition: all var(--duration-normal) var(--ease-out);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-action-btn:hover {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.2);
+}
+
+.header-action-btn:active {
+    transform: translateY(0);
+}
+
+.action-btn__icon {
+    font-size: var(--font-size-xl);
+    line-height: 1;
+    transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.header-action-btn:hover .action-btn__icon {
+    transform: scale(1.1);
+}
+
+/* Music player toggle specific styling */
+.music-player-toggle {
+    background: linear-gradient(135deg,
+            rgba(var(--color-primary-rgb), 0.15) 0%,
+            rgba(var(--color-primary-rgb), 0.08) 100%);
+}
+
+.music-player-toggle:hover {
+    background: linear-gradient(135deg,
+            rgba(var(--color-primary-rgb), 0.25) 0%,
+            rgba(var(--color-primary-rgb), 0.15) 100%);
+}
+
+/* Music playing animation */
+.music-player-toggle--playing {
+    background: linear-gradient(135deg,
+            rgba(var(--color-primary-rgb), 0.3) 0%,
+            rgba(var(--color-accent-rgb), 0.2) 100%);
+    border-color: var(--color-primary);
+    animation: musicPulse 2s ease-in-out infinite;
+}
+
+.music-player-toggle--playing .action-btn__icon {
+    animation: musicBounce 0.6s ease-in-out infinite;
+}
+
+@keyframes musicPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 2px 8px rgba(0, 0, 0, 0.1),
+            0 0 0 0 rgba(var(--color-primary-rgb), 0.4);
+    }
+
+    50% {
+        box-shadow:
+            0 4px 16px rgba(var(--color-primary-rgb), 0.3),
+            0 0 0 8px rgba(var(--color-primary-rgb), 0);
+    }
+}
+
+@keyframes musicBounce {
+
+    0%,
+    100% {
+        transform: scale(1) translateY(0);
+    }
+
+    25% {
+        transform: scale(1.1) translateY(-2px);
+    }
+
+    50% {
+        transform: scale(1.05) translateY(0);
+    }
+
+    75% {
+        transform: scale(1.1) translateY(-1px);
+    }
+}
+
+/* ============================================
+   Theme Toggle Button
+   ============================================ */
+.theme-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 36px;
+    padding: 0;
+    background: var(--color-surface-elevated);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    overflow: hidden;
+    transition: all var(--duration-normal) var(--ease-out);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+.theme-toggle:hover {
+    transform: scale(1.05);
+    border-color: var(--color-primary);
+    box-shadow:
+        0 4px 12px rgba(var(--color-primary-rgb), 0.2),
+        inset 0 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+.theme-toggle:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.theme-toggle:active {
+    transform: scale(0.98);
+}
+
+/* Track */
+.theme-toggle__track {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg,
+            var(--color-primary) 0%,
+            var(--color-primary-dark) 100%);
+    border-radius: 50%;
+    transition: transform var(--duration-normal) cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    z-index: 2;
+}
+
+/* Dark theme - track on left */
+.theme-toggle--dark .theme-toggle__track {
+    transform: translateX(-14px);
+}
+
+/* Light theme - track on right */
+.theme-toggle--light .theme-toggle__track {
+    transform: translateX(14px);
+}
+
+/* Icons */
+.theme-toggle__icon {
+    position: absolute;
+    font-size: var(--font-size-base);
+    transition: all var(--duration-normal) var(--ease-out);
+    z-index: 1;
+}
+
+.theme-toggle__icon--sun {
+    left: 8px;
+    opacity: 0;
+    transform: scale(0.5) rotate(-90deg);
+}
+
+.theme-toggle__icon--moon {
+    right: 8px;
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+}
+
+/* Light theme - show sun, hide moon */
+.theme-toggle--light .theme-toggle__icon--sun {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+}
+
+.theme-toggle--light .theme-toggle__icon--moon {
+    opacity: 0;
+    transform: scale(0.5) rotate(90deg);
+}
+
+/* Transitioning state */
+.theme-toggle--transitioning {
+    animation: themeTogglePulse 0.3s var(--ease-out);
+}
+
+@keyframes themeTogglePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Ripple Effect */
+.theme-toggle__ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(var(--color-primary-rgb), 0.3);
+    pointer-events: none;
+    transform: scale(0);
+    animation: ripple 0.6s var(--ease-out);
+    z-index: 0;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+@media (max-width: 768px) {
+    .app-header__container {
+        padding: var(--spacing-sm) var(--spacing-md);
+        gap: var(--spacing-md);
+    }
+
+    .app-header__branding {
+        gap: var(--spacing-sm);
+    }
+
+    .app-header__logo {
+        width: 40px;
+        height: 40px;
+    }
+
+    .app-header__logo-icon {
+        font-size: var(--font-size-xl);
+    }
+
+    .app-header__title {
+        font-size: var(--font-size-lg);
+    }
+
+    .app-header__subtitle {
+        font-size: var(--font-size-xs);
+    }
+
+    .header-action-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .action-btn__icon {
+        font-size: var(--font-size-lg);
+    }
+}
+
+@media (max-width: 480px) {
+    .app-header__container {
+        gap: var(--spacing-sm);
+    }
+
+    .app-header__subtitle {
+        display: none;
+    }
+
+    .theme-toggle {
+        width: 56px;
+        height: 32px;
+    }
+
+    .theme-toggle__track {
+        width: 24px;
+        height: 24px;
+    }
+
+    .theme-toggle--dark .theme-toggle__track {
+        transform: translateX(-12px);
+    }
+
+    .theme-toggle--light .theme-toggle__track {
+        transform: translateX(12px);
+    }
+}
+
+/* ============================================
+   Dark Theme Enhancements
+   ============================================ */
+[data-theme="dark"] .app-header__wrapper {
+    background: linear-gradient(135deg,
+            rgba(var(--color-surface-rgb, 20, 20, 25), 0.95) 0%,
+            rgba(var(--color-surface-elevated-rgb, 25, 25, 30), 0.95) 100%);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .theme-toggle {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+    .app-header__actions {
+        display: none;
+    }
+}

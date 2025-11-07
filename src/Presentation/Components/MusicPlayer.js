@@ -106,6 +106,7 @@ export class MusicPlayer extends BaseComponent {
                 </div>
 
                 <audio data-audio style="display: none;"></audio>
+                <div data-youtube-player style="display: none;"></div>
             </div>
         `;
     }
@@ -116,6 +117,10 @@ export class MusicPlayer extends BaseComponent {
      */
     _initialize() {
         this._audioElement = this._querySelector('[data-audio]');
+        this._youtubeContainer = this._querySelector('[data-youtube-player]');
+        this._youtubePlayer = null;
+        this._youtubePlayerReady = false;
+        this._currentSourceType = null;
 
         if (this._audioElement) {
             // Set up audio element event listeners
@@ -126,6 +131,9 @@ export class MusicPlayer extends BaseComponent {
             this._addEventListener(this._audioElement, 'pause', () => this._onPause());
             this._addEventListener(this._audioElement, 'error', (e) => this._onError(e));
         }
+
+        // Load YouTube iframe API
+        this._loadYouTubeAPI();
 
         // Control button handlers
         const playPauseBtn = this._querySelector('[data-action="play-pause"]');
@@ -170,20 +178,20 @@ export class MusicPlayer extends BaseComponent {
      * @param {Music} track - Track to load
      */
     _loadTrack(track) {
-        if (!this._audioElement || !track) return;
+        if (!track) return;
 
         try {
-            // Get audio source URL - prioritize different sources
-            const audioUrl = this._getAudioUrl(track);
+            const sourceType = track.getPrimarySourceType();
+            this._currentSourceType = sourceType;
 
-            if (!audioUrl) {
-                this._logger.warn('No audio URL available for track:', track.getTitle());
-                this._showError('No audio source available for this track');
-                return;
+            // Clean up previous player
+            this._stopCurrentPlayer();
+
+            if (sourceType === 'youtube') {
+                this._loadYouTubeTrack(track);
+            } else {
+                this._loadAudioTrack(track);
             }
-
-            this._audioElement.src = audioUrl;
-            this._audioElement.load();
 
             this._logger.info('Track loaded:', track.getTitle());
         } catch (error) {
@@ -193,31 +201,278 @@ export class MusicPlayer extends BaseComponent {
     }
 
     /**
-     * Get audio URL for track
+     * Load track into HTML5 audio element
      * @param {Music} track - Track
-     * @returns {string|null} Audio URL
      * @private
      */
-    _getAudioUrl(track) {
-        // Try different audio sources in order of preference
-        if (track.getLocalFile?.()) {
-            return track.getLocalFile();
+    _loadAudioTrack(track) {
+        if (!this._audioElement) return;
+
+        const audioUrl = track.localFile;
+
+        if (!audioUrl) {
+            this._logger.warn('No direct audio file available for track:', track.getTitle());
+            this._showError('No audio source available for this track');
+            return;
         }
 
-        if (track.getYouTubeUrl?.()) {
-            // For demo purposes, we'll just log YouTube URLs
-            // In production, you'd need YouTube API or iframe embed
-            this._logger.info('YouTube URL available but not directly playable:', track.getYouTubeUrl());
+        this._audioElement.src = audioUrl;
+        this._audioElement.load();
+        this._audioElement.style.display = '';
+        if (this._youtubeContainer) {
+            this._youtubeContainer.style.display = 'none';
+        }
+    }
+
+    /**
+     * Load YouTube track
+     * @param {Music} track - Track
+     * @private
+     */
+    _loadYouTubeTrack(track) {
+        const youtubeUrl = track.youtubeUrl;
+        if (!youtubeUrl) {
+            this._showError('No YouTube URL available');
+            return;
         }
 
-        if (track.getSpotifyUrl?.()) {
-            // Spotify URLs need special handling with Spotify Web API
-            this._logger.info('Spotify URL available but needs Web API:', track.getSpotifyUrl());
+        const videoId = this._extractYouTubeVideoId(youtubeUrl);
+        if (!videoId) {
+            this._logger.error('Invalid YouTube URL:', youtubeUrl);
+            this._showError('Invalid YouTube URL');
+            return;
         }
 
-        // For demo, create a placeholder audio URL or return null
-        this._logger.warn('No direct audio URL available for track');
+        // Hide audio element, show YouTube container
+        if (this._audioElement) {
+            this._audioElement.style.display = 'none';
+        }
+
+        if (!window.YT || !window.YT.Player) {
+            this._logger.warn('YouTube API not loaded yet, waiting...');
+            // Try again after API loads
+            setTimeout(() => this._loadYouTubeTrack(track), 500);
+            return;
+        }
+
+        // Create YouTube player
+        if (this._youtubePlayer && this._youtubePlayerReady) {
+            // Player exists and is ready, load new video
+            try {
+                if (typeof this._youtubePlayer.loadVideoById === 'function') {
+                    this._youtubePlayer.loadVideoById(videoId);
+                } else {
+                    this._logger.warn('YouTube player exists but loadVideoById not available, recreating...');
+                    this._destroyYouTubePlayer();
+                    setTimeout(() => this._loadYouTubeTrack(track), 100);
+                }
+            } catch (error) {
+                this._logger.warn('Error loading video, recreating player:', error.message);
+                this._destroyYouTubePlayer();
+                setTimeout(() => this._loadYouTubeTrack(track), 100);
+            }
+        } else if (this._youtubePlayer && !this._youtubePlayerReady) {
+            // Player exists but not ready yet, wait and retry
+            this._logger.debug('YouTube player not ready yet, waiting...');
+            setTimeout(() => this._loadYouTubeTrack(track), 500);
+        } else {
+            // Create new player
+            this._logger.info('Creating new YouTube player for video:', videoId);
+            this._youtubePlayerReady = false;
+
+            // Check if track should autoplay
+            const shouldAutoplay = track.autoplay ? 1 : 0;
+
+            this._youtubePlayer = new window.YT.Player(this._youtubeContainer, {
+                height: '0',
+                width: '0',
+                videoId: videoId,
+                playerVars: {
+                    autoplay: shouldAutoplay,
+                    controls: 0,
+                    modestbranding: 1,
+                    playsinline: 1,
+                    enablejsapi: 1,
+                    origin: window.location.origin
+                },
+                events: {
+                    onReady: (event) => this._onYouTubeReady(event),
+                    onStateChange: (event) => this._onYouTubeStateChange(event),
+                    onError: (event) => this._onYouTubeError(event)
+                }
+            });
+        }
+    }
+
+    /**
+     * Extract YouTube video ID from URL
+     * @param {string} url - YouTube URL
+     * @returns {string|null} Video ID
+     * @private
+     */
+    _extractYouTubeVideoId(url) {
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+            /youtube\.com\/embed\/([^&\n?#]+)/
+        ];
+
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match && match[1]) {
+                return match[1];
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Load YouTube iframe API
+     * @private
+     */
+    _loadYouTubeAPI() {
+        if (window.YT && window.YT.Player) {
+            // API already loaded
+            return;
+        }
+
+        if (window.YTAPILoading) {
+            // API is currently loading
+            return;
+        }
+
+        window.YTAPILoading = true;
+
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        window.onYouTubeIframeAPIReady = () => {
+            this._logger.info('YouTube iframe API loaded');
+            window.YTAPILoading = false;
+        };
+    }
+
+    /**
+     * Stop current player
+     * @private
+     */
+    _stopCurrentPlayer() {
+        if (this._currentSourceType === 'youtube' && this._youtubePlayer) {
+            try {
+                // Check if stopVideo method exists (player is fully initialized)
+                if (typeof this._youtubePlayer.stopVideo === 'function') {
+                    this._youtubePlayer.stopVideo();
+                }
+            } catch (error) {
+                this._logger.debug('Could not stop YouTube player:', error.message);
+            }
+        } else if (this._audioElement) {
+            this._audioElement.pause();
+            this._audioElement.currentTime = 0;
+        }
+
+        // Stop YouTube time tracking if active
+        this._stopYouTubeTimeTracking();
+    }
+
+    /**
+     * Destroy YouTube player
+     * @private
+     */
+    _destroyYouTubePlayer() {
+        if (this._youtubePlayer) {
+            try {
+                if (typeof this._youtubePlayer.destroy === 'function') {
+                    this._youtubePlayer.destroy();
+                }
+            } catch (error) {
+                this._logger.debug('Error destroying YouTube player:', error.message);
+            }
+            this._youtubePlayer = null;
+            this._youtubePlayerReady = false;
+        }
+        this._stopYouTubeTimeTracking();
+    }
+
+    /**
+     * YouTube player ready handler
+     * @private
+     */
+    _onYouTubeReady(event) {
+        this._logger.info('YouTube player ready');
+        this._youtubePlayerReady = true;
+        this._duration = event.target.getDuration();
+        this._updateTimeDisplay();
+
+        // Auto-play if track has autoplay enabled
+        if (this._props.track && this._props.track.autoplay) {
+            this._logger.info('Auto-playing track');
+            try {
+                event.target.playVideo();
+            } catch (error) {
+                this._logger.warn('Auto-play failed (may require user interaction):', error.message);
+            }
+        }
+    }
+
+    /**
+     * YouTube state change handler
+     * @private
+     */
+    _onYouTubeStateChange(event) {
+        // YouTube states: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
+        if (event.data === window.YT.PlayerState.PLAYING) {
+            this._isPlaying = true;
+            this._startYouTubeTimeTracking();
+            this._updatePlayPauseButton();
+        } else if (event.data === window.YT.PlayerState.PAUSED) {
+            this._isPlaying = false;
+            this._stopYouTubeTimeTracking();
+            this._updatePlayPauseButton();
+        } else if (event.data === window.YT.PlayerState.ENDED) {
+            this._isPlaying = false;
+            this._stopYouTubeTimeTracking();
+            this._onEnded();
+        }
+    }
+
+    /**
+     * YouTube error handler
+     * @private
+     */
+    _onYouTubeError(event) {
+        this._logger.error('YouTube player error:', event.data);
+        this._showError('Failed to load YouTube video');
+    }
+
+    /**
+     * Start tracking YouTube time
+     * @private
+     */
+    _startYouTubeTimeTracking() {
+        if (this._youtubeTimeInterval) return;
+
+        this._youtubeTimeInterval = setInterval(() => {
+            if (this._youtubePlayer && this._youtubePlayer.getCurrentTime) {
+                this._currentTime = this._youtubePlayer.getCurrentTime();
+                this._duration = this._youtubePlayer.getDuration();
+                this._updateTimeDisplay();
+                this._updateProgressSlider();
+            }
+        }, 500);
+    }
+
+    /**
+     * Stop tracking YouTube time
+     * @private
+     */
+    _stopYouTubeTimeTracking() {
+        if (this._youtubeTimeInterval) {
+            clearInterval(this._youtubeTimeInterval);
+            this._youtubeTimeInterval = null;
+        }
     }
 
     /**
@@ -225,20 +480,41 @@ export class MusicPlayer extends BaseComponent {
      * @private
      */
     _handlePlayPause() {
-        if (!this._audioElement || !this._props.track) return;
+        if (!this._props.track) return;
 
-        if (this._isPlaying) {
-            this._audioElement.pause();
-            this._props.onPause();
-        } else {
-            this._audioElement.play()
-                .then(() => {
-                    this._props.onPlay();
-                })
-                .catch((error) => {
-                    this._logger.error('Failed to play track:', error);
-                    this._showError('Failed to play track');
-                });
+        if (this._currentSourceType === 'youtube' && this._youtubePlayer) {
+            // YouTube player
+            try {
+                if (this._isPlaying) {
+                    if (typeof this._youtubePlayer.pauseVideo === 'function') {
+                        this._youtubePlayer.pauseVideo();
+                        this._props.onPause();
+                    }
+                } else {
+                    if (typeof this._youtubePlayer.playVideo === 'function') {
+                        this._youtubePlayer.playVideo();
+                        this._props.onPlay();
+                    }
+                }
+            } catch (error) {
+                this._logger.error('YouTube player error:', error);
+                this._showError('YouTube player not ready');
+            }
+        } else if (this._audioElement) {
+            // HTML5 audio
+            if (this._isPlaying) {
+                this._audioElement.pause();
+                this._props.onPause();
+            } else {
+                this._audioElement.play()
+                    .then(() => {
+                        this._props.onPlay();
+                    })
+                    .catch((error) => {
+                        this._logger.error('Failed to play track:', error);
+                        this._showError('Failed to play track');
+                    });
+            }
         }
     }
 
@@ -247,10 +523,22 @@ export class MusicPlayer extends BaseComponent {
      * @private
      */
     _handleStop() {
-        if (!this._audioElement) return;
+        if (this._currentSourceType === 'youtube' && this._youtubePlayer) {
+            try {
+                if (typeof this._youtubePlayer.stopVideo === 'function') {
+                    this._youtubePlayer.stopVideo();
+                }
+                if (typeof this._youtubePlayer.seekTo === 'function') {
+                    this._youtubePlayer.seekTo(0);
+                }
+            } catch (error) {
+                this._logger.debug('YouTube stop error:', error.message);
+            }
+        } else if (this._audioElement) {
+            this._audioElement.pause();
+            this._audioElement.currentTime = 0;
+        }
 
-        this._audioElement.pause();
-        this._audioElement.currentTime = 0;
         this._props.onStop();
     }
 
@@ -260,10 +548,19 @@ export class MusicPlayer extends BaseComponent {
      * @private
      */
     _handleProgressChange(e) {
-        if (!this._audioElement) return;
-
         const newTime = parseFloat(e.target.value);
-        this._audioElement.currentTime = newTime;
+
+        if (this._currentSourceType === 'youtube' && this._youtubePlayer) {
+            try {
+                if (typeof this._youtubePlayer.seekTo === 'function') {
+                    this._youtubePlayer.seekTo(newTime, true);
+                }
+            } catch (error) {
+                this._logger.debug('YouTube seek error:', error.message);
+            }
+        } else if (this._audioElement) {
+            this._audioElement.currentTime = newTime;
+        }
     }
 
     /**
@@ -272,11 +569,20 @@ export class MusicPlayer extends BaseComponent {
      * @private
      */
     _handleVolumeChange(e) {
-        if (!this._audioElement) return;
-
         const newVolume = parseFloat(e.target.value);
         this._volume = newVolume;
-        this._audioElement.volume = newVolume;
+
+        if (this._currentSourceType === 'youtube' && this._youtubePlayer) {
+            try {
+                if (typeof this._youtubePlayer.setVolume === 'function') {
+                    this._youtubePlayer.setVolume(newVolume * 100); // YouTube uses 0-100
+                }
+            } catch (error) {
+                this._logger.debug('YouTube volume error:', error.message);
+            }
+        } else if (this._audioElement) {
+            this._audioElement.volume = newVolume;
+        }
     }
 
     /**
@@ -367,6 +673,26 @@ export class MusicPlayer extends BaseComponent {
     }
 
     /**
+     * Update play/pause button (alias for consistency)
+     * @private
+     */
+    _updatePlayPauseButton() {
+        this._updatePlayButton();
+    }
+
+    /**
+     * Update progress slider
+     * @private
+     */
+    _updateProgressSlider() {
+        const progressSlider = this._querySelector('[data-slider="progress"]');
+        if (progressSlider) {
+            progressSlider.max = this._duration;
+            progressSlider.value = this._currentTime;
+        }
+    }
+
+    /**
      * Update time display
      * @private
      */
@@ -418,10 +744,20 @@ export class MusicPlayer extends BaseComponent {
     /**
      * Update track
      * @param {Music|null} track - New track
+     * @param {boolean} autoPlay - Whether to auto-play the track
      */
-    updateTrack(track) {
+    updateTrack(track, autoPlay = false) {
         this.update({ track });
-        this._loadTrack(track);
+
+        // Temporarily override autoplay if requested
+        if (autoPlay && track) {
+            const originalAutoplay = track.autoplay;
+            track.autoplay = true;
+            this._loadTrack(track);
+            track.autoplay = originalAutoplay;
+        } else {
+            this._loadTrack(track);
+        }
     }
 
     /**

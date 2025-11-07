@@ -3,6 +3,8 @@
  * Schedule page controller - displays anime airing schedule
  */
 
+import { PageHeader } from '../Components/PageHeader.js';
+
 export class SchedulePage {
     /**
      * @param {Object} dependencies - Page dependencies
@@ -17,6 +19,7 @@ export class SchedulePage {
         this.logger = logger;
         this.container = container;
         this.element = null;
+        this.pageHeader = new PageHeader();
     }
 
     /**
@@ -26,38 +29,52 @@ export class SchedulePage {
     async render() {
         this.logger.info('Rendering schedule page');
 
+        // Reset filter status to default (active = watching + plan to watch)
+        this.viewModel.setFilterStatus(['watching', 'plan_to_watch']);
+
         const page = document.createElement('div');
         page.className = 'page page--schedule';
+
+        // Render page header
+        const headerHTML = this.pageHeader.render({
+            title: 'Anime Schedule',
+            subtitle: 'Your weekly anime viewing schedule',
+            icon: '📅',
+            actions: [
+                {
+                    type: 'search',
+                    id: 'schedule-search',
+                    placeholder: 'Search shows...'
+                },
+                {
+                    type: 'select',
+                    id: 'schedule-status-filter',
+                    label: 'Status:',
+                    options: [
+                        { value: 'all', label: 'All Status' },
+                        { value: 'active', label: 'Active (Watching + Plan to Watch)', selected: true },
+                        { value: 'watching', label: 'Watching' },
+                        { value: 'plan_to_watch', label: 'Plan to Watch' },
+                        { value: 'completed', label: 'Completed' },
+                        { value: 'on_hold', label: 'On Hold' },
+                        { value: 'dropped', label: 'Dropped' }
+                    ]
+                },
+                {
+                    type: 'select',
+                    id: 'schedule-sort',
+                    label: 'Sort:',
+                    options: [
+                        { value: 'airing', label: 'By Airing Time', selected: true },
+                        { value: 'title', label: 'By Title' },
+                        { value: 'progress', label: 'By Progress' }
+                    ]
+                }
+            ]
+        });
+
         page.innerHTML = `
-            <div class="page__header">
-                <h2 class="page__title">Anime Schedule</h2>
-                <p class="page__subtitle">Your weekly anime viewing schedule</p>
-            </div>
-            <div class="page__filters">
-                <div class="filters">
-                    <input 
-                        type="text" 
-                        class="input" 
-                        id="schedule-search" 
-                        placeholder="Search shows..."
-                        aria-label="Search shows"
-                    />
-                    <select class="input" id="schedule-status-filter" aria-label="Filter by status">
-                        <option value="all">All Status</option>
-                        <option value="active" selected>Active (Watching + Plan to Watch)</option>
-                        <option value="watching">Watching</option>
-                        <option value="plan_to_watch">Plan to Watch</option>
-                        <option value="completed">Completed</option>
-                        <option value="on_hold">On Hold</option>
-                        <option value="dropped">Dropped</option>
-                    </select>
-                    <select class="input" id="schedule-sort" aria-label="Sort by">
-                        <option value="airing">By Airing Time</option>
-                        <option value="title">By Title</option>
-                        <option value="progress">By Progress</option>
-                    </select>
-                </div>
-            </div>
+            ${headerHTML}
             <div id="day-navigation-container"></div>
             <div class="page__content">
                 <div id="schedule-grid-container"></div>

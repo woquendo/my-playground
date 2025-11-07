@@ -3,6 +3,8 @@
  * Shows page controller - browse and manage all shows
  */
 
+import { PageHeader } from '../Components/PageHeader.js';
+
 export class ShowsPage {
     /**
      * @param {Object} dependencies - Page dependencies
@@ -19,6 +21,7 @@ export class ShowsPage {
         this.logger = logger;
         this.container = container;
         this.element = null;
+        this.pageHeader = new PageHeader();
     }
 
     /**
@@ -30,36 +33,47 @@ export class ShowsPage {
 
         const page = document.createElement('div');
         page.className = 'page page--shows';
+
+        // Render page header
+        const headerHTML = this.pageHeader.render({
+            title: 'My Shows',
+            subtitle: 'Browse and manage your anime collection',
+            icon: '📺',
+            actions: [
+                {
+                    type: 'search',
+                    id: 'shows-search',
+                    placeholder: 'Search shows...'
+                },
+                {
+                    type: 'select',
+                    id: 'shows-status-filter',
+                    label: 'Status:',
+                    options: [
+                        { value: 'all', label: 'All Status', selected: true },
+                        { value: 'watching', label: 'Watching' },
+                        { value: 'completed', label: 'Completed' },
+                        { value: 'on_hold', label: 'On Hold' },
+                        { value: 'dropped', label: 'Dropped' },
+                        { value: 'plan_to_watch', label: 'Plan to Watch' }
+                    ]
+                },
+                {
+                    type: 'select',
+                    id: 'shows-airing-filter',
+                    label: 'Airing:',
+                    options: [
+                        { value: 'all', label: 'All Airing Status', selected: true },
+                        { value: 'current', label: 'Currently Airing' },
+                        { value: 'finished', label: 'Finished' },
+                        { value: 'not_yet', label: 'Not Yet Aired' }
+                    ]
+                }
+            ]
+        });
+
         page.innerHTML = `
-            <div class="page__header">
-                <h2 class="page__title">My Shows</h2>
-                <p class="page__subtitle">Browse and manage your anime collection</p>
-            </div>
-            <div class="page__filters">
-                <div class="filters">
-                    <input 
-                        type="text" 
-                        class="input" 
-                        id="shows-search" 
-                        placeholder="Search shows..."
-                        aria-label="Search shows"
-                    />
-                    <select class="input" id="shows-status-filter" aria-label="Filter by status">
-                        <option value="all">All Status</option>
-                        <option value="watching">Watching</option>
-                        <option value="completed">Completed</option>
-                        <option value="on_hold">On Hold</option>
-                        <option value="dropped">Dropped</option>
-                        <option value="plan_to_watch">Plan to Watch</option>
-                    </select>
-                    <select class="input" id="shows-airing-filter" aria-label="Filter by airing status">
-                        <option value="all">All Airing Status</option>
-                        <option value="current">Currently Airing</option>
-                        <option value="finished">Finished</option>
-                        <option value="not_yet">Not Yet Aired</option>
-                    </select>
-                </div>
-            </div>
+            ${headerHTML}
             <div class="page__content">
                 <div id="shows-list-container"></div>
             </div>
@@ -164,12 +178,12 @@ export class ShowsPage {
         return `
             <div class="show-card" data-show-id="${show.id}">
                 <div class="show-card__image">
-                    ${show.imageUrl ? `<img src="${show.imageUrl}" alt="${show.title}">` : ''}
+                    ${show.getImageUrl() ? `<img src="${show.getImageUrl()}" alt="${show.title}">` : ''}
                 </div>
                 <div class="show-card__content">
                     <h3 class="show-card__title">${this.escapeHtml(show.title)}</h3>
                     <div class="show-card__meta">
-                        <span class="badge badge--${show.status}">${show.status.replace('_', ' ')}</span>
+                        <span class="badge badge--${show.status.toString()}">${show.status.toString().replace('_', ' ')}</span>
                         <span class="show-card__episodes">${show.watchedEpisodes}/${show.totalEpisodes || '?'}</span>
                     </div>
                     <div class="show-card__progress">
@@ -207,7 +221,7 @@ export class ShowsPage {
      */
     async handleIncrementEpisode(showId) {
         try {
-            await this.showService.incrementEpisode(showId);
+            await this.showService.progressEpisode(showId);
             await this.loadShows(); // Reload to reflect changes
 
             const toastService = this.container.get('toastService');

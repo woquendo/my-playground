@@ -295,6 +295,8 @@ export class HttpShowRepository extends IShowRepository {
                 const showData = {
                     id: String(rawId),
                     title: (typeof title === 'string' ? title.trim() : null) || `Show ${rawId}`,
+                    titleEnglish: rawShow.title_english || rawShow.titleEnglish,
+                    titleJapanese: rawShow.title_japanese || rawShow.titleJapanese,
                     startDate: rawShow.start_date || rawShow.startDate,
                     episodes: rawShow.episodes || rawShow.totalEpisodes || rawShow.total_episodes,
                     totalEpisodes: rawShow.totalEpisodes || rawShow.total_episodes || rawShow.episodes,
@@ -302,12 +304,20 @@ export class HttpShowRepository extends IShowRepository {
                     airingStatus: rawShow.airing_status || rawShow.airingStatus || 'not_yet_aired',
                     currentEpisode: rawShow.current_episode || rawShow.currentEpisode || rawShow.watching_status || 0,
                     score: rawShow.score || rawShow.rating || 0,
+                    imageUrl: rawShow.image_url || rawShow.imageUrl,
+                    type: rawShow.type,
+                    rating: rawShow.rating,
+                    url: rawShow.url,
                     tags: rawShow.tags || [],
                     notes: rawShow.notes || '',
                     endDate: rawShow.end_date || rawShow.endDate,
                     customStartDate: rawShow.custom_start_date || rawShow.customStartDate,
                     customEpisodes: rawShow.custom_episodes || rawShow.customEpisodes,
-                    skippedWeeks: rawShow.skipped_weeks || rawShow.skippedWeeks
+                    skippedWeeks: rawShow.skipped_weeks || rawShow.skippedWeeks,
+                    studios: rawShow.studios,
+                    licensors: rawShow.licensors,
+                    season: rawShow.season,
+                    seasonYear: rawShow.season_year || rawShow.seasonYear
                 };
 
                 return new Show(showData);

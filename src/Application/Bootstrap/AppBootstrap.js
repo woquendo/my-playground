@@ -12,6 +12,7 @@ import { registerRoutes } from './RouteConfiguration.js';
 import { Router } from '../../Presentation/Router/Router.js';
 import { HeaderComponent } from '../../Presentation/Components/Shell/HeaderComponent.js';
 import { NavigationComponent } from '../../Presentation/Components/Shell/NavigationComponent.js';
+import { GlobalMusicPlayer } from '../../Presentation/Components/Shell/GlobalMusicPlayer.js';
 import { ToastService } from '../../Presentation/Services/ToastService.js';
 import { ApplicationState } from '../../Presentation/State/ApplicationState.js';
 
@@ -146,6 +147,22 @@ export class Application {
         // Store components for later access
         this.container.singleton('headerComponent', () => headerComponent);
         this.container.singleton('navigationComponent', () => navigationComponent);
+
+        // Initialize global music player (persists across navigation)
+        const musicManagementService = this.container.get('musicManagementService');
+        const applicationState = this.container.get('applicationState');
+
+        const globalMusicPlayer = new GlobalMusicPlayer({
+            musicService: musicManagementService,
+            applicationState,
+            eventBus,
+            logger
+        });
+
+        await globalMusicPlayer.initialize();
+        this.container.singleton('globalMusicPlayer', () => globalMusicPlayer);
+
+        logger.info('Global music player initialized');
     }
 
     /**
