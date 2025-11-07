@@ -32,7 +32,18 @@ export class Music {
             this.appleMusicUrl = data.apple_music || data.appleMusicUrl || null;
         }
         this.localFile = data.localFile || data.local_file || null;
-        this.duration = data.duration || 0;
+
+        // Validate and set duration
+        if (data.duration !== undefined && data.duration !== null && data.duration !== 0) {
+            if (typeof data.duration !== 'number' || !Number.isInteger(data.duration) || data.duration < 0) {
+                throw new ValidationError('Duration must be a non-negative integer', {
+                    context: { duration: data.duration, type: typeof data.duration }
+                });
+            }
+            this.duration = data.duration;
+        } else {
+            this.duration = data.duration || 0;
+        }
 
         // Settings
         this.autoplay = Boolean(data.autoplay);
@@ -43,8 +54,8 @@ export class Music {
         this.playCount = data.playCount || data.play_count || 0;
         this.lastPlayed = data.lastPlayed || data.last_played ?
             new Date(data.lastPlayed || data.last_played) : null;
-        this.dateAdded = data.dateAdded || data.date_added ?
-            new Date(data.dateAdded || data.date_added) : new Date();
+        this.dateAdded = data.dateAdded || data.date_added || data.createdAt || data.created_at ?
+            new Date(data.dateAdded || data.date_added || data.createdAt || data.created_at) : new Date();
 
         // Playlist associations
         this.playlists = data.playlists || [];
@@ -60,6 +71,13 @@ export class Music {
 
         // Generate unique ID if not provided
         this.id = data.id || this._generateId();
+
+        // Validate id is a string
+        if (typeof this.id !== 'string') {
+            throw new ValidationError('Music id must be a string', {
+                context: { id: this.id, type: typeof this.id }
+            });
+        }
 
         // Make ID immutable
         Object.defineProperty(this, 'id', { writable: false, configurable: false });
@@ -135,8 +153,8 @@ export class Music {
             });
         }
 
-        if (numRating < 1 || numRating > 10) {
-            throw new ValidationError('Rating must be between 1 and 10', {
+        if (numRating < 0 || numRating > 5) {
+            throw new ValidationError('Rating must be between 0 and 5', {
                 context: { rating: numRating }
             });
         }
@@ -214,20 +232,28 @@ export class Music {
     }
 
     /**
-     * Get formatted duration string
-     * @returns {string} Duration in MM:SS format or 'Unknown'
+     * Get formatted duration
+     * @returns {string} Duration in MM:SS or HH:MM:SS format or 'Unknown'
      */
     getFormattedDuration() {
-        if (!this.duration) {
+        if (this.duration === undefined || this.duration === null) {
             return 'Unknown';
         }
 
-        const minutes = Math.floor(this.duration / 60);
-        const seconds = this.duration % 60;
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
+        if (this.duration === 0) {
+            return '0:00';
+        }
 
-    /**
+        const hours = Math.floor(this.duration / 3600);
+        const minutes = Math.floor((this.duration % 3600) / 60);
+        const seconds = this.duration % 60;
+
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }    /**
      * Get full display name
      * @returns {string} Full name (Artist - Title)
      */
@@ -528,6 +554,8 @@ export class Music {
     getTags() { return this.tags || []; }
     getNotes() { return this.notes || ''; }
     getPlayCount() { return this.playCount || 0; }
+    getLastPlayed() { return this.lastPlayed ? this.lastPlayed.getTime() : null; }
+    getDateAdded() { return this.dateAdded; }
     getPlaylists() { return this.playlists || []; }
 
     // Get sources as object
@@ -666,6 +694,14 @@ export class Music {
         });
     }
 
+    /**
+     * Mark as played (increments play count and updates last played)
+     * @returns {Music} New Music instance
+     */
+    markAsPlayed() {
+        return this.incrementPlayCount();
+    }
+
     updateLastPlayed() {
         return new Music({
             ...this._toPlainObject(),
@@ -673,7 +709,7 @@ export class Music {
         });
     }
 
-    isRecentlyPlayed(daysThreshold = 7) {
+    isRecentlyPlayed(daysThreshold = 1) {
         if (!this.lastPlayed) return false;
         const daysSincePlay = (new Date() - this.lastPlayed) / (1000 * 60 * 60 * 24);
         return daysSincePlay <= daysThreshold;
@@ -686,16 +722,9 @@ export class Music {
     }
 
     // Duration handling
-    getFormattedDuration() {
-        if (!this.duration) return '0:00';
-        const minutes = Math.floor(this.duration / 60);
-        const seconds = this.duration % 60;
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-
     setDuration(duration) {
-        if (typeof duration !== 'number' || duration < 0) {
-            throw new ValidationError('Duration must be a non-negative number', {
+        if (typeof duration !== 'number' || duration < 0 || !Number.isInteger(duration)) {
+            throw new ValidationError('Duration must be a non-negative integer', {
                 context: { duration }
             });
         }
@@ -739,6 +768,15 @@ export class Music {
             this.tags.some(tag => tag.toLowerCase().includes(lowerQuery));
     }
 
+    /**
+     * Check if music matches search query (alias for matchesSearch)
+     * @param {string} query - Search query
+     * @returns {boolean} True if matches
+     */
+    matchesSearchQuery(query) {
+        return this.matchesSearch(query);
+    }
+
     // Popularity scoring
     getPopularityScore() {
         const ratingWeight = 0.4;
@@ -755,6 +793,14 @@ export class Music {
         }
 
         return (ratingScore * ratingWeight) + (playScore * playCountWeight) + (recencyScore * recencyWeight);
+    }
+
+    /**
+     * Calculate popularity score (alias for getPopularityScore)
+     * @returns {number} Popularity score
+     */
+    calculatePopularityScore() {
+        return this.getPopularityScore();
     }
 
     isMorePopularThan(otherMusic) {
@@ -787,9 +833,19 @@ export class Music {
             artist: this.artist,
             album: this.album,
             duration: this.getFormattedDuration(),
+            sources: this.getSources(),
             rating: this.rating,
+            user_rating: this.rating,
             tags: this.tags
         };
+    }
+
+    /**
+     * Export for external API (alias for toExternalAPI)
+     * @returns {object} API-formatted music data
+     */
+    exportForAPI() {
+        return this.toExternalAPI();
     }
 
     static fromJSON(json) {

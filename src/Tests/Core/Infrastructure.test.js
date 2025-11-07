@@ -2,6 +2,7 @@
  * Phase 1 Infrastructure Tests
  * Comprehensive test suite for core infrastructure components
  */
+import { jest } from '@jest/globals';
 import { Container } from '../../Core/Container.js';
 import { EventBus } from '../../Core/EventBus.js';
 import { Logger } from '../../Core/Logger.js';
@@ -213,7 +214,7 @@ describe('Phase 1 - Foundation Infrastructure', () => {
         });
 
         test('should log at different levels', () => {
-            logger.info('Info message');
+            logger.info('Info message', 'Additional data');
             logger.warn('Warning message');
             logger.error('Error message');
 

@@ -24,8 +24,8 @@ export class Show {
         this.titleEnglish = data.title_english || data.titleEnglish || null;
         this.titleJapanese = data.title_japanese || data.titleJapanese || null;
 
-        // Episode information
-        this.episodes = data.episodes;
+        // Episode information (prioritize totalEpisodes over episodes)
+        this.episodes = data.totalEpisodes !== undefined ? data.totalEpisodes : data.episodes;
         this.customEpisodes = data.custom_episodes || data.customEpisodes || null;
         this.skippedWeeks = data.skipped_weeks || data.skippedWeeks || 0;
 
@@ -37,6 +37,7 @@ export class Show {
         const parseDate = (dateValue) => {
             if (!dateValue) return null;
             if (dateValue instanceof ShowDate) return dateValue;
+            // Accept strings for flexibility in deserialization
             return new ShowDate(dateValue);
         };
 
@@ -45,10 +46,12 @@ export class Show {
         this.customStartDate = parseDate(data.custom_start_date || data.customStartDate);
 
         // Additional metadata
-        this.score = data.score;
+        this.score = data.score !== undefined ? data.score : 0;
         this.type = data.type || 'TV';
         this.imageUrl = data.image_url || data.imageUrl || null;
-        this.watchingStatus = data.watching_status || data.watchingStatus || null;
+        this.watchingStatus = data.watching_status !== undefined ? data.watching_status :
+            (data.watchingStatus !== undefined ? data.watchingStatus :
+                (data.currentEpisode !== undefined ? data.currentEpisode : 1));
         this.rating = data.rating || null;
         this.season = data.season || null;
         this.studios = data.studios || null;
@@ -131,10 +134,15 @@ export class Show {
 
     /**
      * Calculate the current episode for a given date
-     * @param {Date|ShowDate} targetDate - Date to calculate episode for
+     * @param {Date|ShowDate} [targetDate] - Date to calculate episode for (optional)
      * @returns {number} Current episode number
      */
     getCurrentEpisode(targetDate) {
+        // If no date provided, return watching_status (the user's current episode)
+        if (!targetDate) {
+            return this.watchingStatus;
+        }
+
         const startDate = this.getEffectiveStartDate();
         if (!startDate) {
             return 1; // Default to episode 1 if no start date
@@ -234,16 +242,15 @@ export class Show {
 
     /**
      * Calculate progress percentage
-     * @param {Date|ShowDate} currentDate - Current date for calculation
      * @returns {number} Progress percentage (0-100)
      */
-    getProgressPercentage(currentDate = new Date()) {
+    getProgressPercentage() {
         const maxEpisodeCount = this.getEffectiveEpisodes();
         if (!maxEpisodeCount) {
             return 0;
         }
 
-        const currentEpisode = this.getCurrentEpisode(currentDate);
+        const currentEpisode = this.watchingStatus;
         return Math.min(100, Math.max(0, (currentEpisode / maxEpisodeCount) * 100));
     }
 
@@ -264,16 +271,15 @@ export class Show {
 
     /**
      * Get remaining episodes
-     * @param {Date|ShowDate} currentDate - Current date for calculation
      * @returns {number} Number of remaining episodes
      */
-    getRemainingEpisodes(currentDate = new Date()) {
+    getRemainingEpisodes() {
         const maxEpisodeCount = this.getEffectiveEpisodes();
         if (!maxEpisodeCount) {
             return 0;
         }
 
-        const currentEpisode = this.getCurrentEpisode(currentDate);
+        const currentEpisode = this.watchingStatus;
         return Math.max(0, maxEpisodeCount - currentEpisode);
     }
 
@@ -529,6 +535,136 @@ export class Show {
         return new Show({ ...this._toPlainObject(), notes });
     }
 
+    /**
+     * Change status (alias for updateStatus for test compatibility)
+     * @param {string|ShowStatus} newStatus - New status
+     * @returns {Show} New Show instance with updated status
+     */
+    changeStatus(newStatus) {
+        return this.updateStatus(newStatus);
+    }
+
+    /**
+     * Check if show is actively being watched
+     * @returns {boolean} True if actively watching
+     */
+    isActivelyWatching() {
+        return this.status.isWatching() || this.status.isRewatching();
+    }
+
+    /**
+     * Check if show is completed
+     * @returns {boolean} True if completed
+     */
+    isCompleted() {
+        return this.status.isCompleted();
+    }
+
+    /**
+     * Increment episode count by 1
+     * @returns {Show} New Show instance with incremented episode
+     */
+    incrementEpisode() {
+        const maxEpisodes = this.getEffectiveEpisodes();
+        if (this.watchingStatus >= maxEpisodes) {
+            throw new ValidationError('Cannot increment beyond total episodes', {
+                context: {
+                    currentEpisode: this.watchingStatus,
+                    maxEpisodes
+                }
+            });
+        }
+
+        const newEpisode = this.watchingStatus + 1;
+        const newStatus = (newEpisode >= maxEpisodes && this.status.isWatching())
+            ? new ShowStatus('completed')
+            : this.status;
+
+        return new Show({
+            ...this._toPlainObject(),
+            watching_status: newEpisode,
+            status: newStatus.getValue()
+        });
+    }
+
+    /**
+     * Set current episode number
+     * @param {number} episode - Episode number to set
+     * @returns {Show} New Show instance with updated episode
+     */
+    setCurrentEpisode(episode) {
+        if (!Number.isInteger(episode) || episode < 1) {
+            throw new ValidationError('Episode must be a positive integer', {
+                context: { episode }
+            });
+        }
+
+        const maxEpisodes = this.getEffectiveEpisodes();
+        if (episode > maxEpisodes) {
+            throw new ValidationError('Episode cannot exceed total episodes', {
+                context: { episode, maxEpisodes }
+            });
+        }
+
+        return new Show({
+            ...this._toPlainObject(),
+            watching_status: episode
+        });
+    }
+
+    /**
+     * Check if given episode number is the current episode
+     * @param {number} episode - Episode number to check
+     * @returns {boolean} True if episode is current
+     */
+    isEpisodeCurrent(episode) {
+        return this.watchingStatus === episode;
+    }
+
+    /**
+     * Get number of episodes behind schedule
+     * @param {Date|ShowDate} currentDate - Current date for calculation
+     * @returns {number} Number of episodes behind
+     */
+    getEpisodesBehind(currentDate = new Date()) {
+        const expectedEpisode = this.getCurrentEpisode(currentDate);
+        return Math.max(0, expectedEpisode - this.watchingStatus);
+    }
+
+    /**
+     * Calculate current episode for a given date
+     * @param {Date|ShowDate} date - Date to calculate for
+     * @returns {number} Expected current episode number
+     */
+    calculateCurrentEpisodeForDate(date) {
+        return this.getCurrentEpisode(date);
+    }
+
+    /**
+     * Estimate completion date based on weekly airing
+     * @returns {ShowDate|null} Estimated completion date or null
+     */
+    estimateCompletionDate() {
+        const startDate = this.getEffectiveStartDate();
+        const maxEpisodes = this.getEffectiveEpisodes();
+
+        if (!startDate || !maxEpisodes) {
+            return null;
+        }
+
+        // Episode N airs on week N-1 (episode 12 airs on week 11)
+        const weeksToComplete = maxEpisodes - 1 + this.skippedWeeks;
+        return startDate.addWeeks(weeksToComplete);
+    }
+
+    /**
+     * Export for external API (alias for toExternalAPI for test compatibility)
+     * @returns {object} API-formatted show data
+     */
+    exportForAPI() {
+        return this.toExternalAPI();
+    }
+
     // Serialization methods
     toJSON() {
         return {
@@ -541,10 +677,13 @@ export class Show {
             custom_episodes: this.customEpisodes,
             skipped_weeks: this.skippedWeeks,
             status: this.status.getValue(),
+            airingStatus: this.airingStatus.getValue(),
             airing_status: this.airingStatus.getValue(),
+            startDate: this.startDate ? this.startDate.format() : null,
             start_date: this.startDate ? this.startDate.format() : null,
             end_date: this.endDate ? this.endDate.format() : null,
             custom_start_date: this.customStartDate ? this.customStartDate.format() : null,
+            currentEpisode: this.watchingStatus,
             score: this.score,
             type: this.type,
             image_url: this.imageUrl,
@@ -565,6 +704,11 @@ export class Show {
             englishTitle: this.titleEnglish,
             japaneseTitle: this.titleJapanese,
             episodes: this.getEffectiveEpisodes(),
+            episode_progress: {
+                current: this.watchingStatus,
+                total: this.getEffectiveEpisodes()
+            },
+            user_status: this.status.getValue(),
             status: this.status.getValue(),
             airingStatus: this.airingStatus.getValue(),
             startDate: this.getEffectiveStartDate() ? this.getEffectiveStartDate().format() : null,
@@ -620,8 +764,8 @@ export class Show {
     getTotalEpisodes() { return this.episodes; }
     getCustomEpisodes() { return this.customEpisodes; }
     getSkippedWeeks() { return this.skippedWeeks; }
-    getStatus() { return this.status; }
-    getAiringStatus() { return this.airingStatus; }
+    getStatus() { return this.status.getValue(); }
+    getAiringStatus() { return this.airingStatus.getValue(); }
     getScore() { return this.score; }
     getType() { return this.type; }
     getImageUrl() { return this.imageUrl; }

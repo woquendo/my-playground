@@ -210,6 +210,14 @@ export class ShowStatus {
     }
 
     /**
+     * Check if this status represents an active viewing state (watching or rewatching)
+     * @returns {boolean} True if actively viewing
+     */
+    isActivelyViewing() {
+        return this.isWatching() || this.isRewatching();
+    }
+
+    /**
      * Check if this status allows episode progression
      * @returns {boolean} True if episodes can be tracked
      */
@@ -238,7 +246,7 @@ export class ShowStatus {
                 return [ShowStatus.COMPLETED, ShowStatus.ON_HOLD, ShowStatus.DROPPED, ShowStatus.REWATCHING];
 
             case ShowStatus.ON_HOLD:
-                return [ShowStatus.WATCHING, ShowStatus.DROPPED, ShowStatus.COMPLETED];
+                return [ShowStatus.WATCHING, ShowStatus.DROPPED];
 
             case ShowStatus.COMPLETED:
                 return [ShowStatus.REWATCHING];
