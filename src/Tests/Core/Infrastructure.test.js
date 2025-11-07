@@ -2,16 +2,16 @@
  * Phase 1 Infrastructure Tests
  * Comprehensive test suite for core infrastructure components
  */
-import { Container } from '../Core/Container.js';
-import { EventBus } from '../Core/EventBus.js';
-import { Logger } from '../Core/Logger.js';
+import { Container } from '../../Core/Container.js';
+import { EventBus } from '../../Core/EventBus.js';
+import { Logger } from '../../Core/Logger.js';
 import {
     ApplicationError,
     ValidationError,
     NetworkError,
     RepositoryError
-} from '../Core/Errors/ApplicationErrors.js';
-import { ErrorHandler } from '../Core/Errors/ErrorHandler.js';
+} from '../../Core/Errors/ApplicationErrors.js';
+import { ErrorHandler } from '../../Core/Errors/ErrorHandler.js';
 
 describe('Phase 1 - Foundation Infrastructure', () => {
     describe('Container', () => {

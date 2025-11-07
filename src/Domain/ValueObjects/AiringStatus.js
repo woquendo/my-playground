@@ -8,29 +8,22 @@
 import { ValidationError } from '../../Core/Errors/ApplicationErrors.js';
 
 export class AiringStatus {
-    // Define valid airing status constants
-    static FINISHED_AIRING = 0;
-    static CURRENTLY_AIRING = 1;
-    static NOT_YET_AIRED = 2;
-
-    // Status string representations
-    static STATUS_STRINGS = {
-        [AiringStatus.FINISHED_AIRING]: 'finished_airing',
-        [AiringStatus.CURRENTLY_AIRING]: 'currently_airing',
-        [AiringStatus.NOT_YET_AIRED]: 'not_yet_aired'
-    };
+    // Define valid airing status constants (as strings to match tests)
+    static CURRENTLY_AIRING = 'currently_airing';
+    static FINISHED_AIRING = 'finished_airing';
+    static NOT_YET_AIRED = 'not_yet_aired';
 
     // Display names
     static DISPLAY_NAMES = {
-        [AiringStatus.FINISHED_AIRING]: 'Finished Airing',
         [AiringStatus.CURRENTLY_AIRING]: 'Currently Airing',
+        [AiringStatus.FINISHED_AIRING]: 'Finished Airing',
         [AiringStatus.NOT_YET_AIRED]: 'Not Yet Aired'
     };
 
     // Valid status values
-    static VALID_VALUES = [
-        AiringStatus.FINISHED_AIRING,
+    static VALID_STATUSES = [
         AiringStatus.CURRENTLY_AIRING,
+        AiringStatus.FINISHED_AIRING,
         AiringStatus.NOT_YET_AIRED
     ];
 
@@ -41,12 +34,11 @@ export class AiringStatus {
     constructor(status) {
         this._status = this._parseStatus(status);
 
-        if (!AiringStatus.VALID_VALUES.includes(this._status)) {
+        if (!AiringStatus.VALID_STATUSES.includes(this._status)) {
             throw new ValidationError(`Invalid airing status: ${status}`, {
                 context: {
                     input: status,
-                    validValues: AiringStatus.VALID_VALUES,
-                    validStrings: Object.values(AiringStatus.STATUS_STRINGS)
+                    validStatuses: AiringStatus.VALID_STATUSES
                 }
             });
         }
@@ -56,10 +48,10 @@ export class AiringStatus {
     }
 
     /**
-     * Parse status input (number or string)
+     * Parse status input (number, string, or AiringStatus instance)
      * @private
-     * @param {number|string} status - Status input
-     * @returns {number} Parsed status number
+     * @param {number|string|AiringStatus} status - Status input
+     * @returns {string} Parsed status string
      */
     _parseStatus(status) {
         // Handle null/undefined
@@ -67,53 +59,43 @@ export class AiringStatus {
             throw new ValidationError('Airing status cannot be null or undefined');
         }
 
-        // Handle numeric input
-        if (typeof status === 'number') {
-            return status;
+        // Handle AiringStatus instance
+        if (status instanceof AiringStatus) {
+            return status._status;
         }
 
-        // Handle string input
-        if (typeof status === 'string') {
-            const trimmed = status.toLowerCase().trim();
-
-            // Try to find by string value
-            for (const [key, value] of Object.entries(AiringStatus.STATUS_STRINGS)) {
-                if (value === trimmed) {
-                    return parseInt(key, 10);
-                }
-            }
-
-            // Try to parse as number
-            const parsed = parseInt(trimmed, 10);
-            if (!isNaN(parsed)) {
-                return parsed;
-            }
-
-            // Handle common variations
-            const variations = {
-                'finished': AiringStatus.FINISHED_AIRING,
-                'completed': AiringStatus.FINISHED_AIRING,
-                'ended': AiringStatus.FINISHED_AIRING,
-                'done': AiringStatus.FINISHED_AIRING,
-                'current': AiringStatus.CURRENTLY_AIRING,
-                'airing': AiringStatus.CURRENTLY_AIRING,
-                'ongoing': AiringStatus.CURRENTLY_AIRING,
-                'broadcasting': AiringStatus.CURRENTLY_AIRING,
-                'upcoming': AiringStatus.NOT_YET_AIRED,
-                'planned': AiringStatus.NOT_YET_AIRED,
-                'future': AiringStatus.NOT_YET_AIRED,
-                'unreleased': AiringStatus.NOT_YET_AIRED
+        // Handle numeric input (backward compatibility with MAL API)
+        if (typeof status === 'number') {
+            const numericMap = {
+                0: AiringStatus.FINISHED_AIRING,
+                1: AiringStatus.CURRENTLY_AIRING,
+                2: AiringStatus.NOT_YET_AIRED
             };
 
-            if (variations.hasOwnProperty(trimmed)) {
-                return variations[trimmed];
+            if (numericMap[status] !== undefined) {
+                return numericMap[status];
             }
 
-            throw new ValidationError(`Unable to parse airing status string: ${status}`, {
+            throw new ValidationError(`Invalid numeric airing status: ${status}`, {
                 context: {
                     input: status,
-                    supportedStrings: Object.values(AiringStatus.STATUS_STRINGS),
-                    supportedVariations: Object.keys(variations)
+                    validNumericValues: Object.keys(numericMap)
+                }
+            });
+        }
+
+        // Handle string input - STRICT validation (no trimming, no case normalization)
+        if (typeof status === 'string') {
+            // Check if it's already a valid status (exact match required)
+            if (AiringStatus.VALID_STATUSES.includes(status)) {
+                return status;
+            }
+
+            throw new ValidationError(`Invalid airing status string: ${status}`, {
+                context: {
+                    input: status,
+                    validStatuses: AiringStatus.VALID_STATUSES,
+                    note: 'Status must be an exact match (case-sensitive, no whitespace)'
                 }
             });
         }
@@ -121,11 +103,9 @@ export class AiringStatus {
         throw new ValidationError(`Invalid airing status type: ${typeof status}`, {
             context: { input: status, type: typeof status }
         });
-    }
-
-    /**
-     * Get the numeric status value
-     * @returns {number} Status value (0, 1, or 2)
+    }    /**
+     * Get the status value
+     * @returns {string} Status value (e.g., 'currently_airing')
      */
     getValue() {
         return this._status;
@@ -136,7 +116,7 @@ export class AiringStatus {
      * @returns {string} Status string (e.g., 'currently_airing')
      */
     getString() {
-        return AiringStatus.STATUS_STRINGS[this._status];
+        return this._status;
     }
 
     /**
@@ -144,7 +124,12 @@ export class AiringStatus {
      * @returns {string} Human-readable status name
      */
     getDisplayName() {
-        return AiringStatus.DISPLAY_NAMES[this._status];
+        const displayNames = {
+            'finished_airing': 'Finished Airing',
+            'currently_airing': 'Currently Airing',
+            'not_yet_aired': 'Not Yet Aired'
+        };
+        return displayNames[this._status];
     }
 
     /**
@@ -185,7 +170,17 @@ export class AiringStatus {
      * @returns {boolean} True if should be scheduled
      */
     shouldBeScheduled() {
-        return this._status === AiringStatus.CURRENTLY_AIRING;
+        return this._status === AiringStatus.CURRENTLY_AIRING ||
+            this._status === AiringStatus.FINISHED_AIRING;
+    }
+
+    /**
+     * Check if episodes are available to watch
+     * @returns {boolean} True if episodes are available
+     */
+    hasEpisodesAvailable() {
+        return this._status === AiringStatus.CURRENTLY_AIRING ||
+            this._status === AiringStatus.FINISHED_AIRING;
     }
 
     /**
@@ -229,13 +224,57 @@ export class AiringStatus {
         switch (this._status) {
             case AiringStatus.CURRENTLY_AIRING:
                 return 1; // Highest priority
-            case AiringStatus.NOT_YET_AIRED:
-                return 2; // Medium priority
             case AiringStatus.FINISHED_AIRING:
+                return 2; // Medium priority
+            case AiringStatus.NOT_YET_AIRED:
                 return 3; // Lowest priority
             default:
                 return 4;
         }
+    }
+
+    /**
+     * Get the priority value (alias for getSortPriority for test compatibility)
+     * @returns {number} Priority value
+     */
+    getPriority() {
+        return this.getSortPriority();
+    }
+
+    /**
+     * Check if this status has higher priority than another
+     * @param {AiringStatus} other - Other status to compare
+     * @returns {boolean} True if this has higher priority (lower number)
+     */
+    hasHigherPriorityThan(other) {
+        if (!(other instanceof AiringStatus)) {
+            throw new ValidationError('Can only compare priority with another AiringStatus');
+        }
+        return this.getPriority() < other.getPriority();
+    }
+
+    /**
+     * Check if status allows new episodes to be added
+     * @returns {boolean} True if new episodes can be added
+     */
+    allowsNewEpisodes() {
+        return this._status === AiringStatus.CURRENTLY_AIRING;
+    }
+
+    /**
+     * Check if status requires episode tracking
+     * @returns {boolean} True if should track episode progress
+     */
+    requiresEpisodeTracking() {
+        return this._status === AiringStatus.CURRENTLY_AIRING;
+    }
+
+    /**
+     * Get the scheduling frequency for this status
+     * @returns {string} Scheduling frequency ('weekly', 'none')
+     */
+    getSchedulingFrequency() {
+        return this._status === AiringStatus.CURRENTLY_AIRING ? 'weekly' : 'none';
     }
 
     /**
@@ -277,28 +316,19 @@ export class AiringStatus {
     }
 
     /**
-     * JSON representation
-     * @returns {object} JSON object
+     * JSON representation (returns primitive string value)
+     * @returns {string} Status string
      */
     toJSON() {
-        return {
-            value: this._status,
-            string: this.getString(),
-            displayName: this.getDisplayName(),
-            properties: {
-                isCurrentlyAiring: this.isCurrentlyAiring(),
-                isFinishedAiring: this.isFinishedAiring(),
-                isNotYetAired: this.isNotYetAired(),
-                isAvailableToWatch: this.isAvailableToWatch(),
-                shouldBeScheduled: this.shouldBeScheduled(),
-                hasPredictableSchedule: this.hasPredictableSchedule(),
-                hasCompleteEpisodeCount: this.hasCompleteEpisodeCount()
-            },
-            ui: {
-                color: this.getStatusColor(),
-                sortPriority: this.getSortPriority()
-            }
-        };
+        return this._status;
+    }
+
+    /**
+     * Value representation (returns primitive string value)
+     * @returns {string} Status string
+     */
+    valueOf() {
+        return this._status;
     }
 
     /**
@@ -335,15 +365,88 @@ export class AiringStatus {
     }
 
     /**
+     * Create AiringStatus from MyAnimeList status
+     * @param {number|string} malStatus - MAL status (string or numeric code)
+     * @returns {AiringStatus} New AiringStatus instance
+     */
+    static fromMALStatus(malStatus) {
+        // Handle null/undefined
+        if (malStatus === null || malStatus === undefined) {
+            throw new ValidationError('MAL status cannot be null or undefined');
+        }
+
+        // MAL numeric codes: 1 = currently_airing, 2 = finished_airing, 3 = not_yet_aired
+        if (typeof malStatus === 'number') {
+            const malNumericMap = {
+                1: AiringStatus.CURRENTLY_AIRING,
+                2: AiringStatus.FINISHED_AIRING,
+                3: AiringStatus.NOT_YET_AIRED
+            };
+
+            if (malNumericMap[malStatus] === undefined) {
+                throw new ValidationError(`Invalid MAL numeric status code: ${malStatus}`, {
+                    context: { input: malStatus, validCodes: Object.keys(malNumericMap) }
+                });
+            }
+
+            return new AiringStatus(malNumericMap[malStatus]);
+        }
+
+        // Handle string input (should already be in correct format)
+        if (typeof malStatus === 'string') {
+            const trimmed = malStatus.toLowerCase().trim();
+
+            if (AiringStatus.VALID_STATUSES.includes(trimmed)) {
+                return new AiringStatus(trimmed);
+            }
+
+            throw new ValidationError(`Invalid MAL status string: ${malStatus}`, {
+                context: { input: malStatus, validStatuses: AiringStatus.VALID_STATUSES }
+            });
+        }
+
+        throw new ValidationError(`Invalid MAL status type: ${typeof malStatus}`, {
+            context: { input: malStatus, type: typeof malStatus }
+        });
+    }
+
+    /**
+     * Convert to MyAnimeList format
+     * @returns {string} MAL-compatible status string
+     */
+    toMALFormat() {
+        return this._status;
+    }
+
+    /**
      * Get all valid status information
      * @returns {object[]} Array of status information
      */
     static getAllStatusInfo() {
-        return AiringStatus.VALID_VALUES.map(value => ({
-            value,
-            string: AiringStatus.STATUS_STRINGS[value],
-            displayName: AiringStatus.DISPLAY_NAMES[value]
+        return AiringStatus.VALID_STATUSES.map(status => ({
+            value: status,
+            displayName: new AiringStatus(status).getDisplayName()
         }));
+    }
+
+    /**
+     * Get all valid status values
+     * @returns {string[]} Array of valid status strings
+     */
+    static getAllValidStatuses() {
+        return [...AiringStatus.VALID_STATUSES];
+    }
+
+    /**
+     * Check if a value is a valid status
+     * @param {any} value - Value to check
+     * @returns {boolean} True if valid status
+     */
+    static isValidStatus(value) {
+        if (typeof value !== 'string') {
+            return false;
+        }
+        return AiringStatus.VALID_STATUSES.includes(value.toLowerCase().trim());
     }
 
     /**

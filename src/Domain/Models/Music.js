@@ -15,16 +15,24 @@ export class Music {
         // Core identifiers and metadata
         this.title = data.title;
         this.artist = data.artist;
-        this.album = data.album || null;
+        this.album = data.album || '';
         this.genre = data.genre || null;
         this.year = data.year || null;
 
-        // Playback information
-        this.duration = data.duration || null; // Duration in seconds
-        this.youtubeUrl = data.youtube || data.youtubeUrl || null;
-        this.spotifyUrl = data.spotify || data.spotifyUrl || null;
-        this.soundcloudUrl = data.soundcloud || data.soundcloudUrl || null;
+        // Playback information - support both individual properties and sources object
+        if (data.sources && typeof data.sources === 'object') {
+            this.youtubeUrl = data.sources.youtube || null;
+            this.spotifyUrl = data.sources.spotify || null;
+            this.soundcloudUrl = data.sources.soundcloud || null;
+            this.appleMusicUrl = data.sources.apple_music || null;
+        } else {
+            this.youtubeUrl = data.youtube || data.youtubeUrl || null;
+            this.spotifyUrl = data.spotify || data.spotifyUrl || null;
+            this.soundcloudUrl = data.soundcloud || data.soundcloudUrl || null;
+            this.appleMusicUrl = data.apple_music || data.appleMusicUrl || null;
+        }
         this.localFile = data.localFile || data.local_file || null;
+        this.duration = data.duration || 0;
 
         // Settings
         this.autoplay = Boolean(data.autoplay);
@@ -41,6 +49,7 @@ export class Music {
         // Playlist associations
         this.playlists = data.playlists || [];
         this.tags = data.tags || [];
+        this.notes = data.notes || '';
 
         // Additional metadata
         this.bpm = data.bpm || null;
@@ -78,17 +87,7 @@ export class Music {
             });
         }
 
-        // Must have at least one playback source
-        const hasSources = data.youtube || data.youtubeUrl ||
-            data.spotify || data.spotifyUrl ||
-            data.soundcloud || data.soundcloudUrl ||
-            data.localFile || data.local_file;
-
-        if (!hasSources) {
-            throw new ValidationError('Music must have at least one playback source', {
-                context: { data }
-            });
-        }
+        // Sources are optional - music can be created without playback sources
     }
 
     /**
@@ -517,5 +516,312 @@ export class Music {
         } catch {
             return false;
         }
+    }
+
+    // Simple getter methods
+    getId() { return this.id; }
+    getTitle() { return this.title; }
+    getArtist() { return this.artist; }
+    getAlbum() { return this.album || ''; }
+    getDuration() { return this.duration || 0; }
+    getRating() { return this.rating || 0; }
+    getTags() { return this.tags || []; }
+    getNotes() { return this.notes || ''; }
+    getPlayCount() { return this.playCount || 0; }
+    getPlaylists() { return this.playlists || []; }
+
+    // Get sources as object
+    getSources() {
+        const sources = {};
+        if (this.youtubeUrl) sources.youtube = this.youtubeUrl;
+        if (this.spotifyUrl) sources.spotify = this.spotifyUrl;
+        if (this.soundcloudUrl) sources.soundcloud = this.soundcloudUrl;
+        if (this.appleMusicUrl) sources.apple_music = this.appleMusicUrl;
+        return sources;
+    }
+
+    // Source management
+    addSource(platform, url) {
+        if (!platform || typeof platform !== 'string') {
+            throw new ValidationError('Platform must be a non-empty string', {
+                context: { platform }
+            });
+        }
+        if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+            throw new ValidationError('URL must be a valid http/https URL', {
+                context: { url }
+            });
+        }
+
+        const sources = { ...this.getSources(), [platform]: url };
+        return new Music({ ...this._toPlainObject(), sources });
+    }
+
+    removeSource(platform) {
+        const sources = { ...this.getSources() };
+        delete sources[platform];
+        return new Music({ ...this._toPlainObject(), sources });
+    }
+
+    hasSource(platform) {
+        return this.getSources().hasOwnProperty(platform);
+    }
+
+    getPrimarySource() {
+        const sources = this.getSources();
+        const platforms = Object.keys(sources);
+        return platforms.length > 0 ? sources[platforms[0]] : null;
+    }
+
+    getSourceByPlatform(platform) {
+        return this.getSources()[platform] || null;
+    }
+
+    getPreferredSource(preferredPlatforms = []) {
+        const sources = this.getSources();
+        for (const platform of preferredPlatforms) {
+            if (sources[platform]) {
+                return sources[platform];
+            }
+        }
+        return this.getPrimarySource();
+    }
+
+    // Rating management
+    setRating(rating) {
+        if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 0 || rating > 5) {
+            throw new ValidationError('Rating must be an integer between 0 and 5', {
+                context: { rating }
+            });
+        }
+        return new Music({ ...this._toPlainObject(), rating });
+    }
+
+    isHighlyRated() {
+        return this.rating >= 4;
+    }
+
+    getRatingCategory() {
+        if (this.rating === 0) return 'unrated';
+        if (this.rating === 5) return 'excellent';
+        if (this.rating === 4) return 'good';
+        if (this.rating === 3) return 'average';
+        return 'poor';
+    }
+
+    // Playlist management
+    addToPlaylist(playlistName) {
+        if (!playlistName || typeof playlistName !== 'string') {
+            throw new ValidationError('Playlist name must be a non-empty string', {
+                context: { playlistName }
+            });
+        }
+        if (this.playlists.includes(playlistName)) {
+            return this;
+        }
+        return new Music({ ...this._toPlainObject(), playlists: [...this.playlists, playlistName] });
+    }
+
+    removeFromPlaylist(playlistName) {
+        return new Music({
+            ...this._toPlainObject(),
+            playlists: this.playlists.filter(p => p !== playlistName)
+        });
+    }
+
+    isInPlaylist(playlistName) {
+        return this.playlists.includes(playlistName);
+    }
+
+    // Tag management
+    addTag(tag) {
+        if (!tag || typeof tag !== 'string') {
+            throw new ValidationError('Tag must be a non-empty string', {
+                context: { tag }
+            });
+        }
+        if (this.tags.includes(tag)) {
+            return this;
+        }
+        return new Music({ ...this._toPlainObject(), tags: [...this.tags, tag] });
+    }
+
+    removeTag(tag) {
+        return new Music({
+            ...this._toPlainObject(),
+            tags: this.tags.filter(t => t !== tag)
+        });
+    }
+
+    hasTag(tag) {
+        return this.tags.includes(tag);
+    }
+
+    // Play tracking
+    incrementPlayCount() {
+        return new Music({
+            ...this._toPlainObject(),
+            playCount: this.playCount + 1,
+            lastPlayed: new Date()
+        });
+    }
+
+    updateLastPlayed() {
+        return new Music({
+            ...this._toPlainObject(),
+            lastPlayed: new Date()
+        });
+    }
+
+    isRecentlyPlayed(daysThreshold = 7) {
+        if (!this.lastPlayed) return false;
+        const daysSincePlay = (new Date() - this.lastPlayed) / (1000 * 60 * 60 * 24);
+        return daysSincePlay <= daysThreshold;
+    }
+
+    getPlayFrequency() {
+        if (!this.dateAdded || this.playCount === 0) return 0;
+        const daysSinceAdded = (new Date() - this.dateAdded) / (1000 * 60 * 60 * 24);
+        return daysSinceAdded > 0 ? this.playCount / daysSinceAdded : 0;
+    }
+
+    // Duration handling
+    getFormattedDuration() {
+        if (!this.duration) return '0:00';
+        const minutes = Math.floor(this.duration / 60);
+        const seconds = this.duration % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    setDuration(duration) {
+        if (typeof duration !== 'number' || duration < 0) {
+            throw new ValidationError('Duration must be a non-negative number', {
+                context: { duration }
+            });
+        }
+        return new Music({ ...this._toPlainObject(), duration });
+    }
+
+    // Metadata management
+    setNotes(notes) {
+        if (notes === null || notes === undefined || typeof notes !== 'string') {
+            throw new ValidationError('Notes must be a string', {
+                context: { notes, type: typeof notes }
+            });
+        }
+        return new Music({ ...this._toPlainObject(), notes });
+    }
+
+    updateArtist(artist) {
+        if (!artist || typeof artist !== 'string') {
+            throw new ValidationError('Artist must be a non-empty string', {
+                context: { artist }
+            });
+        }
+        return new Music({ ...this._toPlainObject(), artist });
+    }
+
+    updateAlbum(album) {
+        if (!album || typeof album !== 'string') {
+            throw new ValidationError('Album must be a non-empty string', {
+                context: { album }
+            });
+        }
+        return new Music({ ...this._toPlainObject(), album });
+    }
+
+    // Search and filtering
+    matchesSearch(query) {
+        const lowerQuery = query.toLowerCase();
+        return this.title.toLowerCase().includes(lowerQuery) ||
+            this.artist.toLowerCase().includes(lowerQuery) ||
+            (this.album && this.album.toLowerCase().includes(lowerQuery)) ||
+            this.tags.some(tag => tag.toLowerCase().includes(lowerQuery));
+    }
+
+    // Popularity scoring
+    getPopularityScore() {
+        const ratingWeight = 0.4;
+        const playCountWeight = 0.4;
+        const recencyWeight = 0.2;
+
+        const ratingScore = (this.rating / 5) * 100;
+        const playScore = Math.min(this.playCount * 10, 100);
+
+        let recencyScore = 0;
+        if (this.lastPlayed) {
+            const daysSincePlay = (new Date() - this.lastPlayed) / (1000 * 60 * 60 * 24);
+            recencyScore = Math.max(0, 100 - (daysSincePlay * 2));
+        }
+
+        return (ratingScore * ratingWeight) + (playScore * playCountWeight) + (recencyScore * recencyWeight);
+    }
+
+    isMorePopularThan(otherMusic) {
+        return this.getPopularityScore() > otherMusic.getPopularityScore();
+    }
+
+    // Serialization
+    toJSON() {
+        return {
+            id: this.id,
+            title: this.title,
+            artist: this.artist,
+            album: this.album,
+            duration: this.duration,
+            sources: this.getSources(),
+            rating: this.rating,
+            tags: this.tags,
+            notes: this.notes,
+            playCount: this.playCount,
+            playlists: this.playlists,
+            lastPlayed: this.lastPlayed,
+            dateAdded: this.dateAdded
+        };
+    }
+
+    toExternalAPI() {
+        return {
+            id: this.id,
+            title: this.title,
+            artist: this.artist,
+            album: this.album,
+            duration: this.getFormattedDuration(),
+            rating: this.rating,
+            tags: this.tags
+        };
+    }
+
+    static fromJSON(json) {
+        return new Music(json);
+    }
+
+    // Helper method to convert to plain object for immutability
+    _toPlainObject() {
+        return {
+            id: this.id,
+            title: this.title,
+            artist: this.artist,
+            album: this.album,
+            duration: this.duration,
+            sources: this.getSources(),
+            rating: this.rating,
+            tags: this.tags,
+            notes: this.notes,
+            playCount: this.playCount,
+            playlists: this.playlists,
+            lastPlayed: this.lastPlayed,
+            dateAdded: this.dateAdded,
+            genre: this.genre,
+            year: this.year,
+            autoplay: this.autoplay,
+            volume: this.volume,
+            bpm: this.bpm,
+            key: this.key,
+            mood: this.mood,
+            language: this.language,
+            isExplicit: this.isExplicit,
+            localFile: this.localFile
+        };
     }
 }

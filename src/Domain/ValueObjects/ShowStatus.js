@@ -13,6 +13,7 @@ export class ShowStatus {
     static PLAN_TO_WATCH = 'plan_to_watch';
     static ON_HOLD = 'on_hold';
     static DROPPED = 'dropped';
+    static REWATCHING = 'rewatching';
 
     // Array of all valid statuses
     static VALID_STATUSES = [
@@ -20,21 +21,24 @@ export class ShowStatus {
         ShowStatus.COMPLETED,
         ShowStatus.PLAN_TO_WATCH,
         ShowStatus.ON_HOLD,
-        ShowStatus.DROPPED
+        ShowStatus.DROPPED,
+        ShowStatus.REWATCHING
     ];
 
     // Status display names
     static STATUS_NAMES = {
-        [ShowStatus.WATCHING]: 'Currently Watching',
+        [ShowStatus.WATCHING]: 'Watching',
         [ShowStatus.COMPLETED]: 'Completed',
         [ShowStatus.PLAN_TO_WATCH]: 'Plan to Watch',
         [ShowStatus.ON_HOLD]: 'On Hold',
-        [ShowStatus.DROPPED]: 'Dropped'
+        [ShowStatus.DROPPED]: 'Dropped',
+        [ShowStatus.REWATCHING]: 'Rewatching'
     };
 
     // Status priorities for sorting (lower number = higher priority)
     static STATUS_PRIORITIES = {
         [ShowStatus.WATCHING]: 1,
+        [ShowStatus.REWATCHING]: 1,
         [ShowStatus.PLAN_TO_WATCH]: 2,
         [ShowStatus.ON_HOLD]: 3,
         [ShowStatus.COMPLETED]: 4,
@@ -43,28 +47,34 @@ export class ShowStatus {
 
     /**
      * Create a ShowStatus
-     * @param {string} status - The status value
+     * @param {string|ShowStatus} status - The status value or ShowStatus instance
      */
     constructor(status) {
+        // Handle ShowStatus instance
+        if (status instanceof ShowStatus) {
+            this._status = status._status;
+            Object.freeze(this);
+            return;
+        }
+
         if (!status || typeof status !== 'string') {
             throw new ValidationError('Show status must be a non-empty string', {
                 context: { input: status, type: typeof status }
             });
         }
 
-        const normalizedStatus = status.toLowerCase().trim();
-
-        if (!ShowStatus.VALID_STATUSES.includes(normalizedStatus)) {
+        // Must be exact match - no case normalization, no trimming
+        if (!ShowStatus.VALID_STATUSES.includes(status)) {
             throw new ValidationError(`Invalid show status: ${status}`, {
                 context: {
                     input: status,
                     validStatuses: ShowStatus.VALID_STATUSES,
-                    suggestion: ShowStatus._findClosestStatus(normalizedStatus)
+                    suggestion: ShowStatus._findClosestStatus(status)
                 }
             });
         }
 
-        this._status = normalizedStatus;
+        this._status = status;
 
         // Make this immutable
         Object.freeze(this);
@@ -168,11 +178,43 @@ export class ShowStatus {
     }
 
     /**
+     * Check if this status represents watching (alias for isActivelyWatching)
+     * @returns {boolean} True if watching
+     */
+    isWatching() {
+        return this._status === ShowStatus.WATCHING;
+    }
+
+    /**
+     * Check if this status represents plan to watch (alias for isPlanned)
+     * @returns {boolean} True if planning to watch
+     */
+    isPlanToWatch() {
+        return this._status === ShowStatus.PLAN_TO_WATCH;
+    }
+
+    /**
+     * Check if this status represents rewatching
+     * @returns {boolean} True if rewatching
+     */
+    isRewatching() {
+        return this._status === ShowStatus.REWATCHING;
+    }
+
+    /**
+     * Check if this status represents an inactive state (completed, dropped, or on hold)
+     * @returns {boolean} True if inactive
+     */
+    isInactive() {
+        return this.isCompleted() || this.isDropped() || this.isOnHold();
+    }
+
+    /**
      * Check if this status allows episode progression
      * @returns {boolean} True if episodes can be tracked
      */
     allowsEpisodeProgression() {
-        return this.isActivelyWatching() || this.isOnHold();
+        return this.isActivelyWatching() || this.isOnHold() || this.isRewatching();
     }
 
     /**
@@ -193,16 +235,19 @@ export class ShowStatus {
                 return [ShowStatus.WATCHING, ShowStatus.DROPPED];
 
             case ShowStatus.WATCHING:
-                return [ShowStatus.COMPLETED, ShowStatus.ON_HOLD, ShowStatus.DROPPED];
+                return [ShowStatus.COMPLETED, ShowStatus.ON_HOLD, ShowStatus.DROPPED, ShowStatus.REWATCHING];
 
             case ShowStatus.ON_HOLD:
-                return [ShowStatus.WATCHING, ShowStatus.COMPLETED, ShowStatus.DROPPED];
+                return [ShowStatus.WATCHING, ShowStatus.DROPPED, ShowStatus.COMPLETED];
 
             case ShowStatus.COMPLETED:
-                return [ShowStatus.WATCHING]; // For rewatching
+                return [ShowStatus.REWATCHING];
 
             case ShowStatus.DROPPED:
                 return [ShowStatus.WATCHING, ShowStatus.PLAN_TO_WATCH];
+
+            case ShowStatus.REWATCHING:
+                return [ShowStatus.COMPLETED, ShowStatus.ON_HOLD, ShowStatus.DROPPED];
 
             default:
                 return [];
@@ -280,9 +325,25 @@ export class ShowStatus {
 
     /**
      * JSON representation
-     * @returns {object} JSON object
+     * @returns {string} Status string for JSON serialization
      */
     toJSON() {
+        return this._status;
+    }
+
+    /**
+     * Primitive value representation
+     * @returns {string} Status string
+     */
+    valueOf() {
+        return this._status;
+    }
+
+    /**
+     * Get detailed information about this status
+     * @returns {object} Detailed status information
+     */
+    getDetails() {
         return {
             value: this._status,
             displayName: this.getDisplayName(),
@@ -293,6 +354,7 @@ export class ShowStatus {
                 isPlanned: this.isPlanned(),
                 isOnHold: this.isOnHold(),
                 isDropped: this.isDropped(),
+                isRewatching: this.isRewatching(),
                 allowsEpisodeProgression: this.allowsEpisodeProgression(),
                 allowsScheduling: this.allowsScheduling()
             },
@@ -302,7 +364,6 @@ export class ShowStatus {
 
     /**
      * Create ShowStatus from any common status string
-     * @param {string} statusString - Status string (flexible input)
      * @returns {ShowStatus} New ShowStatus instance
      */
     static fromString(statusString) {
@@ -341,5 +402,14 @@ export class ShowStatus {
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Validate if a status string is valid (alias for isValid)
+     * @param {string} status - Status to validate
+     * @returns {boolean} True if valid
+     */
+    static isValidStatus(status) {
+        return ShowStatus.isValid(status);
     }
 }

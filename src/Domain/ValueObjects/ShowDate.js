@@ -9,10 +9,12 @@ import { ValidationError } from '../../Core/Errors/ApplicationErrors.js';
 export class ShowDate {
     /**
      * Create a ShowDate from a date string
-     * @param {string|Date} dateInput - Date string in MM-DD-YY format or Date object
+     * @param {string|Date|ShowDate} dateInput - Date string in MM-DD-YY format, Date object, or ShowDate instance
      */
     constructor(dateInput) {
-        if (dateInput instanceof Date) {
+        if (dateInput instanceof ShowDate) {
+            this._date = new Date(dateInput._date);
+        } else if (dateInput instanceof Date) {
             this._date = new Date(dateInput);
         } else if (typeof dateInput === 'string') {
             this._date = this._parseShowDateString(dateInput);
@@ -44,8 +46,8 @@ export class ShowDate {
             throw new ValidationError('Date string is required');
         }
 
-        // Match MM-DD-YY format
-        const dateMatch = dateString.match(/^(\d{1,2})-(\d{1,2})-(\d{2})$/);
+        // Match MM-DD-YY format (strict: exactly 2 digits for each component)
+        const dateMatch = dateString.match(/^(\d{2})-(\d{2})-(\d{2})$/);
         if (!dateMatch) {
             throw new ValidationError(`Invalid date format. Expected MM-DD-YY, got: ${dateString}`, {
                 context: {
@@ -146,8 +148,20 @@ export class ShowDate {
             throw new ValidationError('Target date must be a Date or ShowDate object');
         }
 
-        const timeDiff = target.getTime() - this._date.getTime();
-        return Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
+        // Get the start of the week (Sunday) for both dates
+        const getWeekStartSunday = (date) => {
+            const d = new Date(date);
+            const day = d.getDay();
+            d.setDate(d.getDate() - day); // Go back to Sunday
+            d.setHours(0, 0, 0, 0);
+            return d;
+        };
+
+        const thisWeekStart = getWeekStartSunday(this._date);
+        const targetWeekStart = getWeekStartSunday(target);
+
+        const timeDiff = targetWeekStart.getTime() - thisWeekStart.getTime();
+        return Math.round(timeDiff / (7 * 24 * 60 * 60 * 1000));
     }
 
     /**

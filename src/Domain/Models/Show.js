@@ -33,13 +33,16 @@ export class Show {
         this.status = new ShowStatus(data.status);
         this.airingStatus = new AiringStatus(data.airing_status || data.airingStatus || 0);
 
-        // Dates
-        this.startDate = data.start_date || data.startDate ?
-            new ShowDate(data.start_date || data.startDate) : null;
-        this.endDate = data.end_date || data.endDate ?
-            new ShowDate(data.end_date || data.endDate) : null;
-        this.customStartDate = data.custom_start_date || data.customStartDate ?
-            new ShowDate(data.custom_start_date || data.customStartDate) : null;
+        // Dates - handle both ShowDate objects and strings/dates
+        const parseDate = (dateValue) => {
+            if (!dateValue) return null;
+            if (dateValue instanceof ShowDate) return dateValue;
+            return new ShowDate(dateValue);
+        };
+
+        this.startDate = parseDate(data.start_date || data.startDate);
+        this.endDate = parseDate(data.end_date || data.endDate);
+        this.customStartDate = parseDate(data.custom_start_date || data.customStartDate);
 
         // Additional metadata
         this.score = data.score;
@@ -50,6 +53,8 @@ export class Show {
         this.season = data.season || null;
         this.studios = data.studios || null;
         this.licensors = data.licensors || null;
+        this.tags = data.tags || [];
+        this.notes = data.notes || '';
 
         // Make core properties immutable (but allow updates through methods)
         Object.defineProperty(this, 'id', { writable: false, configurable: false });
@@ -66,9 +71,9 @@ export class Show {
             throw new ValidationError('Show data is required');
         }
 
-        if (!data.id) {
-            throw new ValidationError('Show ID is required', {
-                context: { data }
+        if (!data.id || typeof data.id !== 'string') {
+            throw new ValidationError('Show ID is required and must be a string', {
+                context: { id: data.id, type: typeof data.id, data }
             });
         }
 
@@ -468,4 +473,164 @@ export class Show {
 
         return new Show(mergedData);
     }
+
+    // Scoring and Rating methods
+    setScore(score) {
+        if (typeof score !== 'number' || score < 0 || score > 10) {
+            throw new ValidationError('Score must be a number between 0 and 10', {
+                context: { score }
+            });
+        }
+        return new Show({ ...this._toPlainObject(), score });
+    }
+
+    isHighlyRated() {
+        return this.score >= 8.0;
+    }
+
+    getRatingCategory() {
+        if (this.score >= 9.0) return 'excellent';
+        if (this.score >= 7.0) return 'good';
+        if (this.score >= 5.0) return 'average';
+        return 'poor';
+    }
+
+    // Tag Management methods
+    addTag(tag) {
+        if (!tag || typeof tag !== 'string') {
+            throw new ValidationError('Tag must be a non-empty string', {
+                context: { tag }
+            });
+        }
+        if (this.tags.includes(tag)) {
+            return this; // Already has tag, return unchanged
+        }
+        return new Show({ ...this._toPlainObject(), tags: [...this.tags, tag] });
+    }
+
+    removeTag(tag) {
+        return new Show({
+            ...this._toPlainObject(),
+            tags: this.tags.filter(t => t !== tag)
+        });
+    }
+
+    hasTag(tag) {
+        return this.tags.includes(tag);
+    }
+
+    // Notes Management methods
+    setNotes(notes) {
+        if (notes === null || notes === undefined || typeof notes !== 'string') {
+            throw new ValidationError('Notes must be a string', {
+                context: { notes, type: typeof notes }
+            });
+        }
+        return new Show({ ...this._toPlainObject(), notes });
+    }
+
+    // Serialization methods
+    toJSON() {
+        return {
+            id: this.id,
+            url: this.url,
+            title: this.title,
+            title_english: this.titleEnglish,
+            title_japanese: this.titleJapanese,
+            episodes: this.episodes,
+            custom_episodes: this.customEpisodes,
+            skipped_weeks: this.skippedWeeks,
+            status: this.status.getValue(),
+            airing_status: this.airingStatus.getValue(),
+            start_date: this.startDate ? this.startDate.format() : null,
+            end_date: this.endDate ? this.endDate.format() : null,
+            custom_start_date: this.customStartDate ? this.customStartDate.format() : null,
+            score: this.score,
+            type: this.type,
+            image_url: this.imageUrl,
+            watching_status: this.watchingStatus,
+            rating: this.rating,
+            season: this.season,
+            studios: this.studios,
+            licensors: this.licensors,
+            tags: this.tags,
+            notes: this.notes
+        };
+    }
+
+    toExternalAPI() {
+        return {
+            id: this.id,
+            title: this.title,
+            englishTitle: this.titleEnglish,
+            japaneseTitle: this.titleJapanese,
+            episodes: this.getEffectiveEpisodes(),
+            status: this.status.getValue(),
+            airingStatus: this.airingStatus.getValue(),
+            startDate: this.getEffectiveStartDate() ? this.getEffectiveStartDate().format() : null,
+            score: this.score,
+            type: this.type,
+            imageUrl: this.imageUrl,
+            tags: this.tags,
+            notes: this.notes
+        };
+    }
+
+    static fromJSON(json) {
+        return new Show(json);
+    }
+
+    // Helper method to convert to plain object for immutability
+    _toPlainObject() {
+        return {
+            id: this.id,
+            url: this.url,
+            title: this.title,
+            title_english: this.titleEnglish,
+            title_japanese: this.titleJapanese,
+            episodes: this.episodes,
+            custom_episodes: this.customEpisodes,
+            skipped_weeks: this.skippedWeeks,
+            status: this.status.getValue(),
+            airing_status: this.airingStatus.getValue(),
+            startDate: this.startDate, // Keep as ShowDate object
+            endDate: this.endDate, // Keep as ShowDate object
+            customStartDate: this.customStartDate, // Keep as ShowDate object
+            score: this.score,
+            type: this.type,
+            image_url: this.imageUrl,
+            watching_status: this.watchingStatus,
+            rating: this.rating,
+            season: this.season,
+            studios: this.studios,
+            licensors: this.licensors,
+            tags: this.tags,
+            notes: this.notes
+        };
+    }
+
+    // Simple getter methods for test compatibility
+    getId() { return this.id; }
+    getTitle() { return this.title; }
+    getTitleEnglish() { return this.titleEnglish; }
+    getTitleJapanese() { return this.titleJapanese; }
+    getStartDate() { return this.startDate; }
+    getEndDate() { return this.endDate; }
+    getCustomStartDate() { return this.customStartDate; }
+    getTotalEpisodes() { return this.episodes; }
+    getCustomEpisodes() { return this.customEpisodes; }
+    getSkippedWeeks() { return this.skippedWeeks; }
+    getStatus() { return this.status; }
+    getAiringStatus() { return this.airingStatus; }
+    getScore() { return this.score; }
+    getType() { return this.type; }
+    getImageUrl() { return this.imageUrl; }
+    getUrl() { return this.url; }
+    getWatchingStatus() { return this.watchingStatus; }
+    getRating() { return this.rating; }
+    getSeason() { return this.season; }
+    getStudios() { return this.studios; }
+    getLicensors() { return this.licensors; }
+    getTags() { return this.tags || []; }
+    getNotes() { return this.notes || ''; }
 }
