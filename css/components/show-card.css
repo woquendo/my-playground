@@ -10,7 +10,8 @@
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow: visible;
+    /* Changed from hidden to allow dropdown to show */
     transition: var(--transition-all);
 }
 
@@ -19,7 +20,8 @@
     box-shadow: var(--shadow-lg);
 }
 
-.show-card.behind {
+.show-card.behind,
+.show-card.show-card--behind {
     border-color: var(--color-warning);
 }
 
@@ -28,6 +30,7 @@
     width: 100%;
     aspect-ratio: 16 / 9;
     overflow: hidden;
+    /* Keep overflow hidden on image container */
 }
 
 .show-card__image img {

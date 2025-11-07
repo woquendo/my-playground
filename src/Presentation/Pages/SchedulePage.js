@@ -44,11 +44,12 @@ export class SchedulePage {
                     />
                     <select class="input" id="schedule-status-filter" aria-label="Filter by status">
                         <option value="all">All Status</option>
-                        <option value="watching" selected>Watching</option>
+                        <option value="active" selected>Active (Watching + Plan to Watch)</option>
+                        <option value="watching">Watching</option>
+                        <option value="plan_to_watch">Plan to Watch</option>
                         <option value="completed">Completed</option>
                         <option value="on_hold">On Hold</option>
                         <option value="dropped">Dropped</option>
-                        <option value="plan_to_watch">Plan to Watch</option>
                     </select>
                     <select class="input" id="schedule-sort" aria-label="Sort by">
                         <option value="airing">By Airing Time</option>
@@ -57,6 +58,7 @@ export class SchedulePage {
                     </select>
                 </div>
             </div>
+            <div id="day-navigation-container"></div>
             <div class="page__content">
                 <div id="schedule-grid-container"></div>
             </div>
@@ -109,23 +111,50 @@ export class SchedulePage {
     async loadSchedule() {
         try {
             const container = this.element.querySelector('#schedule-grid-container');
+            const dayNavContainer = this.element.querySelector('#day-navigation-container');
             if (!container) return;
 
             // Show loading state
             container.innerHTML = '<div class="loading">Loading schedule...</div>';
 
             // Get schedule data from ViewModel
-            const schedule = await this.viewModel.loadSchedule();
+            const fullSchedule = await this.viewModel.loadSchedule();
+            const selectedDay = this.viewModel.get('selectedDay');
 
-            // Check if schedule has any days with shows
+            // Render day navigation (or update if exists)
+            if (dayNavContainer) {
+                if (!this.dayNavigation) {
+                    // First time - create component
+                    const { DayNavigation } = await import('../Components/DayNavigation.js');
+                    const dayNav = new DayNavigation({
+                        container: dayNavContainer,
+                        selectedDay: selectedDay,
+                        schedule: fullSchedule,
+                        onDayChange: (day) => this.handleDayChange(day),
+                        eventBus: this.eventBus,
+                        logger: this.logger
+                    });
+                    dayNavContainer.innerHTML = '';
+                    dayNav.mount();
+                    this.dayNavigation = dayNav;
+                } else {
+                    // Update existing component reactively (no re-render)
+                    this.dayNavigation.updateSchedule(fullSchedule, selectedDay);
+                }
+            }
+
+            // Filter schedule by selected day
+            const schedule = this.filterScheduleByDay(fullSchedule, selectedDay);
+
+            // Check if schedule has any shows
             const showCount = Object.values(schedule).reduce((sum, day) => sum + day.length, 0);
 
             if (showCount === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <p>No shows in your schedule.</p>
-                        <p>Add shows to start tracking your anime!</p>
-                        <a href="/import" class="btn btn--primary">Import Shows</a>
+                        <p>No shows for ${selectedDay === 'all' ? 'any day' : selectedDay}.</p>
+                        <p>${selectedDay === 'all' ? 'Add shows to start tracking your anime!' : 'Try selecting a different day or status filter.'}</p>
+                        ${selectedDay === 'all' ? '<a href="/import" class="btn btn--primary">Import Shows</a>' : ''}
                     </div>
                 `;
                 return;
@@ -139,6 +168,8 @@ export class SchedulePage {
                 onShowProgress: (show) => this.handleProgressEpisode(show),
                 onShowStatusChange: (show, status) => this.handleStatusChange(show, status),
                 onShowSelect: (show) => this.handleShowSelect(show),
+                onUpdateAirDate: (show, date) => this.handleUpdateAirDate(show, date),
+                onSkipWeek: (show) => this.handleSkipWeek(show),
                 eventBus: this.eventBus,
                 logger: this.logger
             });
@@ -161,23 +192,72 @@ export class SchedulePage {
     }
 
     /**
+     * Filter schedule by selected day
+     * @param {object} fullSchedule - Full schedule with all days
+     * @param {string} selectedDay - Selected day filter
+     * @returns {object} Filtered schedule
+     */
+    filterScheduleByDay(fullSchedule, selectedDay) {
+        if (selectedDay === 'all') {
+            return fullSchedule;
+        }
+
+        // Return only the selected day
+        return {
+            [selectedDay]: fullSchedule[selectedDay] || []
+        };
+    }
+
+    /**
+     * Handle day change
+     * @param {string} day - Selected day
+     */
+    async handleDayChange(day) {
+        this.logger.debug('Day filter changed:', day);
+        this.viewModel.setSelectedDay(day);
+        await this.loadSchedule();
+    }
+
+    /**
      * Handle search input
      * @param {string} query - Search query
      */
-    handleSearch(query) {
+    async handleSearch(query) {
         this.logger.debug('Search:', query);
-        this.viewModel.setFilter('search', query);
-        this.loadSchedule();
+
+        if (!query || query.trim() === '') {
+            // Reload all shows with current filter
+            await this.viewModel.loadShowsByStatus(this.viewModel.get('filterStatus') || 'watching');
+        } else {
+            // Search shows
+            await this.viewModel.searchShows(query);
+        }
+
+        await this.loadSchedule();
     }
 
     /**
      * Handle status filter change
      * @param {string} status - Status filter value
      */
-    handleStatusFilter(status) {
+    async handleStatusFilter(status) {
         this.logger.debug('Filter status:', status);
-        this.viewModel.setFilter(status);
-        this.loadSchedule();
+
+        // Map filter values to status arrays
+        let statuses;
+        if (status === 'all') {
+            statuses = 'all'; // Special value for all statuses
+            this.viewModel.setFilterStatus('all');
+        } else if (status === 'active') {
+            statuses = ['watching', 'plan_to_watch'];
+            this.viewModel.setFilterStatus(statuses);
+        } else {
+            statuses = [status];
+            this.viewModel.setFilterStatus(status);
+        }
+
+        // Reload the schedule with the selected statuses (this will re-render the UI)
+        await this.loadSchedule();
     }
 
     /**
@@ -230,6 +310,54 @@ export class SchedulePage {
         this.logger.info('Show selected:', show.getTitle());
         this.viewModel.selectShow(show);
         this.eventBus.emit('show:selected', { show });
+    }
+
+    /**
+     * Handle air date update
+     * @param {Show} show - Show to update
+     * @param {Date} date - New air date
+     */
+    async handleUpdateAirDate(show, date) {
+        try {
+            this.logger.info('Updating air date for:', show.getTitle(), 'to:', date);
+            await this.viewModel.updateShow(show.getId(), {
+                airDate: date,
+                startDate: date
+            });
+            // Reload schedule to show updated data
+            await this.loadSchedule();
+        } catch (error) {
+            this.logger.error('Failed to update air date:', error);
+            alert('Failed to update air date: ' + error.message);
+        }
+    }
+
+    /**
+     * Handle skip week
+     * @param {Show} show - Show to skip week for
+     */
+    async handleSkipWeek(show) {
+        try {
+            this.logger.info('Skipping week for:', show.getTitle());
+
+            // Get current air date and add 7 days
+            const currentDate = show.getStartDate?.() || show.airDate || new Date();
+            const nextWeek = new Date(currentDate);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+
+            await this.viewModel.updateShow(show.getId(), {
+                airDate: nextWeek,
+                startDate: nextWeek
+            });
+
+            // Reload schedule to show updated data
+            await this.loadSchedule();
+
+            this.logger.info('Week skipped for:', show.getTitle());
+        } catch (error) {
+            this.logger.error('Failed to skip week:', error);
+            alert('Failed to skip week: ' + error.message);
+        }
     }
 
     /**

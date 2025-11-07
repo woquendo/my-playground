@@ -7,11 +7,44 @@ from urllib.error import URLError
 
 class MALProxyHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        # Handle static files
-        if not self.path.startswith('/proxy'):
+        # Handle proxy requests first
+        if self.path.startswith('/proxy'):
+            return self._handle_proxy()
+        
+        # Handle static files and SPA routing
+        return self._handle_spa_routing()
+    
+    def _handle_spa_routing(self):
+        """Handle SPA routing - serve app.html for client-side routes"""
+        # Parse the path
+        parsed_path = urllib.parse.urlparse(self.path).path
+        
+        # List of SPA routes that should serve app.html
+        spa_routes = ['/schedule', '/shows', '/music', '/import']
+        
+        # Check if this is a client-side route
+        if parsed_path in spa_routes:
+            # Serve app.html for SPA routes
+            self.path = '/app.html'
             return SimpleHTTPRequestHandler.do_GET(self)
         
-        # Handle proxy requests
+        # Check if file exists (for static assets like CSS, JS, JSON, images)
+        file_path = self.translate_path(self.path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            # Serve the static file
+            return SimpleHTTPRequestHandler.do_GET(self)
+        
+        # If no file exists and not a known route, try serving app.html for any other path
+        # This allows for future routes without server restart
+        if not parsed_path.startswith('/data/') and not os.path.splitext(parsed_path)[1]:
+            self.path = '/app.html'
+            return SimpleHTTPRequestHandler.do_GET(self)
+        
+        # Otherwise, let the default handler return 404
+        return SimpleHTTPRequestHandler.do_GET(self)
+    
+    def _handle_proxy(self):
+        """Handle proxy requests to MyAnimeList"""
         try:
             if self.path.startswith('/proxy-anime'):
                 # Parse the anime id from the query

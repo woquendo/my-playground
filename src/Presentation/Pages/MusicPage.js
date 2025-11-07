@@ -18,6 +18,9 @@ export class MusicPage {
         this.container = container;
         this.element = null;
         this.currentTrack = null;
+        this.musicPlayer = null;
+        this.tracks = [];
+        this.currentTrackIndex = -1;
     }
 
     /**
@@ -67,6 +70,9 @@ export class MusicPage {
         // Load and render tracks
         await this.loadTracks();
 
+        // Initialize music player
+        await this.initializeMusicPlayer();
+
         return page;
     }
 
@@ -103,6 +109,7 @@ export class MusicPage {
             // Get tracks from ViewModel
             await this.viewModel.loadTracks();
             const tracks = this.viewModel.get('tracks');
+            this.tracks = tracks;
 
             if (tracks.length === 0) {
                 container.innerHTML = `
@@ -182,27 +189,36 @@ export class MusicPage {
      */
     async handlePlayTrack(trackId) {
         try {
-            const tracks = this.viewModel.get('tracks');
-            const track = tracks.find(t => t.getId() === trackId);
+            const track = this.tracks.find(t => t.getId() === trackId);
 
             if (!track) {
                 throw new Error('Track not found');
             }
 
+            // Set as current track in player
+            this.setCurrentTrack(track);
+
+            // Update ViewModel
             await this.viewModel.playTrack(track);
-            this.currentTrack = trackId;
 
             this.logger.info('Playing track:', trackId);
 
             const toastService = this.container.get('toastService');
-            toastService.success('Track playing!');
+            if (toastService) {
+                toastService.success(`Now playing: ${track.getTitle()}`);
+            } else {
+                // Fallback notification
+                console.log(`Now playing: ${track.getTitle()}`);
+            }
 
-            // Update UI to show playing state
-            this.updatePlayingState(trackId);
         } catch (error) {
             this.logger.error('Failed to play track:', error);
             const toastService = this.container.get('toastService');
-            toastService.error('Failed to play track');
+            if (toastService) {
+                toastService.error('Failed to play track');
+            } else {
+                alert('Failed to play track');
+            }
         }
     }    /**
      * Update UI to show playing state
@@ -234,9 +250,135 @@ export class MusicPage {
      * Handle type filter
      * @param {string} type - Track type
      */
-    handleTypeFilter(type) {
-        this.viewModel.setFilter('type', type);
-        this.loadTracks();
+    async handleTypeFilter(type) {
+        this.logger.debug('Filtering by type:', type);
+
+        if (type === 'all') {
+            // Load all tracks
+            await this.viewModel.loadTracks();
+        } else {
+            // Filter tracks by type
+            await this.viewModel.loadTracks();
+            const allTracks = this.viewModel.get('tracks');
+            const filteredTracks = allTracks.filter(track => {
+                const trackType = track.getType?.() || track.type;
+                return trackType === type;
+            });
+            this.viewModel.set('tracks', filteredTracks);
+        }
+
+        this.tracks = this.viewModel.get('tracks');
+        await this.loadTracks();
+    }
+
+    /**
+     * Initialize music player component
+     */
+    async initializeMusicPlayer() {
+        const container = this.element.querySelector('#music-player-container');
+        if (!container) return;
+
+        try {
+            const { MusicPlayer } = await import('../Components/MusicPlayer.js');
+
+            this.musicPlayer = new MusicPlayer({
+                container,
+                track: this.currentTrack,
+                onPlay: () => this.handlePlayerPlay(),
+                onPause: () => this.handlePlayerPause(),
+                onStop: () => this.handlePlayerStop(),
+                onNext: () => this.handleNextTrack(),
+                onPrevious: () => this.handlePreviousTrack(),
+                eventBus: this.eventBus,
+                logger: this.logger
+            });
+
+            this.musicPlayer.mount();
+            this.logger.info('Music player initialized');
+
+        } catch (error) {
+            this.logger.error('Failed to initialize music player:', error);
+            container.innerHTML = `
+                <div class="error-state">
+                    <p>Failed to load music player.</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Handle player play event
+     */
+    handlePlayerPlay() {
+        this.logger.info('Player play event');
+        if (this.currentTrack) {
+            this.eventBus.emit('track:playing', { track: this.currentTrack });
+        }
+    }
+
+    /**
+     * Handle player pause event
+     */
+    handlePlayerPause() {
+        this.logger.info('Player pause event');
+        if (this.currentTrack) {
+            this.eventBus.emit('track:paused', { track: this.currentTrack });
+        }
+    }
+
+    /**
+     * Handle player stop event
+     */
+    handlePlayerStop() {
+        this.logger.info('Player stop event');
+        if (this.currentTrack) {
+            this.eventBus.emit('track:stopped', { track: this.currentTrack });
+        }
+    }
+
+    /**
+     * Handle next track
+     */
+    handleNextTrack() {
+        if (this.tracks.length === 0) return;
+
+        this.currentTrackIndex = (this.currentTrackIndex + 1) % this.tracks.length;
+        const nextTrack = this.tracks[this.currentTrackIndex];
+        this.setCurrentTrack(nextTrack);
+    }
+
+    /**
+     * Handle previous track
+     */
+    handlePreviousTrack() {
+        if (this.tracks.length === 0) return;
+
+        this.currentTrackIndex = this.currentTrackIndex <= 0
+            ? this.tracks.length - 1
+            : this.currentTrackIndex - 1;
+        const previousTrack = this.tracks[this.currentTrackIndex];
+        this.setCurrentTrack(previousTrack);
+    }
+
+    /**
+     * Set current track
+     * @param {Music} track - Track to set as current
+     */
+    setCurrentTrack(track) {
+        this.currentTrack = track;
+
+        // Update track index
+        this.currentTrackIndex = this.tracks.findIndex(t => t.getId() === track.getId());
+
+        // Update music player
+        if (this.musicPlayer) {
+            this.musicPlayer.updateTrack(track);
+        }
+
+        // Update UI playing state
+        this.updatePlayingState(track.getId());
+
+        this.logger.info('Current track set:', track.getTitle());
     }
 
     /**

@@ -42,6 +42,7 @@ export class MusicViewModel extends BaseViewModel {
         this.set('selectedTrack', null, true);
         this.set('currentlyPlaying', null, true);
         this.set('filterArtist', null, true);
+        this.set('filterType', null, true);
         this.set('minRating', null, true);
         this.set('sortBy', 'title', true);
         this.set('searchQuery', '', true);
@@ -341,9 +342,31 @@ export class MusicViewModel extends BaseViewModel {
             this.setFilterArtist(value);
         } else if (filterType === 'rating') {
             this.setMinRating(value);
+        } else if (filterType === 'type') {
+            this.setFilterType(value);
+        } else if (filterType === 'search') {
+            this.setSearchQuery(value);
         } else {
             this._logger.warn(`Unknown filter type: ${filterType}`);
         }
+    }
+
+    /**
+     * Set filter type
+     * @param {string|null} type - Track type to filter by
+     */
+    setFilterType(type) {
+        this.set('filterType', type);
+        this._logger.debug('Filter type changed', { type });
+    }
+
+    /**
+     * Set search query
+     * @param {string} query - Search query
+     */
+    setSearchQuery(query) {
+        this.set('searchQuery', query || '');
+        this._logger.debug('Search query changed', { query });
     }
 
     /**
@@ -369,6 +392,7 @@ export class MusicViewModel extends BaseViewModel {
      */
     clearFilters() {
         this.set('filterArtist', null);
+        this.set('filterType', null);
         this.set('minRating', null);
         this.set('searchQuery', '');
         this._logger.debug('Filters cleared');
@@ -382,13 +406,33 @@ export class MusicViewModel extends BaseViewModel {
     _getFilteredTracks() {
         let tracks = this.get('tracks') || [];
         const filterArtist = this.get('filterArtist');
+        const filterType = this.get('filterType');
         const minRating = this.get('minRating');
+        const searchQuery = this.get('searchQuery');
         const sortBy = this.get('sortBy');
+
+        // Apply search filter
+        if (searchQuery && searchQuery.trim() !== '') {
+            const query = searchQuery.toLowerCase().trim();
+            tracks = tracks.filter(track => {
+                const title = track.getTitle?.()?.toLowerCase() || '';
+                const artist = track.getArtist?.()?.toLowerCase() || '';
+                return title.includes(query) || artist.includes(query);
+            });
+        }
 
         // Apply artist filter
         if (filterArtist) {
             const context = StrategyFactory.createArtistTracksContext(filterArtist);
             tracks = context.apply(tracks);
+        }
+
+        // Apply type filter
+        if (filterType && filterType !== 'all') {
+            tracks = tracks.filter(track => {
+                const trackType = track.getType?.() || track.type;
+                return trackType === filterType;
+            });
         }
 
         // Apply rating filter
@@ -408,8 +452,12 @@ export class MusicViewModel extends BaseViewModel {
             const context = StrategyFactory.createRecentlyPlayedContext();
             tracks = context.apply(tracks);
         } else {
-            const context = StrategyFactory.createArtistTracksContext('');
-            tracks = context.apply(tracks);
+            // Default title sort
+            tracks = tracks.sort((a, b) => {
+                const titleA = a.getTitle?.() || '';
+                const titleB = b.getTitle?.() || '';
+                return titleA.localeCompare(titleB);
+            });
         }
 
         return tracks;

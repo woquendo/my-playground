@@ -15,6 +15,8 @@ export class ScheduleGrid extends BaseComponent {
      * @param {function} options.onShowProgress - Callback for show progress
      * @param {function} options.onShowStatusChange - Callback for status change
      * @param {function} options.onShowSelect - Callback for show selection
+     * @param {function} options.onUpdateAirDate - Callback for air date update
+     * @param {function} options.onSkipWeek - Callback for skip week
      * @param {EventBus} options.eventBus - Event bus
      * @param {Logger} options.logger - Logger
      */
@@ -26,7 +28,9 @@ export class ScheduleGrid extends BaseComponent {
                 schedule: options.schedule || {},
                 onShowProgress: options.onShowProgress || (() => { }),
                 onShowStatusChange: options.onShowStatusChange || (() => { }),
-                onShowSelect: options.onShowSelect || (() => { })
+                onShowSelect: options.onShowSelect || (() => { }),
+                onUpdateAirDate: options.onUpdateAirDate || (() => { }),
+                onSkipWeek: options.onSkipWeek || (() => { })
             }
         });
 
@@ -100,6 +104,8 @@ export class ScheduleGrid extends BaseComponent {
                         onProgress: this._props.onShowProgress,
                         onStatusChange: this._props.onShowStatusChange,
                         onSelect: this._props.onShowSelect,
+                        onUpdateAirDate: this._props.onUpdateAirDate,
+                        onSkipWeek: this._props.onSkipWeek,
                         eventBus: this._eventBus,
                         logger: this._logger
                     });

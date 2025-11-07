@@ -42,14 +42,20 @@ export class ScheduleViewModel extends BaseViewModel {
      * @protected
      */
     _initialize() {
+        // Get current day of week dynamically
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const currentDayIndex = new Date().getDay();
+        const currentDay = daysOfWeek[currentDayIndex];
+
         // Initialize state
         this.set('schedule', {}, true);
         this.set('shows', [], true);
         this.set('selectedShow', null, true);
-        this.set('filterStatus', 'watching', true);
+        this.set('filterStatus', ['watching', 'plan_to_watch'], true); // Default to watching + plan to watch
         this.set('sortBy', 'airDay', true);
         this.set('weekStart', new Date(), true);
         this.set('behindOnly', false, true);
+        this.set('selectedDay', currentDay, true); // Default to current day dynamically
 
         // Define computed properties
         this.defineComputed('filteredShows', () => {
@@ -81,7 +87,15 @@ export class ScheduleViewModel extends BaseViewModel {
     async loadSchedule(options = {}) {
         return this.executeAsync(async () => {
             const weekStart = options.weekStart || this.get('weekStart');
-            const statuses = options.statuses || [this.get('filterStatus')];
+            let filterStatus = this.get('filterStatus');
+
+            // Ensure filterStatus is an array
+            let statuses;
+            if (Array.isArray(filterStatus)) {
+                statuses = options.statuses || filterStatus;
+            } else {
+                statuses = options.statuses || [filterStatus || 'watching'];
+            }
 
             const schedule = await this._scheduleService.getWeeklySchedule({
                 weekStart,
@@ -93,7 +107,9 @@ export class ScheduleViewModel extends BaseViewModel {
 
             this._logger.info('Schedule loaded', {
                 days: Object.keys(schedule).length,
-                weekStart
+                weekStart,
+                filterStatus,
+                statuses
             });
 
             return schedule;
@@ -321,6 +337,15 @@ export class ScheduleViewModel extends BaseViewModel {
     }
 
     /**
+     * Set selected day filter
+     * @param {string} day - Day to filter by ('all', 'Sunday', 'Monday', etc., or 'Airing Date Not Yet Scheduled')
+     */
+    setSelectedDay(day) {
+        this.set('selectedDay', day);
+        this._logger.debug('Selected day changed', { day });
+    }
+
+    /**
      * Toggle behind-only filter
      */
     toggleBehindOnly() {
@@ -372,15 +397,11 @@ export class ScheduleViewModel extends BaseViewModel {
 
         // Apply status filter
         if (filterStatus && filterStatus !== 'all') {
-            const context = filterStatus === 'watching'
-                ? StrategyFactory.createAiringShowsContext()
-                : filterStatus === 'completed'
-                    ? StrategyFactory.createCompletedShowsContext()
-                    : null;
-
-            if (context) {
-                shows = context.apply(shows);
-            }
+            shows = shows.filter(show => {
+                const showStatus = show.getStatus();
+                // Match status string from domain object
+                return showStatus === filterStatus;
+            });
         }
 
         // Apply behind filter
@@ -390,12 +411,32 @@ export class ScheduleViewModel extends BaseViewModel {
         }
 
         // Apply sorting
-        if (sortBy === 'airDay') {
-            const context = StrategyFactory.createAiringShowsContext();
-            shows = context.apply(shows);
+        if (sortBy === 'airing' || sortBy === 'airDay') {
+            // Sort by day of week (airing schedule)
+            const dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7 };
+            shows = shows.sort((a, b) => {
+                const dayA = dayOrder[a.getAirDay()] || 999;
+                const dayB = dayOrder[b.getAirDay()] || 999;
+                return dayA - dayB;
+            });
         } else if (sortBy === 'title') {
             const sortStrategy = new TitleSortStrategy();
             shows = sortStrategy.sort(shows);
+        } else if (sortBy === 'progress') {
+            // Sort by progress (episodes behind, then current episode)
+            shows = shows.sort((a, b) => {
+                // First, sort by episodes behind (descending - most behind first)
+                const behindA = a.getEpisodesBehind();
+                const behindB = b.getEpisodesBehind();
+                if (behindA !== behindB) {
+                    return behindB - behindA;
+                }
+
+                // Then by progress percentage
+                const progressA = a.getCurrentEpisode() / (a.getTotalEpisodes() || 1);
+                const progressB = b.getCurrentEpisode() / (b.getTotalEpisodes() || 1);
+                return progressA - progressB;
+            });
         }
 
         return shows;

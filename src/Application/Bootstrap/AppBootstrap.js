@@ -36,6 +36,7 @@ export class Application {
 
             // Step 1: Initialize core services
             await this.initializeCore();
+            this.logger = this.container.get('logger');
             console.log('✓ Core services initialized');
 
             // Step 2: Register all services
@@ -63,7 +64,12 @@ export class Application {
             console.log('✓ Application ready');
 
             // Step 8: Navigate to initial route
-            const initialPath = window.location.pathname === '/app.html' ? '/schedule' : window.location.pathname;
+            const currentPath = window.location.pathname;
+            const initialPath = currentPath === '/' || currentPath === '/app.html' || currentPath === '/index.html'
+                ? '/schedule'
+                : currentPath;
+
+            this.logger.info(`Initial navigation to: ${initialPath}`);
             this.router.navigate(initialPath);
 
             this.isBootstrapped = true;

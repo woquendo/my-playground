@@ -67,10 +67,9 @@ export class AiringStatus {
         // Handle numeric input (backward compatibility with MAL API)
         if (typeof status === 'number') {
             const numericMap = {
-                0: AiringStatus.FINISHED_AIRING,
                 1: AiringStatus.CURRENTLY_AIRING,
-                2: AiringStatus.NOT_YET_AIRED,
-                3: AiringStatus.NOT_YET_AIRED  // Alternative mapping
+                2: AiringStatus.FINISHED_AIRING,
+                3: AiringStatus.NOT_YET_AIRED
             };
 
             if (numericMap[status] !== undefined) {

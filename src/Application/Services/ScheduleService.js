@@ -36,7 +36,7 @@ export class ScheduleService {
      */
     async getWeeklySchedule(options = {}) {
         try {
-            const { weekStart, statuses = ['watching'] } = options;
+            const { weekStart, statuses = ['watching', 'plan_to_watch'] } = options;
 
             this.logger?.debug('Generating weekly schedule', options);
 
@@ -47,24 +47,50 @@ export class ScheduleService {
 
             // Get shows based on status filter
             let shows;
-            if (statuses.length === 1) {
+            if (statuses[0] === 'all') {
+                // Get all shows regardless of status
+                shows = await this.repository.getAll();
+            } else if (statuses.length === 1 && statuses[0] !== 'all') {
+                // Single status filter
                 shows = await this.repository.getByStatus(statuses[0]);
-            } else {
+            } else if (statuses.length > 1) {
+                // Multiple statuses - load all and filter
                 const allShows = await this.repository.getAll();
                 shows = allShows.filter(show => statuses.includes(show.getStatus()));
+            } else {
+                // Fallback to all shows
+                shows = await this.repository.getAll();
             }
 
-            // Filter to only currently airing shows
-            const airingShows = shows.filter(show =>
-                show.getAiringStatus() === 'currently_airing'
-            );
+            // Filtering by airing status depends on the watching statuses requested:
+            // - "watching" alone: only currently airing shows
+            // - "plan_to_watch": shows not yet aired or currently airing
+            // - "completed"/"on_hold"/"dropped": all shows regardless of airing status
+            // - "all": all shows regardless of airing status
+            let filteredShows;
+            if (statuses[0] === 'all') {
+                // Show all regardless of airing status
+                filteredShows = shows;
+            } else if (statuses.includes('watching') && statuses.length === 1) {
+                // Only watching - filter to currently airing
+                filteredShows = shows.filter(show =>
+                    show.getAiringStatus() === 'currently_airing'
+                );
+            } else if (statuses.includes('completed') || statuses.includes('on_hold') || statuses.includes('dropped')) {
+                // For completed/on_hold/dropped - show all regardless of airing status
+                filteredShows = shows;
+            } else {
+                // For any other combination (e.g., watching + plan_to_watch) - don't filter by airing status
+                // Users might have shows marked as plan_to_watch that are airing, not yet aired, or finished
+                filteredShows = shows;
+            }
 
             // Group by day of week
-            const schedule = this._groupShowsByDay(airingShows, startDate);
+            const schedule = this._groupShowsByDay(filteredShows, startDate);
 
             this.eventBus?.emit('schedule:generated', {
                 weekStart: startDate.format(),
-                showCount: airingShows.length
+                showCount: filteredShows.length
             });
 
             return schedule;
@@ -250,14 +276,31 @@ export class ScheduleService {
             schedule[day] = [];
         });
 
+        // Initialize special category for shows without scheduled air dates
+        schedule['Airing Date Not Yet Scheduled'] = [];
+
         // Group shows by their air day
         shows.forEach(show => {
-            const dayOfWeek = this._getDayOfWeek(show.getEffectiveStartDate());
+            const effectiveStartDate = show.getEffectiveStartDate();
+
+            // Shows without a valid start date go to "Airing Date Not Yet Scheduled"
+            if (!effectiveStartDate) {
+                this.logger?.debug(`Show without valid start date: ${show.getTitle()}`);
+                schedule['Airing Date Not Yet Scheduled'].push({
+                    show,
+                    airTime: null,
+                    episode: show.getCurrentEpisode() + 1, // Next episode to watch
+                    totalEpisodes: show.getTotalEpisodes()
+                });
+                return;
+            }
+
+            const dayOfWeek = this._getDayOfWeek(effectiveStartDate);
             const dayName = daysOfWeek[dayOfWeek];
 
             schedule[dayName].push({
                 show,
-                airTime: show.getEffectiveStartDate().format(),
+                airTime: effectiveStartDate.format(),
                 episode: show.getCurrentEpisode() + 1, // Next episode to watch
                 totalEpisodes: show.getTotalEpisodes()
             });
@@ -269,6 +312,11 @@ export class ScheduleService {
                 a.show.getTitle().localeCompare(b.show.getTitle())
             );
         });
+
+        // Sort unscheduled shows by title
+        schedule['Airing Date Not Yet Scheduled'].sort((a, b) =>
+            a.show.getTitle().localeCompare(b.show.getTitle())
+        );
 
         return schedule;
     }

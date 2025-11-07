@@ -10,6 +10,8 @@
     --color-primary-active: #1e40af;
     --color-primary-light: #3b82f6;
     --color-primary-dark: #1e3a8a;
+    --color-primary-rgb: 37, 99, 235;
+    --color-primary-transparent: rgba(37, 99, 235, 0.15);
 
     /* Secondary Colors */
     --color-secondary: #64748b;
@@ -20,18 +22,22 @@
     --color-success: #10b981;
     --color-success-light: #34d399;
     --color-success-dark: #059669;
+    --color-success-transparent: rgba(16, 185, 129, 0.15);
 
     --color-warning: #f59e0b;
     --color-warning-light: #fbbf24;
     --color-warning-dark: #d97706;
+    --color-warning-transparent: rgba(245, 158, 11, 0.15);
 
     --color-error: #ef4444;
     --color-error-light: #f87171;
     --color-error-dark: #dc2626;
+    --color-error-transparent: rgba(239, 68, 68, 0.15);
 
     --color-info: #3b82f6;
     --color-info-light: #60a5fa;
     --color-info-dark: #2563eb;
+    --color-info-transparent: rgba(59, 130, 246, 0.15);
 
     /* Background Colors */
     --color-bg-primary: #0b0b0b;

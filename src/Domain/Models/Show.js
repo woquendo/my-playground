@@ -233,6 +233,16 @@ export class Show {
      * @returns {string|null} Day name or null if no start date
      */
     getAirDay() {
+        // Check if the show has finished airing
+        if (this.airingStatus && this.airingStatus.isFinishedAiring()) {
+            return 'Ended';
+        }
+
+        // Check if the show hasn't aired yet
+        if (this.airingStatus && this.airingStatus.isNotYetAired()) {
+            return 'Not Yet Aired';
+        }
+
         const startDate = this.getEffectiveStartDate();
         return startDate ? startDate.getDayName() : null;
     }
