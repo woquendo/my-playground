@@ -78,9 +78,8 @@ export function constructSiteUrl(siteName, siteUrl, animeTitle) {
             return `${siteUrl.replace(/\/$/, '')}/search?q=${encoded}`;
 
         case 'hidive':
-            // hidive uses DCE search API: search.dce-prod.dicelaboratory.com/search?query=title&timezone=...
-            // Note: timezone is America/New_York (URL encoded as America%2FNew_York)
-            return `https://search.dce-prod.dicelaboratory.com/search?query=${encoded}&timezone=America%2FNew_York`;
+            // hidive search pattern: /search?q=title
+            return `${siteUrl.replace(/\/$/, '')}/search?q=${encoded}`;
 
         default:
             // Fallback: just return the base URL
