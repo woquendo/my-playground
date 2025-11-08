@@ -178,7 +178,7 @@ export class ShowsPage {
         return `
             <div class="show-card" data-show-id="${show.id}">
                 <div class="show-card__image">
-                    ${show.getImageUrl() ? `<img src="${show.getImageUrl()}" alt="${show.title}">` : ''}
+                    ${show.getImageUrl() ? `<img src="${show.getImageUrl()}" alt="${show.title}" loading="lazy" decoding="async" crossorigin="anonymous">` : ''}
                 </div>
                 <div class="show-card__content">
                     <h3 class="show-card__title">${this.escapeHtml(show.title)}</h3>

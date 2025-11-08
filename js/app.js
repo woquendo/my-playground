@@ -7,6 +7,17 @@ import { fallbackData, STORAGE_KEY } from './config.js';
 import { setSongsList } from './player.js';
 import { pausePlayer, playPlayer, playNext, playPrevious, stopPlayer, hideMinimizedPlayer } from './player.js';
 import { setupImportControls } from './importControls.js';
+import {
+    parseYouTubeUrl,
+    extractVideoData,
+    loadSongs,
+    saveSongs,
+    loadPlaylists,
+    savePlaylists,
+    extractPlaylistData,
+    importPlaylistSongs,
+    addPlaylistMetadata
+} from './youtubeImportService.js';
 
 let initialData = null;
 
@@ -237,6 +248,184 @@ async function initializeApp() {
         localStorage.removeItem(STORAGE_KEY);
         alert('Local data cleared. Reloading from packaged JSON.');
         fetchLocalOrRemote(render);
+    });
+
+    // YouTube Import Handlers
+    const youtubeUrlInput = document.getElementById('youtube-url');
+    const youtubeTypeIndicator = document.getElementById('youtube-type-indicator');
+    const youtubeStatusContainer = document.getElementById('youtube-status-container');
+    const youtubeImportLog = document.getElementById('youtube-import-log');
+
+    // Update type indicator as user types
+    youtubeUrlInput.addEventListener('input', () => {
+        const url = youtubeUrlInput.value.trim();
+
+        // Reset classes
+        youtubeStatusContainer.classList.remove('import-status--success', 'import-status--info', 'import-status--error');
+
+        if (!url) {
+            youtubeTypeIndicator.textContent = '-';
+            return;
+        }
+
+        try {
+            const parsed = parseYouTubeUrl(url);
+            if (parsed.type === 'video') {
+                youtubeTypeIndicator.textContent = `✓ Video (ID: ${parsed.id})`;
+                youtubeStatusContainer.classList.add('import-status--success');
+            } else if (parsed.type === 'playlist') {
+                youtubeTypeIndicator.textContent = `✓ Playlist (ID: ${parsed.id})`;
+                youtubeStatusContainer.classList.add('import-status--info');
+            } else {
+                youtubeTypeIndicator.textContent = '✗ Invalid URL';
+                youtubeStatusContainer.classList.add('import-status--error');
+            }
+        } catch (e) {
+            youtubeTypeIndicator.textContent = '✗ Invalid URL';
+            youtubeStatusContainer.classList.add('import-status--error');
+        }
+    });
+
+    // Import YouTube video/playlist
+    document.getElementById('youtube-import-btn').addEventListener('click', async () => {
+        const url = youtubeUrlInput.value.trim();
+        if (!url) {
+            alert('Please enter a YouTube URL.');
+            return;
+        }
+
+        youtubeImportLog.classList.add('import-log--visible');
+        youtubeImportLog.classList.remove('import-log--success', 'import-log--error');
+        youtubeImportLog.textContent = 'Processing...';
+
+        try {
+            const parsed = parseYouTubeUrl(url);
+
+            if (parsed.type === 'video') {
+                // Extract single video
+                youtubeImportLog.textContent = 'Extracting video metadata...';
+                const videoData = await extractVideoData(parsed.id);
+
+                // Load existing songs
+                const songs = await loadSongs();
+
+                // Check if video already exists
+                const existingIndex = songs.findIndex(s => s.youtube === videoData.youtube);
+                if (existingIndex >= 0) {
+                    youtubeImportLog.textContent = `Video already exists: "${videoData.title}"\nUpdating entry...`;
+                    songs[existingIndex] = videoData;
+                } else {
+                    songs.push(videoData);
+                }
+
+                // Save to songs.json
+                youtubeImportLog.textContent = 'Saving to songs.json...';
+                await saveSongs(songs);
+
+                youtubeImportLog.classList.add('import-log--success');
+                youtubeImportLog.textContent = `✓ Successfully imported video:\nTitle: ${videoData.title}\nArtist: ${videoData.artist}\nURL: ${videoData.youtube}\n\nTotal songs: ${songs.length}`;
+                youtubeUrlInput.value = '';
+                youtubeTypeIndicator.textContent = '-';
+                youtubeStatusContainer.classList.remove('import-status--success', 'import-status--info', 'import-status--error');
+
+                // Reload songs if on songs page
+                if (loadedData) {
+                    loadedData.songs = songs;
+                    renderPage('songs', loadedData);
+                }
+            }
+            else if (parsed.type === 'playlist') {
+                // Import entire playlist
+                youtubeImportLog.textContent = 'Extracting playlist metadata...';
+
+                const result = await importPlaylistSongs(parsed.id, (progress) => {
+                    youtubeImportLog.textContent = progress;
+                });
+
+                // Load existing songs
+                const existingSongs = await loadSongs();
+
+                // Merge new songs with existing, avoiding duplicates
+                let addedCount = 0;
+                let updatedCount = 0;
+
+                for (const newSong of result.songs) {
+                    const existingIndex = existingSongs.findIndex(s => s.youtube === newSong.youtube);
+                    if (existingIndex >= 0) {
+                        existingSongs[existingIndex] = newSong;
+                        updatedCount++;
+                    } else {
+                        existingSongs.push(newSong);
+                        addedCount++;
+                    }
+                }
+
+                // Save to songs.json
+                youtubeImportLog.textContent = 'Saving songs to songs.json...';
+                await saveSongs(existingSongs);
+
+                // Save playlist metadata
+                await addPlaylistMetadata(parsed.id, result.playlistName, result.songs.map(s => {
+                    const url = new URL(s.youtube);
+                    return url.searchParams.get('v');
+                }));
+
+                // Show results
+                youtubeImportLog.classList.add('import-log--success');
+                let resultText = `✓ Successfully imported playlist: "${result.playlistName}"\n\n`;
+                resultText += `Total videos in playlist: ${result.totalVideos}\n`;
+                resultText += `Successfully imported: ${result.successCount}\n`;
+                resultText += `New songs added: ${addedCount}\n`;
+                resultText += `Existing songs updated: ${updatedCount}\n`;
+
+                if (result.errorCount > 0) {
+                    resultText += `\nFailed to import: ${result.errorCount}\n`;
+                    result.errors.forEach(err => {
+                        resultText += `  - ${err.videoId}: ${err.error}\n`;
+                    });
+                }
+
+                resultText += `\nTotal songs in library: ${existingSongs.length}`;
+                youtubeImportLog.textContent = resultText;
+
+                youtubeUrlInput.value = '';
+                youtubeTypeIndicator.textContent = '-';
+                youtubeStatusContainer.classList.remove('import-status--success', 'import-status--info', 'import-status--error');
+
+                // Reload songs if on songs page
+                if (loadedData) {
+                    loadedData.songs = existingSongs;
+                    renderPage('songs', loadedData);
+                }
+            }
+            else {
+                throw new Error('Invalid YouTube URL. Please provide a valid video or playlist URL.');
+            }
+        } catch (error) {
+            console.error('YouTube import error:', error);
+            youtubeImportLog.classList.add('import-log--visible', 'import-log--error');
+            youtubeImportLog.textContent = `✗ Error: ${error.message}`;
+        }
+    });
+
+    // Download songs JSON
+    document.getElementById('download-songs-btn').addEventListener('click', async () => {
+        try {
+            const songs = await loadSongs();
+            downloadJSON({ songs }, 'songs.json');
+        } catch (error) {
+            alert('Failed to download songs: ' + error.message);
+        }
+    });
+
+    // Download playlists JSON
+    document.getElementById('download-playlists-btn').addEventListener('click', async () => {
+        try {
+            const playlists = await loadPlaylists();
+            downloadJSON({ playlists }, 'playlists.json');
+        } catch (error) {
+            alert('Failed to download playlists: ' + error.message);
+        }
     });
 
     // Set initial username if available

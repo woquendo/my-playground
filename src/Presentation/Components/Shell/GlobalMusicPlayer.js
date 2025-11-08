@@ -30,6 +30,10 @@ export class GlobalMusicPlayer extends BaseComponent {
         this.isPlaying = false;
         this.currentTime = 0;
         this.duration = 0;
+        this.viewMode = 'type'; // 'type', 'playlist', or 'all'
+        this.selectedPlaylist = null; // For filtering by specific playlist
+        this.selectedType = null; // For filtering by specific type in type view
+        this._lastStateSaveTime = null; // Track last time state was saved
 
         // DOM elements
         this.element = null;
@@ -75,6 +79,12 @@ export class GlobalMusicPlayer extends BaseComponent {
         this._eventBus.subscribe('globalPlayer:hide', () => {
             this._logger.info('Received globalPlayer:hide event');
             this.hide();
+        });
+
+        // Listen for music library updates
+        this._eventBus.subscribe('music:libraryUpdated', async () => {
+            this._logger.info('Received music:libraryUpdated event - reloading tracks');
+            await this.reloadTracks();
         });
 
         this._logger.info('=== GlobalMusicPlayer event subscriptions complete ===');
@@ -164,8 +174,24 @@ export class GlobalMusicPlayer extends BaseComponent {
                     <span class="progress-time progress-time--duration">0:00</span>
                 </div>
                 
-                <!-- Expanded Section (Search + Track List) -->
+                <!-- Expanded Section (Filters + Search + Track List) -->
                 <div class="global-music-player__expanded">
+                    <!-- Filter Bar -->
+                    <div class="player-filters">
+                        <button class="filter-btn filter-btn--active" data-view="type" aria-label="Group by Type">
+                            <span class="filter-icon">📁</span>
+                            <span class="filter-label">By Type</span>
+                        </button>
+                        <button class="filter-btn" data-view="playlist" aria-label="Group by Playlist">
+                            <span class="filter-icon">📚</span>
+                            <span class="filter-label">Playlists</span>
+                        </button>
+                        <button class="filter-btn" data-view="all" aria-label="Show all tracks">
+                            <span class="filter-icon">🎵</span>
+                            <span class="filter-label">All Songs</span>
+                        </button>
+                    </div>
+                    
                     <div class="player-search">
                         <input 
                             type="text" 
@@ -198,12 +224,149 @@ export class GlobalMusicPlayer extends BaseComponent {
             return '<div class="player-tracklist__empty">No tracks found</div>';
         }
 
-        return this.filteredTracks.map(track => `
+        // Render based on view mode
+        switch (this.viewMode) {
+            case 'playlist':
+                return this._renderPlaylistView();
+            case 'all':
+                return this._renderAllTracksView();
+            case 'type':
+            default:
+                return this._renderTypeView();
+        }
+    }
+
+    /**
+     * Render tracks grouped by type with fixed filter buttons
+     * @returns {string}
+     * @private
+     */
+    _renderTypeView() {
+        const groupedTracks = this._groupTracksByType(this.filteredTracks);
+        const types = Object.keys(groupedTracks);
+
+        // If no type is selected, select the first one by default
+        if (!this.selectedType && types.length > 0) {
+            this.selectedType = types[0];
+        }
+
+        // Get tracks for selected type
+        const selectedTracks = this.selectedType ? groupedTracks[this.selectedType] || [] : [];
+
+        // Render fixed type filter buttons at the top
+        const typeButtons = types.map(type => {
+            const count = groupedTracks[type].length;
+            const isActive = type === this.selectedType;
+            return `
+                <button class="type-filter-btn ${isActive ? 'type-filter-btn--active' : ''}" data-type="${this._escapeHtml(type)}">
+                    <span class="type-filter-btn__label">${this._escapeHtml(type)}</span>
+                    <span class="type-filter-btn__count">${count}</span>
+                </button>
+            `;
+        }).join('');
+
+        return `
+            <div class="type-filters">
+                ${typeButtons}
+            </div>
+            <div class="type-tracks-container">
+                ${this._renderTracksInGroup(selectedTracks)}
+            </div>
+        `;
+    }
+
+    /**
+     * Render playlist view - shows list of playlists or songs in selected playlist
+     * @returns {string}
+     * @private
+     */
+    _renderPlaylistView() {
+        // If a specific playlist is selected, show its tracks
+        if (this.selectedPlaylist) {
+            const playlistTracks = this.filteredTracks.filter(track =>
+                track.playlists && track.playlists.includes(this.selectedPlaylist)
+            );
+
+            return `
+                <div class="playlist-back-button" data-action="back-to-playlists">
+                    <span class="playlist-back-icon">← Back to Playlists</span>
+                </div>
+                <div class="track-group">
+                    <div class="track-group__header">
+                        <span class="track-group__title">📚 ${this._escapeHtml(this.selectedPlaylist)}</span>
+                        <span class="track-group__count">${playlistTracks.length}</span>
+                    </div>
+                    <div class="track-group__tracks">
+                        ${this._renderTracksInGroup(playlistTracks)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Otherwise, show list of available playlists
+        const playlistsMap = this._getAvailablePlaylists();
+
+        if (playlistsMap.size === 0) {
+            return '<div class="player-tracklist__empty">No playlists found</div>';
+        }
+
+        return Array.from(playlistsMap.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([playlistName, count]) => {
+                return `
+                    <div class="playlist-item" data-playlist-name="${this._escapeHtml(playlistName)}">
+                        <span class="playlist-item__icon">📚</span>
+                        <div class="playlist-item__info">
+                            <div class="playlist-item__name">${this._escapeHtml(playlistName)}</div>
+                            <div class="playlist-item__count">${count} song${count !== 1 ? 's' : ''}</div>
+                        </div>
+                        <span class="playlist-item__arrow">→</span>
+                    </div>
+                `;
+            }).join('');
+    }
+
+    /**
+     * Get available playlists with song counts
+     * @returns {Map} Map of playlist name to song count
+     * @private
+     */
+    _getAvailablePlaylists() {
+        const playlistsMap = new Map();
+
+        this.tracks.forEach(track => {
+            if (track.playlists && track.playlists.length > 0) {
+                track.playlists.forEach(playlistName => {
+                    playlistsMap.set(playlistName, (playlistsMap.get(playlistName) || 0) + 1);
+                });
+            }
+        });
+
+        return playlistsMap;
+    }
+
+    /**
+     * Render all tracks without grouping
+     * @returns {string}
+     * @private
+     */
+    _renderAllTracksView() {
+        return this._renderTracksInGroup(this.filteredTracks);
+    }
+
+    /**
+     * Render tracks within a group
+     * @param {Array} tracks - Tracks to render
+     * @returns {string}
+     * @private
+     */
+    _renderTracksInGroup(tracks) {
+        return tracks.map(track => `
             <div class="player-track ${this.currentTrack && String(this.currentTrack.id) === String(track.id) ? 'player-track--active' : ''}" 
                  data-track-id="${track.id}">
                 <div class="player-track__info">
                     <div class="player-track__title">${this._escapeHtml(track.title)}</div>
-                    <div class="player-track__meta">${this._escapeHtml(track.show || track.artist || 'Unknown')} · ${this._escapeHtml(track.type || '')}</div>
+                    <div class="player-track__meta">${this._escapeHtml(track.show || track.artist || 'Unknown')}</div>
                 </div>
                 <button class="player-track__play" aria-label="Play ${this._escapeHtml(track.title)}">▶</button>
             </div>
@@ -211,6 +374,128 @@ export class GlobalMusicPlayer extends BaseComponent {
     }
 
     /**
+     * Group tracks by type with ordering
+     * @param {Array} tracks - Tracks to group
+     * @returns {Object} Grouped tracks
+     * @private
+     */
+    _groupTracksByType(tracks) {
+        const typeOrder = ['Opening', 'Ending', 'Insert Song', 'OST', 'Other'];
+        const grouped = {};
+
+        // Initialize groups in order
+        typeOrder.forEach(type => grouped[type] = []);
+
+        // Group tracks
+        tracks.forEach(track => {
+            const type = track.type || 'Other';
+            if (!grouped[type]) {
+                grouped[type] = [];
+            }
+            grouped[type].push(track);
+        });
+
+        // Remove empty groups
+        Object.keys(grouped).forEach(type => {
+            if (grouped[type].length === 0) {
+                delete grouped[type];
+            }
+        });
+
+        return grouped;
+    }
+
+    /**
+     * Group tracks by playlist
+     * @param {Array} tracks - Tracks to group
+     * @returns {Object} Grouped tracks
+     * @private
+     */
+    _groupTracksByPlaylist(tracks) {
+        const grouped = {};
+
+        tracks.forEach(track => {
+            const playlists = track.playlists || [];
+
+            if (playlists.length === 0) {
+                // Track not in any playlist - add to "No Playlist" group
+                if (!grouped['No Playlist']) {
+                    grouped['No Playlist'] = [];
+                }
+                grouped['No Playlist'].push(track);
+            } else {
+                // Add track to each of its playlists
+                playlists.forEach(playlistName => {
+                    if (!grouped[playlistName]) {
+                        grouped[playlistName] = [];
+                    }
+                    grouped[playlistName].push(track);
+                });
+            }
+        });
+
+        // Sort playlists alphabetically (but keep "No Playlist" last)
+        const sortedGrouped = {};
+        const sortedKeys = Object.keys(grouped)
+            .filter(key => key !== 'No Playlist')
+            .sort();
+
+        sortedKeys.forEach(key => {
+            sortedGrouped[key] = grouped[key];
+        });
+
+        // Add "No Playlist" at the end if it exists
+        if (grouped['No Playlist']) {
+            sortedGrouped['No Playlist'] = grouped['No Playlist'];
+        }
+
+        return sortedGrouped;
+    }
+
+    /**
+     * Check if a group is collapsed
+     * @param {string} type - Group type
+     * @returns {boolean}
+     * @private
+     */
+    _isGroupCollapsed(type) {
+        if (!this._collapsedGroups) {
+            this._collapsedGroups = new Set();
+        }
+        return this._collapsedGroups.has(type);
+    }
+
+    /**
+     * Toggle group collapsed state
+     * @param {string} type - Group type
+     * @private
+     */
+    _toggleGroupCollapsed(type) {
+        if (!this._collapsedGroups) {
+            this._collapsedGroups = new Set();
+        }
+
+        if (this._collapsedGroups.has(type)) {
+            this._collapsedGroups.delete(type);
+        } else {
+            this._collapsedGroups.add(type);
+        }
+    }
+
+    /**
+     * Toggle group visibility
+     * @param {string} type - Group type
+     * @private
+     */
+    _toggleGroup(type) {
+        this._toggleGroupCollapsed(type);
+
+        // Update UI
+        const trackList = this.element.querySelector('.player-tracklist');
+        if (trackList) {
+            trackList.innerHTML = this._renderTrackList();
+        }
+    }    /**
      * Attach event listeners
      * @private
      */
@@ -244,9 +529,68 @@ export class GlobalMusicPlayer extends BaseComponent {
         const searchInput = this.element.querySelector('.player-search__input');
         searchInput?.addEventListener('input', (e) => this._handleSearch(e.target.value));
 
-        // Track list clicks
+        // Filter buttons
+        const filterBtns = this.element.querySelectorAll('.filter-btn');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update view mode
+                this.viewMode = btn.dataset.view;
+
+                // Reset selections when switching views
+                this.selectedPlaylist = null;
+                this.selectedType = null;
+
+                // Update active button styling
+                filterBtns.forEach(b => b.classList.remove('filter-btn--active'));
+                btn.classList.add('filter-btn--active');
+
+                // Re-render track list
+                const trackList = this.element.querySelector('.player-tracklist');
+                if (trackList) {
+                    trackList.innerHTML = this._renderTrackList();
+                }
+
+                this._logger.info(`Switched to ${this.viewMode} view`);
+            });
+        });
+
+        // Track list clicks (tracks, type filters, group headers, playlists, and back button)
         const trackList = this.element.querySelector('.player-tracklist');
         trackList?.addEventListener('click', (e) => {
+            // Check if clicking type filter button
+            const typeFilterBtn = e.target.closest('.type-filter-btn');
+            if (typeFilterBtn) {
+                this.selectedType = typeFilterBtn.dataset.type;
+                this._updateTrackList();
+                return;
+            }
+
+            // Check if clicking back to playlists button
+            const backButton = e.target.closest('.playlist-back-button');
+            if (backButton) {
+                this.selectedPlaylist = null;
+                this._updateTrackList();
+                return;
+            }
+
+            // Check if clicking playlist item
+            const playlistItem = e.target.closest('.playlist-item');
+            if (playlistItem) {
+                const playlistName = playlistItem.dataset.playlistName;
+                this.selectedPlaylist = playlistName;
+                this._updateTrackList();
+                return;
+            }
+
+            // Check if clicking group header
+            const groupHeader = e.target.closest('.track-group__header');
+            if (groupHeader) {
+                const groupType = groupHeader.dataset.groupType;
+                this._toggleGroup(groupType);
+                return;
+            }
+
+            // Check if clicking track
             const trackElement = e.target.closest('.player-track');
             if (trackElement) {
                 const trackId = trackElement.dataset.trackId; // Keep as string
@@ -284,6 +628,32 @@ export class GlobalMusicPlayer extends BaseComponent {
             this.tracks = [];
             this.filteredTracks = [];
         }
+    }
+
+    /**
+     * Reload tracks from music service (public method)
+     * @returns {Promise<void>}
+     */
+    async reloadTracks() {
+        this._logger.info('Reloading tracks in GlobalMusicPlayer');
+
+        // Clear repository cache to get fresh data
+        if (this.musicService.repository && typeof this.musicService.repository.clearCache === 'function') {
+            this.musicService.repository.clearCache();
+            this._logger.info('Cleared music repository cache');
+        }
+
+        await this._loadTracks();
+
+        // Re-render track list if player is expanded
+        if (this.isExpanded) {
+            const trackListElement = this.element.querySelector('.player-tracklist');
+            if (trackListElement) {
+                trackListElement.innerHTML = this._renderTrackList();
+            }
+        }
+
+        this._logger.info(`Tracks reloaded: ${this.tracks.length} total tracks`);
     }
 
     /**
@@ -365,8 +735,9 @@ export class GlobalMusicPlayer extends BaseComponent {
                 artist: track.getArtist(),
                 show: track.getArtist(), // Use artist as show for music
                 url: track.getPrimaryUrl(),
-                type: track.genre || 'Music',
-                autoplay: track.autoplay || false
+                type: track.type || track.genre || 'OST',
+                autoplay: track.autoplay || false,
+                playlists: track.playlists || []
             };
         }
 
@@ -547,6 +918,12 @@ export class GlobalMusicPlayer extends BaseComponent {
                 this.currentTime = this.youtubePlayer.getCurrentTime();
                 this.duration = this.youtubePlayer.getDuration();
                 this._updateProgressDisplay();
+
+                // Save state every 2 seconds during YouTube playback
+                if (!this._lastStateSaveTime || Date.now() - this._lastStateSaveTime > 2000) {
+                    this._saveState();
+                    this._lastStateSaveTime = Date.now();
+                }
             }
         }, 500);
     }
@@ -645,6 +1022,9 @@ export class GlobalMusicPlayer extends BaseComponent {
         } else {
             this._eventBus.emit('globalPlayer:paused');
         }
+
+        // Save state when play/pause changes
+        this._saveState();
     }
 
     /**
@@ -656,6 +1036,12 @@ export class GlobalMusicPlayer extends BaseComponent {
             this.currentTime = this.audioElement.currentTime;
             this.duration = this.audioElement.duration || 0;
             this._updateProgressDisplay();
+
+            // Save state every 2 seconds during playback
+            if (!this._lastStateSaveTime || Date.now() - this._lastStateSaveTime > 2000) {
+                this._saveState();
+                this._lastStateSaveTime = Date.now();
+            }
         }
     }
 
@@ -777,18 +1163,22 @@ export class GlobalMusicPlayer extends BaseComponent {
     }
 
     /**
-     * Save player state
+     * Save current player state to localStorage
      * @private
      */
     _saveState() {
-        const state = {
-            isVisible: this.isVisible,
-            isExpanded: this.isExpanded,
-            currentTrackId: this.currentTrack?.id,
-            currentTime: this.currentTime
-        };
-
         try {
+            const state = {
+                isVisible: this.isVisible,
+                isExpanded: this.isExpanded,
+                currentTrackId: this.currentTrack?.id || null,
+                currentTime: this.currentTime || 0,
+                isPlaying: this.isPlaying,
+                viewMode: this.viewMode,
+                selectedType: this.selectedType,
+                selectedPlaylist: this.selectedPlaylist
+            };
+
             localStorage.setItem('globalPlayer', JSON.stringify(state));
         } catch (error) {
             this._logger.error('Failed to save player state', error);
@@ -796,7 +1186,7 @@ export class GlobalMusicPlayer extends BaseComponent {
     }
 
     /**
-     * Restore player state
+     * Restore player state from localStorage
      * @private
      */
     _restoreState() {
@@ -805,6 +1195,17 @@ export class GlobalMusicPlayer extends BaseComponent {
             if (!stateJson) return;
 
             const state = JSON.parse(stateJson);
+
+            // Restore view preferences
+            if (state.viewMode) {
+                this.viewMode = state.viewMode;
+            }
+            if (state.selectedType) {
+                this.selectedType = state.selectedType;
+            }
+            if (state.selectedPlaylist) {
+                this.selectedPlaylist = state.selectedPlaylist;
+            }
 
             if (state.isVisible) {
                 this.show();
@@ -815,11 +1216,23 @@ export class GlobalMusicPlayer extends BaseComponent {
             }
 
             if (state.currentTrackId) {
-                const track = this.tracks.find(t => t.id === state.currentTrackId);
+                const track = this.tracks.find(t => String(t.id) === String(state.currentTrackId));
                 if (track) {
-                    this.playTrack(track, false);
-                    if (state.currentTime) {
-                        setTimeout(() => this.seek((state.currentTime / this.duration) * 100), 1000);
+                    this._logger.info(`Restoring track: ${track.title} at ${state.currentTime}s`);
+                    this.playTrack(track, false); // Don't autoplay immediately
+
+                    // Restore playback position after media loads
+                    if (state.currentTime && state.currentTime > 0) {
+                        setTimeout(() => {
+                            if (this.audioElement && this.duration > 0) {
+                                const seekPercentage = (state.currentTime / this.duration) * 100;
+                                this.seek(seekPercentage);
+                                this._logger.info(`Restored playback position to ${state.currentTime}s`);
+                            } else if (this.youtubePlayer && this.youtubePlayerReady) {
+                                this.youtubePlayer.seekTo(state.currentTime, true);
+                                this._logger.info(`Restored YouTube position to ${state.currentTime}s`);
+                            }
+                        }, 1500); // Wait for media to load
                     }
                 }
             }

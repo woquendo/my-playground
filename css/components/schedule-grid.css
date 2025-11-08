@@ -141,12 +141,14 @@
     grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
     gap: var(--spacing-md);
     width: 100%;
+    justify-items: start;
+    /* Prevent cards from stretching to fill grid cells */
 }
 
 /* Show container wrapper */
 [data-show-container] {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     width: 100%;
 }
 

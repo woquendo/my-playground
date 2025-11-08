@@ -1,39 +1,274 @@
 {
-    "songs": [
-        {
-            "title": "Rider, Rider",
-            "artist": "TeddyLoid (Altervoice)",
-            "youtube": "https://www.youtube.com/watch?v=a-rt6oYvFbI",
-            "autoplay": true,
-            "type": "OST"
-        },
-        {
-            "title": "I Am Tackle",
-            "artist": "TeddyLoid (Altervoice)",
-            "youtube": "https://www.youtube.com/watch?v=CoAcV6m9nAM",
-            "autoplay": true,
-            "type": "OST"
-        },
-        {
-            "title": "Legion of Hell",
-            "artist": "TeddyLoid (Altervoice)",
-            "youtube": "https://www.youtube.com/watch?v=TB0758uZZhc",
-            "autoplay": true,
-            "type": "OST"
-        },
-        {
-            "title": "Spider Beat",
-            "artist": "TeddyLoid (Altervoice)",
-            "youtube": "https://www.youtube.com/watch?v=jwqtkW9Ivpg",
-            "autoplay": true,
-            "type": "OST"
-        },
-        {
-            "title": "Let's Go. Rider Kick",
-            "artist": "TeddyLoid (Altervoice)",
-            "youtube": "https://www.youtube.com/watch?v=Xzpcb2-0TQo",
-            "autoplay": true,
-            "type": "OST"
-        }
-    ]
+  "songs": [
+    {
+      "title": "Rider, Rider",
+      "artist": "TeddyLoid (Altervoice)",
+      "youtube": "https://www.youtube.com/watch?v=a-rt6oYvFbI",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": []
+    },
+    {
+      "title": "I Am Tackle",
+      "artist": "TeddyLoid (Altervoice)",
+      "youtube": "https://www.youtube.com/watch?v=CoAcV6m9nAM",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": []
+    },
+    {
+      "title": "Legion of Hell",
+      "artist": "TeddyLoid (Altervoice)",
+      "youtube": "https://www.youtube.com/watch?v=TB0758uZZhc",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": []
+    },
+    {
+      "title": "Spider Beat",
+      "artist": "TeddyLoid (Altervoice)",
+      "youtube": "https://www.youtube.com/watch?v=jwqtkW9Ivpg",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": []
+    },
+    {
+      "title": "Let's Go. Rider Kick",
+      "artist": "TeddyLoid (Altervoice)",
+      "youtube": "https://www.youtube.com/watch?v=Xzpcb2-0TQo",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": []
+    },
+    {
+      "title": "IRIS OUT",
+      "artist": "Kenshi Yonezu - Topic",
+      "youtube": "https://www.youtube.com/watch?v=Cb0JZhdmjtg",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": []
+    },
+    {
+      "title": "Call of The Night Opening",
+      "artist": "Anicrad",
+      "youtube": "https://www.youtube.com/watch?v=L96VbQ9ytWk",
+      "autoplay": true,
+      "type": "Opening",
+      "playlists": []
+    },
+    {
+      "title": "Renaissance",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=0QvdDX2Q7rI",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Habits (feat. White Gold)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=BgqD-Bn5Quk",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Trouble",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=nL5W5Xi5jq8",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Brand New Dance",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=nFDSmhRbtyU",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Evil",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=AuQ36zwFA3s",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "All You Got",
+      "artist": "skit",
+      "youtube": "https://www.youtube.com/watch?v=1h5Yz7sUGbw",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Lucifer (feat. Sly Pyper)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=rkdLQ7HLLuU",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Antichrist",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=wq8ZOm3uwzU",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Fuel (feat. JID)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=t5H_CewqpKA",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Road Rage (feat. Dem Jointz & Sly Pyper)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=QZVEGqhfS20",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Houdini",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=22tVWwmTie8",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Breaking News",
+      "artist": "skit",
+      "youtube": "https://www.youtube.com/watch?v=CmDrijiusWA",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Guilty Conscience 2",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=5yeGhfL0zCU",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Head Honcho (feat. Ez Mil)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=EFh3k9ceM2I",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Temporary (feat. Skylar Grey)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=ZaK9Wi5ho0o",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Bad One (feat. White Gold)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=7QqYC0HjyQc",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Tobey feat. Big Sean & BabyTron (Official Music Video)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=CanCZktm0TQ",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Guess Who\u2019s Back",
+      "artist": "skit",
+      "youtube": "https://www.youtube.com/watch?v=jSpcuTz8CJc",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Somebody Save Me (feat. Jelly Roll)",
+      "artist": "Eminem",
+      "youtube": "https://www.youtube.com/watch?v=Vwa0HenQMi4",
+      "autoplay": true,
+      "type": "OST",
+      "playlists": [
+        "The Death of Slim Shady (Coup De Gr\u00e2ce)"
+      ]
+    },
+    {
+      "title": "Call of the Night Ending",
+      "artist": "TriaxFx",
+      "youtube": "https://www.youtube.com/watch?v=R0PDayTUnRA",
+      "autoplay": true,
+      "type": "Ending",
+      "playlists": []
+    },
+    {
+      "title": "Call of the Night Season 2 Opening - Mirage",
+      "artist": "AnimeSelect",
+      "youtube": "https://www.youtube.com/watch?v=qA6ttnGzSUM",
+      "autoplay": true,
+      "type": "Opening",
+      "playlists": []
+    },
+    {
+      "title": "Call of the Night Season 2 Ending - Nemure",
+      "artist": "AnimeSelect",
+      "youtube": "https://www.youtube.com/watch?v=qsxr0PZWHj0",
+      "autoplay": true,
+      "type": "Ending",
+      "playlists": []
+    }
+  ]
 }

@@ -4,6 +4,12 @@
  */
 
 import { BaseComponent } from './BaseComponent.js';
+import {
+    getSites,
+    constructSiteUrl,
+    getAvailableSitesForShow,
+    toggleSiteAvailability
+} from '../../../js/sitesService.js';
 
 export class ShowCard extends BaseComponent {
     /**
@@ -34,6 +40,26 @@ export class ShowCard extends BaseComponent {
                 onSkipWeek: options.onSkipWeek || (() => { })
             }
         });
+
+        // Load streaming sites
+        this._sites = [];
+        this._loadSites();
+    }
+
+    /**
+     * Load streaming sites from sites.json
+     * @private
+     */
+    async _loadSites() {
+        try {
+            this._sites = await getSites();
+            // Re-render if sites were loaded after initial render
+            if (this._element && this._sites.length > 0) {
+                this._renderSiteLinks();
+            }
+        } catch (error) {
+            this._logger?.error('Failed to load streaming sites', error);
+        }
     }
 
     /**
@@ -77,7 +103,9 @@ export class ShowCard extends BaseComponent {
                         <div class="show-card__image">
                             <img src="${this._escapeHtml(imageUrl)}" 
                                  alt="${title}" 
-                                 loading="lazy" 
+                                 loading="lazy"
+                                 decoding="async"
+                                 crossorigin="anonymous"
                                  onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='none';" />
                             <div class="show-card__image-overlay">
                                 <span class="image-overlay-icon">🔗</span>
@@ -164,8 +192,159 @@ export class ShowCard extends BaseComponent {
                     </div>
                 </div>
             </div>
+            
+            <!-- Streaming Sites Section -->
+            <div class="show-card__streaming-sites" data-streaming-sites>
+                <div class="streaming-sites__header">
+                    <span class="streaming-sites__title">Watch on:</span>
+                    <button class="streaming-sites__manage-btn" data-action="manage-sites" title="Manage site availability">
+                        <span class="manage-btn__icon">⚙️</span>
+                    </button>
+                </div>
+                <div class="streaming-sites__links" data-site-links>
+                    <!-- Site links will be dynamically inserted here -->
+                </div>
+                <div class="streaming-sites__manager" data-site-manager hidden>
+                    <div class="site-manager__header">
+                        <span class="site-manager__title">Mark which sites have this show:</span>
+                        <button class="site-manager__close" data-action="close-manager" title="Close">✕</button>
+                    </div>
+                    <div class="site-manager__checkboxes" data-site-checkboxes>
+                        <!-- Checkboxes will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
         </div>
         `;
+    }
+
+    /**
+     * Render streaming site links dynamically
+     * @private
+     */
+    _renderSiteLinks() {
+        const container = this._querySelector('[data-site-links]');
+        if (!container || !this._sites || this._sites.length === 0) {
+            return;
+        }
+
+        const show = this._props.show;
+        const showId = show.getId();
+        const animeTitle = show.getPrimaryTitle();
+
+        // Get available sites for this show
+        const availableSites = getAvailableSitesForShow(showId);
+
+        // Filter sites: if none are marked, show all; otherwise show only available
+        const sitesToShow = availableSites.length === 0
+            ? this._sites
+            : this._sites.filter(site => availableSites.includes(site.name.toLowerCase()));
+
+        // Show message if no sites are available (but some were marked)
+        if (sitesToShow.length === 0 && availableSites.length === 0 && this._hasMarkedAnySite()) {
+            container.innerHTML = `
+                <div class="streaming-sites__empty">
+                    <span class="empty-message">No sites marked. Click ⚙️ to select.</span>
+                </div>
+            `;
+            return;
+        }
+
+        // Generate site link buttons
+        const siteButtons = sitesToShow.map(site => {
+            const siteUrl = constructSiteUrl(site.name, site.url, animeTitle);
+            const siteIcon = this._getSiteIcon(site.name);
+
+            return `
+                <a href="${this._escapeHtml(siteUrl)}" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="streaming-site-btn" 
+                   data-site="${this._escapeHtml(site.name.toLowerCase())}"
+                   title="Watch on ${this._escapeHtml(site.name)}">
+                    <span class="site-btn__icon">${siteIcon}</span>
+                    <span class="site-btn__name">${this._escapeHtml(site.name)}</span>
+                </a>
+            `;
+        }).join('');
+
+        container.innerHTML = siteButtons;
+    }
+
+    /**
+     * Check if user has marked any sites for any show
+     * @private
+     * @returns {boolean} True if any sites have been marked
+     */
+    _hasMarkedAnySite() {
+        try {
+            const data = localStorage.getItem('anime_site_availability');
+            if (!data) return false;
+            const availability = JSON.parse(data);
+            return Object.keys(availability).some(key => availability[key].length > 0);
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Render site availability checkboxes
+     * @private
+     */
+    _renderSiteCheckboxes() {
+        const container = this._querySelector('[data-site-checkboxes]');
+        if (!container || !this._sites || this._sites.length === 0) {
+            return;
+        }
+
+        const show = this._props.show;
+        const showId = show.getId();
+        const availableSites = getAvailableSitesForShow(showId);
+
+        const checkboxes = this._sites.map(site => {
+            const siteIcon = this._getSiteIcon(site.name);
+            const isChecked = availableSites.includes(site.name.toLowerCase());
+
+            return `
+                <label class="site-checkbox">
+                    <input type="checkbox" 
+                           class="site-checkbox__input" 
+                           data-site-name="${this._escapeHtml(site.name.toLowerCase())}"
+                           ${isChecked ? 'checked' : ''}>
+                    <span class="site-checkbox__label">
+                        <span class="site-checkbox__icon">${siteIcon}</span>
+                        <span class="site-checkbox__name">${this._escapeHtml(site.name)}</span>
+                    </span>
+                </label>
+            `;
+        }).join('');
+
+        container.innerHTML = checkboxes;
+
+        // Add change listeners to checkboxes
+        container.querySelectorAll('.site-checkbox__input').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const siteName = e.target.dataset.siteName;
+                toggleSiteAvailability(showId, siteName);
+                this._renderSiteLinks(); // Re-render site links
+            });
+        });
+    }
+
+    /**
+     * Get icon emoji for streaming site
+     * @private
+     * @param {string} siteName - Site name
+     * @returns {string} Icon emoji
+     */
+    _getSiteIcon(siteName) {
+        const icons = {
+            'aniwave': '🌊',
+            'hianime': '📺',
+            'crunchyroll': '🍥',
+            'hidive': '🎬'
+        };
+        return icons[siteName.toLowerCase()] || '▶️';
     }
 
     /**
@@ -173,9 +352,14 @@ export class ShowCard extends BaseComponent {
      * @protected
      */
     _initialize() {
+        // Render streaming site links
+        if (this._sites.length > 0) {
+            this._renderSiteLinks();
+        }
+
         // Add click handler for card selection
         this._addEventListener(this._element, 'click', (e) => {
-            if (!e.target.closest('button') && !e.target.closest('select')) {
+            if (!e.target.closest('button') && !e.target.closest('select') && !e.target.closest('a')) {
                 this._props.onSelect(this._props.show);
                 this._emit('select', { show: this._props.show });
             }
@@ -271,6 +455,35 @@ export class ShowCard extends BaseComponent {
                 if (dropdown) {
                     dropdown.setAttribute('hidden', '');
                 }
+            });
+        }
+
+        // Add site manager handlers
+        const manageSitesBtn = this._querySelector('[data-action="manage-sites"]');
+        const siteManager = this._querySelector('[data-site-manager]');
+        const closeManagerBtn = this._querySelector('[data-action="close-manager"]');
+
+        if (manageSitesBtn && siteManager) {
+            this._addEventListener(manageSitesBtn, 'click', (e) => {
+                e.stopPropagation();
+
+                // Render checkboxes when opening
+                this._renderSiteCheckboxes();
+
+                // Toggle manager visibility
+                const isHidden = siteManager.hasAttribute('hidden');
+                if (isHidden) {
+                    siteManager.removeAttribute('hidden');
+                } else {
+                    siteManager.setAttribute('hidden', '');
+                }
+            });
+        }
+
+        if (closeManagerBtn && siteManager) {
+            this._addEventListener(closeManagerBtn, 'click', (e) => {
+                e.stopPropagation();
+                siteManager.setAttribute('hidden', '');
             });
         }
     }

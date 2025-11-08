@@ -70,6 +70,55 @@ export class ImportPage {
                     <div id="shows-import-result" class="import-result"></div>
                 </div>
 
+                <div class="import-section import-section--divider" style="display: block !important; opacity: 1 !important; visibility: visible !important;">
+                    <div class="import-section__header">
+                        <h3 class="import-section__title">
+                            <span class="import-section__title-icon">🎵</span>
+                            YouTube Music Import
+                            <span class="import-badge import-badge--success">New</span>
+                        </h3>
+                        <p class="import-section__description">Import songs from YouTube videos or playlists</p>
+                    </div>
+
+                    <div class="import-form-group">
+                        <label for="youtube-url" class="import-form-group__label">YouTube URL</label>
+                        <div class="import-input-row">
+                            <div class="import-input-row__input">
+                                <input id="youtube-url" type="url" class="import-input" 
+                                    placeholder="https://www.youtube.com/watch?v=..." 
+                                    aria-label="YouTube URL"
+                                />
+                                <span class="import-form-group__helper">Paste a YouTube video or playlist URL</span>
+                            </div>
+                            <div class="import-input-row__actions">
+                                <button id="youtube-import-btn" class="btn btn--primary">Import</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="import-status" id="youtube-status-container">
+                        <span class="import-status__label">Type detected:</span>
+                        <span id="youtube-type-indicator" class="import-status__value">-</span>
+                    </div>
+
+                    <div class="url-examples">
+                        <p class="url-examples__title">📋 Supported URL Formats:</p>
+                        <ul class="url-examples__list">
+                            <li class="url-examples__item">https://www.youtube.com/watch?v=Cb0JZhdmjtg</li>
+                            <li class="url-examples__item">https://youtu.be/Cb0JZhdmjtg</li>
+                            <li class="url-examples__item">
+                                https://www.youtube.com/watch?v=a-rt6oYvFbI&list=OLAK5uy_kpb1g10x_cXdSabFqZLnwFPA3EEctbeUw</li>
+                        </ul>
+                    </div>
+
+                    <div class="import-actions">
+                        <button id="download-songs-btn" class="btn btn--secondary">Download Songs JSON</button>
+                        <button id="download-playlists-btn" class="btn btn--secondary">Download Playlists JSON</button>
+                    </div>
+
+                    <pre id="youtube-import-log" class="import-log"></pre>
+                </div>
+
                 <div class="import-section">
                     <h3>Import Music from JSON File</h3>
                     <p>Upload a JSON file containing music tracks</p>
@@ -144,6 +193,257 @@ export class ImportPage {
         if (exportMusicBtn) {
             exportMusicBtn.addEventListener('click', () => this.handleExportMusic());
         }
+
+        // YouTube import
+        this.setupYouTubeImport(element);
+    }
+
+    /**
+     * Setup YouTube import functionality
+     * @param {HTMLElement} element - Page element
+     */
+    async setupYouTubeImport(element) {
+        // Capture context for event listeners (must check they exist)
+        if (!this.eventBus) {
+            console.error('EventBus not available in ImportPage');
+        }
+        const eventBus = this.eventBus;
+        const container = this.container;
+        const logger = this.logger;
+
+        // Import YouTube service dynamically
+        const {
+            parseYouTubeUrl,
+            extractVideoData,
+            loadSongs,
+            saveSongs,
+            loadPlaylists,
+            savePlaylists,
+            importPlaylistSongs,
+            addPlaylistMetadata
+        } = await import('../../../js/youtubeImportService.js'); const youtubeUrlInput = element.querySelector('#youtube-url');
+        const youtubeTypeIndicator = element.querySelector('#youtube-type-indicator');
+        const youtubeStatusContainer = element.querySelector('#youtube-status-container');
+        const youtubeImportLog = element.querySelector('#youtube-import-log');
+        const youtubeImportBtn = element.querySelector('#youtube-import-btn');
+        const downloadSongsBtn = element.querySelector('#download-songs-btn');
+        const downloadPlaylistsBtn = element.querySelector('#download-playlists-btn');
+
+        // Update type indicator as user types
+        youtubeUrlInput.addEventListener('input', () => {
+            const url = youtubeUrlInput.value.trim();
+
+            // Reset classes
+            youtubeStatusContainer.classList.remove('import-status--success', 'import-status--info', 'import-status--error');
+
+            if (!url) {
+                youtubeTypeIndicator.textContent = '-';
+                return;
+            }
+
+            try {
+                const parsed = parseYouTubeUrl(url);
+                if (parsed.type === 'video') {
+                    youtubeTypeIndicator.textContent = `✓ Video (ID: ${parsed.id})`;
+                    youtubeStatusContainer.classList.add('import-status--success');
+                } else if (parsed.type === 'playlist') {
+                    youtubeTypeIndicator.textContent = `✓ Playlist (ID: ${parsed.id})`;
+                    youtubeStatusContainer.classList.add('import-status--info');
+                } else {
+                    youtubeTypeIndicator.textContent = '✗ Invalid URL';
+                    youtubeStatusContainer.classList.add('import-status--error');
+                }
+            } catch (e) {
+                youtubeTypeIndicator.textContent = '✗ Invalid URL';
+                youtubeStatusContainer.classList.add('import-status--error');
+            }
+        });
+
+        // Import YouTube video/playlist
+        youtubeImportBtn.addEventListener('click', async () => {
+            const url = youtubeUrlInput.value.trim();
+            if (!url) {
+                alert('Please enter a YouTube URL.');
+                return;
+            }
+
+            youtubeImportLog.classList.add('import-log--visible');
+            youtubeImportLog.classList.remove('import-log--success', 'import-log--error');
+            youtubeImportLog.textContent = 'Processing...';
+
+            try {
+                const parsed = parseYouTubeUrl(url);
+
+                if (parsed.type === 'video') {
+                    // Construct the expected YouTube URL to check for duplicates
+                    const videoUrl = `https://www.youtube.com/watch?v=${parsed.id}`;
+
+                    // Load existing songs first to check for duplicates
+                    const songs = await loadSongs();
+
+                    // Check if video URL already exists
+                    const existingIndex = songs.findIndex(s => s.youtube === videoUrl);
+                    if (existingIndex >= 0) {
+                        youtubeImportLog.classList.add('import-log--error');
+                        youtubeImportLog.textContent = `⚠ Video already imported:\nTitle: ${songs[existingIndex].title}\nArtist: ${songs[existingIndex].artist}\n\nSkipping duplicate entry.`;
+
+                        const toastService = container.get('toastService');
+                        toastService.error(`Video already exists: "${songs[existingIndex].title}"`);
+                        return;
+                    }
+
+                    // Extract single video
+                    youtubeImportLog.textContent = 'Extracting video metadata...';
+                    const videoData = await extractVideoData(parsed.id);
+
+                    // Add new video
+                    songs.push(videoData);
+
+                    // Save to songs.json
+                    youtubeImportLog.textContent = 'Saving to songs.json...';
+                    await saveSongs(songs);
+
+                    youtubeImportLog.classList.add('import-log--success');
+                    youtubeImportLog.textContent = `✓ Successfully imported video:\nTitle: ${videoData.title}\nArtist: ${videoData.artist}\nType: ${videoData.type}\nURL: ${videoData.youtube}\n\nTotal songs: ${songs.length}`;
+                    youtubeUrlInput.value = '';
+                    youtubeTypeIndicator.textContent = '-';
+                    youtubeStatusContainer.classList.remove('import-status--success', 'import-status--info', 'import-status--error');
+
+                    // Notify music player to reload tracks
+                    if (eventBus && typeof eventBus.emit === 'function') {
+                        logger.info('Emitting music:libraryUpdated event after video import');
+                        await eventBus.emit('music:libraryUpdated', { count: songs.length });
+                    } else {
+                        logger.warn('EventBus not available - music player will not auto-refresh');
+                    }
+
+                    const toastService = container.get('toastService');
+                    toastService.success(`Imported "${videoData.title}"!`);
+                }
+                else if (parsed.type === 'playlist') {
+                    // Import entire playlist
+                    youtubeImportLog.textContent = 'Extracting playlist metadata...';
+
+                    const result = await importPlaylistSongs(parsed.id, (progress) => {
+                        youtubeImportLog.textContent = progress;
+                    });
+
+                    // Load existing songs
+                    const existingSongs = await loadSongs();
+
+                    // Merge new songs with existing, avoiding duplicates
+                    let addedCount = 0;
+                    let updatedCount = 0;
+
+                    for (const newSong of result.songs) {
+                        const existingIndex = existingSongs.findIndex(s => s.youtube === newSong.youtube);
+                        if (existingIndex >= 0) {
+                            // Merge playlists arrays (avoid duplicates)
+                            const existingPlaylists = existingSongs[existingIndex].playlists || [];
+                            const newPlaylists = newSong.playlists || [];
+                            const mergedPlaylists = [...new Set([...existingPlaylists, ...newPlaylists])];
+
+                            // Update song while preserving merged playlists
+                            existingSongs[existingIndex] = {
+                                ...newSong,
+                                playlists: mergedPlaylists
+                            };
+                            updatedCount++;
+                        } else {
+                            // Ensure new songs have playlists array
+                            if (!newSong.playlists) {
+                                newSong.playlists = [];
+                            }
+                            existingSongs.push(newSong);
+                            addedCount++;
+                        }
+                    }
+
+                    // Save to songs.json
+                    youtubeImportLog.textContent = 'Saving songs to songs.json...';
+                    await saveSongs(existingSongs);
+
+                    // Save playlist metadata
+                    await addPlaylistMetadata(parsed.id, result.playlistName, result.songs.map(s => {
+                        const url = new URL(s.youtube);
+                        return url.searchParams.get('v');
+                    }));
+
+                    // Show results
+                    youtubeImportLog.classList.add('import-log--success');
+                    let resultText = `✓ Successfully imported playlist: "${result.playlistName}"\n\n`;
+                    resultText += `Total videos in playlist: ${result.totalVideos}\n`;
+                    resultText += `Successfully imported: ${result.successCount}\n`;
+                    resultText += `New songs added: ${addedCount}\n`;
+                    resultText += `Existing songs updated: ${updatedCount}\n`;
+
+                    if (result.errorCount > 0) {
+                        resultText += `\nFailed to import: ${result.errorCount}\n`;
+                        result.errors.forEach(err => {
+                            resultText += `  - ${err.videoId}: ${err.error}\n`;
+                        });
+                    }
+
+                    resultText += `\nTotal songs in library: ${existingSongs.length}`;
+                    youtubeImportLog.textContent = resultText;
+
+                    youtubeUrlInput.value = '';
+                    youtubeTypeIndicator.textContent = '-';
+                    youtubeStatusContainer.classList.remove('import-status--success', 'import-status--info', 'import-status--error');
+
+                    // Notify music player to reload tracks
+                    if (eventBus && typeof eventBus.emit === 'function') {
+                        logger.info('Emitting music:libraryUpdated event after playlist import');
+                        await eventBus.emit('music:libraryUpdated', { count: existingSongs.length });
+                    } else {
+                        logger.warn('EventBus not available - music player will not auto-refresh');
+                    }
+
+                    const toastService = container.get('toastService');
+                    toastService.success(`Imported ${result.successCount} songs from playlist!`);
+                }
+                else {
+                    throw new Error('Invalid YouTube URL. Please provide a valid video or playlist URL.');
+                }
+            } catch (error) {
+                logger.error('YouTube import error:', error);
+                youtubeImportLog.classList.add('import-log--visible', 'import-log--error');
+                youtubeImportLog.textContent = `✗ Error: ${error.message}`;
+
+                const toastService = container.get('toastService');
+                toastService.error('Failed to import from YouTube');
+            }
+        });
+
+        // Download songs JSON
+        downloadSongsBtn.addEventListener('click', async () => {
+            try {
+                const songs = await loadSongs();
+                this.downloadFile(JSON.stringify({ songs }, null, 2), 'songs.json', 'application/json');
+
+                const toastService = this.container.get('toastService');
+                toastService.success('Songs JSON downloaded!');
+            } catch (error) {
+                this.logger.error('Download songs error:', error);
+                const toastService = this.container.get('toastService');
+                toastService.error('Failed to download songs');
+            }
+        });
+
+        // Download playlists JSON
+        downloadPlaylistsBtn.addEventListener('click', async () => {
+            try {
+                const playlists = await loadPlaylists();
+                this.downloadFile(JSON.stringify({ playlists }, null, 2), 'playlists.json', 'application/json');
+
+                const toastService = this.container.get('toastService');
+                toastService.success('Playlists JSON downloaded!');
+            } catch (error) {
+                this.logger.error('Download playlists error:', error);
+                const toastService = this.container.get('toastService');
+                toastService.error('Failed to download playlists');
+            }
+        });
     }
 
     /**

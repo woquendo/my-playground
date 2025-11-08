@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/buttons.css">
   <link rel="stylesheet" href="css/player.css">
   <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/components/import-form.css">
 </head>
 
 <body>
@@ -54,19 +55,87 @@
 
         <section id="page-import" class="page" style="display:none">
           <h2>Import</h2>
-          <div class="import-controls">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.6rem">
-              <label for="mal-username" class="small">MAL username:</label>
-              <input id="mal-username" type="text" placeholder="woquendo"
-                style="padding:6px;border-radius:6px;border:1px solid #ddd" />
-              <button id="import-btn" class="btn">Import anime list</button>
-              <button id="download-btn" class="btn">Download JSON</button>
-              <button id="reload-packaged" class="btn">Reload packaged JSON</button>
-              <button id="download-schedule-updates-btn" class="btn">Download Schedule Updates JSON</button>
-              <button id="clear-local" class="btn small">Clear Local</button>
+
+          <!-- Anime Import Section -->
+          <div class="import-section">
+            <div class="import-section__header">
+              <h3 class="import-section__title">
+                <span class="import-section__title-icon">📺</span>
+                Anime Import
+              </h3>
+              <p class="import-section__description">Import your anime list from MyAnimeList</p>
             </div>
-            <pre id="import-log" class="small"
-              style="max-height:200px;overflow:auto;white-space:pre-wrap;background:#fff;padding:8px;border:1px solid #eee;border-radius:6px;display:none"></pre>
+
+            <div class="import-form-group">
+              <label for="mal-username" class="import-form-group__label">MAL Username</label>
+              <div class="import-input-row">
+                <div class="import-input-row__input">
+                  <input id="mal-username" type="text" class="import-input" placeholder="Enter your username" />
+                </div>
+                <div class="import-input-row__actions">
+                  <button id="import-btn" class="btn btn--primary">Import List</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="import-actions import-actions--spaced">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button id="download-btn" class="btn btn--secondary">Download JSON</button>
+                <button id="reload-packaged" class="btn btn--secondary">Reload Packaged</button>
+                <button id="download-schedule-updates-btn" class="btn btn--secondary">Download Schedule Updates</button>
+              </div>
+              <button id="clear-local" class="btn btn--danger btn--sm">Clear Local Data</button>
+            </div>
+
+            <pre id="import-log" class="import-log"></pre>
+          </div>
+
+          <!-- YouTube Music Import Section -->
+          <div class="import-section import-section--divider">
+            <div class="import-section__header">
+              <h3 class="import-section__title">
+                <span class="import-section__title-icon">🎵</span>
+                YouTube Music Import
+                <span class="import-badge import-badge--success">New</span>
+              </h3>
+              <p class="import-section__description">Import songs from YouTube videos or playlists</p>
+            </div>
+
+            <div class="import-form-group">
+              <label for="youtube-url" class="import-form-group__label">YouTube URL</label>
+              <div class="import-input-row">
+                <div class="import-input-row__input">
+                  <input id="youtube-url" type="url" class="import-input"
+                    placeholder="https://www.youtube.com/watch?v=..." />
+                  <span class="import-form-group__helper">Paste a YouTube video or playlist URL</span>
+                </div>
+                <div class="import-input-row__actions">
+                  <button id="youtube-import-btn" class="btn btn--primary">Import</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="import-status" id="youtube-status-container">
+              <span class="import-status__label">Type detected:</span>
+              <span id="youtube-type-indicator" class="import-status__value">-</span>
+            </div>
+
+            <div class="url-examples">
+              <p class="url-examples__title">📋 Supported URL Formats:</p>
+              <ul class="url-examples__list">
+                <li class="url-examples__item">https://www.youtube.com/watch?v=Cb0JZhdmjtg</li>
+                <li class="url-examples__item">https://youtu.be/Cb0JZhdmjtg</li>
+                <li class="url-examples__item">
+                  https://www.youtube.com/watch?v=a-rt6oYvFbI&list=OLAK5uy_kpb1g10x_cXdSabFqZLnwFPA3EEctbeUw</li>
+              </ul>
+            </div>
+
+            <div class="import-actions">
+              <button id="download-songs-btn" class="btn btn--secondary">Download Songs JSON</button>
+              <button id="download-playlists-btn" class="btn btn--secondary">Download Playlists JSON</button>
+            </div>
+
+            <pre id="youtube-import-log" class="import-log"></pre>
           </div>
         </section>
 

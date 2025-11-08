@@ -1,0 +1,20 @@
+{
+ "sites": [
+    {
+        "name": "Aniwave",
+        "url": "https://aniwave.at/"
+    },
+    {
+        "name": "hianime",
+        "url": "http://hianime.to/home"
+    },
+    {
+        "name": "Crunchyroll",
+        "url": "https://www.crunchyroll.com/"
+    },
+    {
+        "name": "hidive",
+        "url": "https://www.hidive.com/"
+    }
+]
+}

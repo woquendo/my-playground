@@ -11,8 +11,14 @@
     flex-direction: column;
     gap: var(--spacing-sm);
     width: 100%;
+    max-width: 220px;
     position: relative;
     overflow: visible;
+}
+
+/* Wrapper for horizontal cards */
+.show-card-wrapper:has(.show-card--horizontal) {
+    max-width: 480px;
 }
 
 /* ============================================
@@ -22,6 +28,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
+    width: 100%;
     max-width: 220px;
     /* Reduced from 300px to better match thumbnail resolution */
     background: var(--color-surface);
@@ -35,7 +42,10 @@
 /* Horizontal Layout Variant */
 .show-card--horizontal {
     flex-direction: row;
-    max-width: 100%;
+    width: 480px;
+    max-width: 480px;
+    /* Override base max-width for horizontal layout */
+    /* Fixed width for consistent sizing across all schedule views */
     min-height: 240px;
     height: 240px;
     /* Fixed height for consistency across all cards */
@@ -340,6 +350,12 @@
     position: relative;
     /* Create stacking context but don't clip dropdown */
     overflow: visible;
+}
+
+/* Match parent card width for horizontal layout */
+.show-card-wrapper .show-card--horizontal+.show-card__actions {
+    width: 480px;
+    max-width: 480px;
 }
 
 /* Modern Action Buttons */
@@ -789,4 +805,334 @@
     border-color: rgba(255, 255, 255, 0.2);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     backdrop-filter: none;
+}
+
+/* ============================================
+   Streaming Sites Section
+   ============================================ */
+.show-card__streaming-sites {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.streaming-sites__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-xs);
+}
+
+.streaming-sites__title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 1;
+}
+
+/* Manage Sites Button */
+.streaming-sites__manage-btn {
+    padding: var(--spacing-2xs) var(--spacing-xs);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+}
+
+.streaming-sites__manage-btn:hover {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: scale(1.05);
+}
+
+.manage-btn__icon {
+    line-height: 1;
+}
+
+.streaming-sites__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+/* Streaming Site Button */
+.streaming-site-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--duration-fast) var(--ease-out);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.streaming-site-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg,
+            rgba(var(--color-primary-rgb), 0.1) 0%,
+            rgba(var(--color-accent-rgb), 0.1) 100%);
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+    z-index: 0;
+}
+
+.streaming-site-btn:hover::before {
+    opacity: 1;
+}
+
+.streaming-site-btn:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.2);
+}
+
+.streaming-site-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(var(--color-primary-rgb), 0.15);
+}
+
+.site-btn__icon {
+    font-size: 1.2em;
+    line-height: 1;
+    z-index: 1;
+    position: relative;
+}
+
+.site-btn__name {
+    z-index: 1;
+    position: relative;
+}
+
+/* Site-specific colors */
+.streaming-site-btn[data-site="aniwave"]:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.streaming-site-btn[data-site="hianime"]:hover {
+    border-color: #8b5cf6;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.streaming-site-btn[data-site="crunchyroll"]:hover {
+    border-color: #f97316;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.streaming-site-btn[data-site="hidive"]:hover {
+    border-color: #06b6d4;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+/* Empty Sites Message */
+.streaming-sites__empty {
+    padding: var(--spacing-sm);
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-style: italic;
+}
+
+/* Site Manager Panel */
+.streaming-sites__manager {
+    margin-top: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    animation: slideDown var(--duration-normal) var(--ease-out);
+}
+
+.streaming-sites__manager[hidden] {
+    display: none;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.site-manager__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.site-manager__title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.site-manager__close {
+    padding: var(--spacing-2xs);
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    line-height: 1;
+    transition: all var(--duration-fast) var(--ease-out);
+    border-radius: var(--radius-sm);
+}
+
+.site-manager__close:hover {
+    background: var(--color-error);
+    color: white;
+}
+
+.site-manager__checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+/* Site Checkbox */
+.site-checkbox {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+    user-select: none;
+}
+
+.site-checkbox:hover {
+    background: var(--color-bg-secondary);
+}
+
+.site-checkbox__input {
+    width: 18px;
+    height: 18px;
+    margin-right: var(--spacing-xs);
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+.site-checkbox__label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex: 1;
+    cursor: pointer;
+}
+
+.site-checkbox__icon {
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.site-checkbox__name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .show-card__streaming-sites {
+    background: rgba(var(--color-surface-rgb, 20, 20, 25), 0.5);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .streaming-site-btn {
+    background: rgba(var(--color-surface-rgb, 25, 25, 30), 0.8);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .streaming-site-btn:hover {
+    background: rgba(var(--color-surface-rgb, 30, 30, 35), 1);
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .streaming-sites__manager {
+    background: rgba(var(--color-surface-rgb, 25, 25, 30), 0.95);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .site-checkbox:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .streaming-sites__manage-btn {
+    background: rgba(var(--color-surface-rgb, 25, 25, 30), 0.8);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .streaming-sites__links {
+        gap: var(--spacing-2xs);
+    }
+
+    .streaming-site-btn {
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-2xs) var(--spacing-xs);
+    }
+
+    .site-btn__icon {
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .show-card__streaming-sites {
+        padding: var(--spacing-xs);
+    }
+
+    .streaming-sites__title {
+        font-size: var(--font-size-xs);
+    }
+
+    .site-btn__name {
+        display: none;
+    }
+
+    .streaming-site-btn {
+        min-width: 36px;
+        justify-content: center;
+        padding: var(--spacing-xs);
+    }
+
+    .site-btn__icon {
+        font-size: 1.1em;
+    }
 }
