@@ -754,6 +754,12 @@ export class GlobalMusicPlayer extends BaseComponent {
     _playAudioTrack(track, autoPlay) {
         if (!this.audioElement) return;
 
+        // CRITICAL: Stop YouTube polling interval when switching to audio
+        if (this._youtubeInterval) {
+            clearInterval(this._youtubeInterval);
+            this._youtubeInterval = null;
+        }
+
         // Hide YouTube, show audio
         const ytContainer = this.element?.querySelector('.global-music-player__youtube');
         if (ytContainer) ytContainer.style.display = 'none';
@@ -779,6 +785,13 @@ export class GlobalMusicPlayer extends BaseComponent {
             return;
         }
 
+        // CRITICAL: Clear existing interval before creating new one
+        // This prevents resource leaks from multiple polling intervals
+        if (this._youtubeInterval) {
+            clearInterval(this._youtubeInterval);
+            this._youtubeInterval = null;
+        }
+
         // Hide audio, show YouTube
         if (this.audioElement) this.audioElement.pause();
 
@@ -788,8 +801,19 @@ export class GlobalMusicPlayer extends BaseComponent {
         if (this.youtubePlayer && this.youtubePlayerReady) {
             this.youtubePlayer.loadVideoById({
                 videoId: videoId,
-                startSeconds: 0
+                startSeconds: 0,
+                suggestedQuality: 'tiny' // Force lowest quality (144p) for audio-only
             });
+
+            // Double-check quality setting after load
+            try {
+                if (typeof this.youtubePlayer.setPlaybackQuality === 'function') {
+                    this.youtubePlayer.setPlaybackQuality('tiny');
+                }
+            } catch (error) {
+                this._logger.debug('Could not set playback quality:', error);
+            }
+
             if (autoPlay) {
                 this.youtubePlayer.playVideo();
             }
@@ -855,7 +879,13 @@ export class GlobalMusicPlayer extends BaseComponent {
                 controls: 0,
                 modestbranding: 1,
                 rel: 0,
-                origin: window.location.origin
+                origin: window.location.origin,
+                // OPTIMIZATION: Reduce bandwidth for audio-only playback
+                vq: 'tiny',           // Request lowest video quality (144p)
+                playsinline: 1,       // Prevent fullscreen on mobile
+                disablekb: 1,         // Disable keyboard controls
+                fs: 0,                // Hide fullscreen button
+                iv_load_policy: 3     // Hide video annotations
             },
             events: {
                 onReady: () => this._onYouTubeReady(),
@@ -871,6 +901,16 @@ export class GlobalMusicPlayer extends BaseComponent {
     _onYouTubeReady() {
         this.youtubePlayerReady = true;
         this._logger.info('YouTube player ready');
+
+        // OPTIMIZATION: Force lowest quality for audio-only playback
+        // This dramatically reduces bandwidth and videoplayback requests
+        try {
+            if (typeof this.youtubePlayer.setPlaybackQuality === 'function') {
+                this.youtubePlayer.setPlaybackQuality('tiny'); // 144p - lowest quality
+            }
+        } catch (error) {
+            this._logger.debug('Could not set playback quality:', error);
+        }
 
         // Play queued video if any
         if (this._youtubeQueue) {
@@ -894,9 +934,21 @@ export class GlobalMusicPlayer extends BaseComponent {
     _onYouTubeStateChange(event) {
         if (event.data === YT.PlayerState.PLAYING) {
             this._updatePlayState(true);
+            // Ensure tracking interval is running when playing
+            this._startYouTubeTimeTracking();
         } else if (event.data === YT.PlayerState.PAUSED) {
             this._updatePlayState(false);
+            // Stop polling when paused to save resources
+            if (this._youtubeInterval) {
+                clearInterval(this._youtubeInterval);
+                this._youtubeInterval = null;
+            }
         } else if (event.data === YT.PlayerState.ENDED) {
+            // Stop polling when video ends
+            if (this._youtubeInterval) {
+                clearInterval(this._youtubeInterval);
+                this._youtubeInterval = null;
+            }
             this.playNext();
         }
     }
@@ -910,6 +962,8 @@ export class GlobalMusicPlayer extends BaseComponent {
             clearInterval(this._youtubeInterval);
         }
 
+        // Poll every 1 second (reduced from 500ms to save resources)
+        // This provides smooth progress updates while minimizing API calls
         this._youtubeInterval = setInterval(() => {
             if (this.youtubePlayer && this.youtubePlayerReady &&
                 typeof this.youtubePlayer.getCurrentTime === 'function' &&
@@ -925,7 +979,7 @@ export class GlobalMusicPlayer extends BaseComponent {
                     this._lastStateSaveTime = Date.now();
                 }
             }
-        }, 500);
+        }, 1000); // Optimized: 1000ms instead of 500ms
     }
 
     /**
@@ -964,6 +1018,13 @@ export class GlobalMusicPlayer extends BaseComponent {
         }
         if (this.audioElement) {
             this.audioElement.pause();
+        }
+
+        // Optional: Stop polling when paused to save resources
+        // Note: Interval will restart when play() is called via _startYouTubeTimeTracking
+        if (this._youtubeInterval) {
+            clearInterval(this._youtubeInterval);
+            this._youtubeInterval = null;
         }
     }
 

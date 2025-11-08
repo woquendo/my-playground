@@ -260,7 +260,12 @@ export class MusicPlayer extends BaseComponent {
             // Player exists and is ready, load new video
             try {
                 if (typeof this._youtubePlayer.loadVideoById === 'function') {
-                    this._youtubePlayer.loadVideoById(videoId);
+                    this._youtubePlayer.loadVideoById({
+                        videoId: videoId,
+                        suggestedQuality: 'tiny'
+                    });
+                    // Double-check quality setting
+                    this._youtubePlayer.setPlaybackQuality('tiny');
                 } else {
                     this._logger.warn('YouTube player exists but loadVideoById not available, recreating...');
                     this._destroyYouTubePlayer();
@@ -293,7 +298,12 @@ export class MusicPlayer extends BaseComponent {
                     modestbranding: 1,
                     playsinline: 1,
                     enablejsapi: 1,
-                    origin: window.location.origin
+                    origin: window.location.origin,
+                    // OPTIMIZATION: Reduce bandwidth for audio-only playback
+                    vq: 'tiny',           // Request lowest video quality (144p)
+                    disablekb: 1,         // Disable keyboard controls
+                    fs: 0,                // Hide fullscreen button
+                    iv_load_policy: 3     // Hide video annotations
                 },
                 events: {
                     onReady: (event) => this._onYouTubeReady(event),
@@ -406,6 +416,14 @@ export class MusicPlayer extends BaseComponent {
         this._duration = event.target.getDuration();
         this._updateTimeDisplay();
 
+        // Force lowest quality for audio-only playback
+        try {
+            event.target.setPlaybackQuality('tiny');
+            this._logger.info('Set YouTube quality to tiny (144p) for audio-only playback');
+        } catch (error) {
+            this._logger.warn('Could not set playback quality:', error.message);
+        }
+
         // Auto-play if track has autoplay enabled
         if (this._props.track && this._props.track.autoplay) {
             this._logger.info('Auto-playing track');
@@ -454,6 +472,7 @@ export class MusicPlayer extends BaseComponent {
     _startYouTubeTimeTracking() {
         if (this._youtubeTimeInterval) return;
 
+        // Poll every 1 second (optimized from 500ms to save resources)
         this._youtubeTimeInterval = setInterval(() => {
             if (this._youtubePlayer && this._youtubePlayer.getCurrentTime) {
                 this._currentTime = this._youtubePlayer.getCurrentTime();
@@ -461,7 +480,7 @@ export class MusicPlayer extends BaseComponent {
                 this._updateTimeDisplay();
                 this._updateProgressSlider();
             }
-        }, 500);
+        }, 1000); // Optimized: 1000ms instead of 500ms
     }
 
     /**
