@@ -321,9 +321,9 @@ export class ShowCard extends BaseComponent {
 
         container.innerHTML = checkboxes;
 
-        // Add change listeners to checkboxes
+        // Add change listeners to checkboxes using _addEventListener for proper cleanup
         container.querySelectorAll('.site-checkbox__input').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
+            this._addEventListener(checkbox, 'change', (e) => {
                 const siteName = e.target.dataset.siteName;
                 toggleSiteAvailability(showId, siteName);
                 this._renderSiteLinks(); // Re-render site links
