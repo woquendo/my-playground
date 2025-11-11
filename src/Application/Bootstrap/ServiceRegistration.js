@@ -10,6 +10,7 @@ import { ShowManagementService } from '../Services/ShowManagementService.js';
 import { MusicManagementService } from '../Services/MusicManagementService.js';
 import { ScheduleService } from '../Services/ScheduleService.js';
 import { ImportService } from '../Services/ImportService.js';
+import { SitesService } from '../Services/SitesService.js';
 import { ScheduleViewModel } from '../../Presentation/ViewModels/ScheduleViewModel.js';
 import { MusicViewModel } from '../../Presentation/ViewModels/MusicViewModel.js';
 import { EpisodeCalculatorService } from '../../Domain/Services/EpisodeCalculatorService.js';
@@ -120,6 +121,13 @@ export async function registerServices(container) {
         logger
     }));
 
+    // Sites service
+    container.singleton('sitesService', () => new SitesService({
+        storage: container.get('storage'),
+        httpClient: container.get('httpClient'),
+        logger
+    }));
+
     // ===========================
     // ViewModels
     // ===========================
@@ -162,6 +170,7 @@ export function validateServices(container) {
         'musicManagementService',
         'scheduleService',
         'importService',
+        'sitesService',
         'scheduleViewModel',
         'musicViewModel'
     ];

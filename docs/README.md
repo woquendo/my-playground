@@ -154,6 +154,16 @@ Technical analysis, bug fixes, and performance optimizations.
   - File structure improvements
   - Legacy code cleanup
 
+### Migration & Deprecation
+
+- **[LEGACY_FILES_REMOVAL_LIST.md](analysis/LEGACY_FILES_REMOVAL_LIST.md)** ⭐ **NEW**
+  - Comprehensive guide for removing legacy files after Phase 7
+  - 21 files, ~6,350 lines of legacy code to remove
+  - Pre-removal verification checklist
+  - Step-by-step removal instructions with Git commands
+  - Rollback procedures and monitoring guidelines
+  - Risk assessment and mitigation strategies
+
 ---
 
 ## 🎯 Quick Navigation

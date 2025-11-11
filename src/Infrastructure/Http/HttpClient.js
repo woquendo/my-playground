@@ -146,7 +146,7 @@ export class HttpClient {
     }
 
     /**
-     * Build full URL from relative path
+     * Build full URL from base URL and path
      * @private
      * @param {string} url - URL path
      * @returns {string} Full URL
@@ -155,7 +155,11 @@ export class HttpClient {
         if (url.startsWith('http://') || url.startsWith('https://')) {
             return url;
         }
-        return `${this.baseUrl}${url}`;
+
+        // Ensure proper slash between baseUrl and path
+        const base = this.baseUrl.replace(/\/$/, ''); // Remove trailing slash from base
+        const path = url.startsWith('/') ? url : `/${url}`; // Ensure path starts with slash
+        return `${base}${path}`;
     }
 
     /**

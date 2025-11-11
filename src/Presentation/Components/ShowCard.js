@@ -10,7 +10,7 @@ import {
     getAvailableSitesForShow,
     toggleSiteAvailability,
     cleanupStaleSiteReferences
-} from '../../../js/sitesService.js';
+} from '../../Application/Services/SitesService.js';
 
 export class ShowCard extends BaseComponent {
     /**
