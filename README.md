@@ -578,7 +578,23 @@ window.__container.keys();
 - Watch history tracking
 - Recommendation engine
 
-## 📄 License
+## � Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+- **[Documentation Index](docs/README.md)** - Complete documentation overview
+- **[Roadmaps](docs/roadmaps/)** - Project strategy and phase plans
+- **[Phase Summaries](docs/phase-summaries/)** - Completion reports for each phase
+- **[Guides](docs/guides/)** - User and developer guides
+- **[Analysis](docs/analysis/)** - Technical analysis and fixes
+
+### Quick Links
+- [Modernization Roadmap](docs/roadmaps/MODERNIZATION_ROADMAP.md) - Overall architecture plan
+- [Phase 7 Completion](docs/phase-summaries/PHASE7_COMPLETION_SUMMARY.md) - Latest phase details
+- [YouTube Import Guide](docs/guides/YOUTUBE_IMPORT_GUIDE.md) - Import music from YouTube
+- [Final Report](docs/FINAL_COMPLETION_REPORT.md) - Project completion overview
+
+## �📄 License
 
 MIT License - feel free to use this project as you wish.
 
@@ -590,12 +606,13 @@ Contributions welcome! Please follow the established architecture patterns:
 3. UI components in `src/Presentation/`
 4. Follow SOLID principles
 5. Add tests for new features
-6. Update documentation
+6. Update documentation in `docs/`
 
 ## 📞 Support
 
 For issues and questions:
-- Check the Troubleshooting section
+- Check the [Troubleshooting](#-troubleshooting) section above
+- Review [documentation](docs/README.md)
 - Review browser console errors
 - Check existing issues on GitHub
 - Create a new issue with details
