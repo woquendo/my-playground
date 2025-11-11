@@ -1,20 +1,31 @@
 {
- "sites": [
-    {
-        "name": "Aniwave",
-        "url": "https://aniwave.at/"
-    },
-    {
-        "name": "hianime",
-        "url": "http://hianime.to/home"
-    },
-    {
-        "name": "Crunchyroll",
-        "url": "https://www.crunchyroll.com/"
-    },
-    {
-        "name": "hidive",
-        "url": "https://www.hidive.com/"
-    }
-]
+    "_comment": "searchPattern supports placeholders: {encoded} (URL-encoded title), {normalized} (lowercase-hyphenated), {query} (alias for {encoded}), {title} (alias for {encoded}). Set searchPattern to null or empty string to link directly to homepage (useful for sites with complex search like GraphQL POST requests). If searchPattern is omitted, falls back to common patterns like /search?q={encoded}",
+    "sites": [
+        {
+            "name": "Aniwave",
+            "url": "https://aniwave.at/",
+            "searchPattern": "/catalog?search={encoded}&type=anime"
+        },
+        {
+            "name": "animex",
+            "url": "http://animex.one/",
+            "searchPattern": null,
+            "_note": "Uses AniList GraphQL API (POST to graphql.anilist.co), no direct URL search"
+        },
+        {
+            "name": "hianime",
+            "url": "https://hianime.to/",
+            "searchPattern": "/search?keyword={encoded}"
+        },
+        {
+            "name": "Crunchyroll",
+            "url": "https://www.crunchyroll.com/",
+            "searchPattern": "/search?q={encoded}"
+        },
+        {
+            "name": "hidive",
+            "url": "https://www.hidive.com/",
+            "searchPattern": "/search?q={encoded}"
+        }
+    ]
 }

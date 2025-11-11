@@ -53,38 +53,70 @@ export function normalizeAnimeTitle(title) {
 }
 
 /**
- * Construct search URL for a specific site
- * @param {string} siteName - Site name (Aniwave, hianime, Crunchyroll, hidive)
+ * Construct search URL for a specific site using searchPattern from site config
+ * @param {string} siteName - Site name
  * @param {string} siteUrl - Base site URL
  * @param {string} animeTitle - Anime title to search for
+ * @param {string|null} [searchPattern] - Optional search pattern with placeholders (from site config)
+ *                                        Set to null or empty string to return base URL only
  * @returns {string} Constructed URL
  */
-export function constructSiteUrl(siteName, siteUrl, animeTitle) {
+export function constructSiteUrl(siteName, siteUrl, animeTitle, searchPattern = null) {
     const normalized = normalizeAnimeTitle(animeTitle);
     const encoded = encodeURIComponent(animeTitle);
+    const baseUrl = siteUrl.replace(/\/$/, '');
 
-    // Site-specific URL patterns (based on actual site URLs)
+    // If searchPattern is explicitly null or empty, return base URL only
+    // This is useful for sites with complex search (POST requests, GraphQL, etc.)
+    if (searchPattern === null || searchPattern === '') {
+        return baseUrl;
+    }
+
+    // If searchPattern is provided (and not null/empty), use it
+    if (searchPattern) {
+        const pattern = searchPattern
+            .replace('{encoded}', encoded)
+            .replace('{normalized}', normalized)
+            .replace('{query}', encoded)
+            .replace('{title}', encoded);
+
+        return `${baseUrl}${pattern}`;
+    }
+
+    // Legacy fallback for sites without searchPattern (backwards compatibility)
     switch (siteName.toLowerCase()) {
         case 'aniwave':
-            // Aniwave search pattern: /catalog?search=title&type=anime
             return `https://aniwave.at/catalog?search=${encoded}&type=anime`;
 
         case 'hianime':
-            // hianime search pattern: /search?keyword=title
             return `https://hianime.to/search?keyword=${encoded}`;
 
         case 'crunchyroll':
-            // Crunchyroll search pattern: /search?q=title
-            return `${siteUrl.replace(/\/$/, '')}/search?q=${encoded}`;
+            return `${baseUrl}/search?q=${encoded}`;
 
         case 'hidive':
-            // hidive search pattern: /search?q=title
-            return `${siteUrl.replace(/\/$/, '')}/search?q=${encoded}`;
+            return `${baseUrl}/search?q=${encoded}`;
 
         default:
-            // Fallback: just return the base URL
-            return siteUrl;
+            // Smart fallback: try common anime site patterns
+            return tryCommonSearchPatterns(baseUrl, encoded);
     }
+}
+
+/**
+ * Try common anime streaming site search patterns
+ * @param {string} baseUrl - Base URL without trailing slash
+ * @param {string} encodedTitle - URL-encoded anime title
+ * @returns {string} URL with most common pattern
+ * @private
+ */
+function tryCommonSearchPatterns(baseUrl, encodedTitle) {
+    // Most common patterns in order of popularity:
+    // 1. /search?q=title (most common)
+    // 2. /search?keyword=title
+    // 3. /catalog?search=title
+    // For now, default to most common pattern
+    return `${baseUrl}/search?q=${encodedTitle}`;
 }
 
 /**
@@ -133,7 +165,16 @@ function saveSiteAvailability(data) {
  */
 export function getAvailableSitesForShow(showId) {
     const availability = getSiteAvailability();
-    return availability[showId] || [];
+    const storedSites = availability[showId] || [];
+
+    // Filter out sites that are no longer in sites.json
+    // This prevents showing stale site references
+    if (cachedSites && storedSites.length > 0) {
+        const validSiteNames = cachedSites.map(site => site.name.toLowerCase());
+        return storedSites.filter(siteName => validSiteNames.includes(siteName));
+    }
+
+    return storedSites;
 }
 
 /**
@@ -191,4 +232,37 @@ export function setAvailableSites(showId, siteNames) {
  */
 export function clearSiteAvailability() {
     localStorage.removeItem(STORAGE_KEY);
+}
+
+/**
+ * Clean up localStorage by removing references to sites that no longer exist in sites.json
+ * Call this after loading sites to ensure data integrity
+ * @returns {Promise<number>} Number of stale references removed
+ */
+export async function cleanupStaleSiteReferences() {
+    const sites = await getSites();
+    const validSiteNames = sites.map(site => site.name.toLowerCase());
+    const availability = getSiteAvailability();
+
+    let removedCount = 0;
+
+    // Iterate through all shows and filter their site lists
+    for (const showId in availability) {
+        const originalSites = availability[showId];
+        const filteredSites = originalSites.filter(siteName => {
+            const isValid = validSiteNames.includes(siteName);
+            if (!isValid) removedCount++;
+            return isValid;
+        });
+
+        availability[showId] = filteredSites;
+    }
+
+    // Save cleaned data
+    if (removedCount > 0) {
+        saveSiteAvailability(availability);
+        console.log(`Cleaned up ${removedCount} stale site references from localStorage`);
+    }
+
+    return removedCount;
 }

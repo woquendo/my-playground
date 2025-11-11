@@ -30,6 +30,8 @@ export class GlobalMusicPlayer extends BaseComponent {
         this.isPlaying = false;
         this.currentTime = 0;
         this.duration = 0;
+        this.volume = 0.7; // Default volume 70%
+        this.isMuted = false;
         this.viewMode = 'type'; // 'type', 'playlist', or 'all'
         this.selectedPlaylist = null; // For filtering by specific playlist
         this.selectedType = null; // For filtering by specific type in type view
@@ -109,6 +111,9 @@ export class GlobalMusicPlayer extends BaseComponent {
         // Attach event listeners
         this._attachEventListeners();
 
+        // Load volume state
+        this._loadVolumeState();
+
         // Restore previous state if any
         this._restoreState();
 
@@ -155,6 +160,21 @@ export class GlobalMusicPlayer extends BaseComponent {
                         <span class="play-icon">${this.isPlaying ? '⏸' : '▶'}</span>
                     </button>
                     <button class="control-btn control-btn--next" aria-label="Next track">⏭</button>
+                    
+                    <!-- Volume Control -->
+                    <div class="volume-control">
+                        <button class="control-btn control-btn--volume" aria-label="Mute/Unmute">
+                            <span class="volume-icon">${this.isMuted ? '🔇' : (this.volume > 0.5 ? '🔊' : (this.volume > 0 ? '🔉' : '🔈'))}</span>
+                        </button>
+                        <input 
+                            type="range" 
+                            class="volume-slider" 
+                            min="0" 
+                            max="100" 
+                            value="${this.volume * 100}"
+                            aria-label="Volume"
+                        />
+                    </div>
                 </div>
                 
                 <!-- Progress Bar -->
@@ -521,6 +541,13 @@ export class GlobalMusicPlayer extends BaseComponent {
         const nextBtn = this.element.querySelector('.control-btn--next');
         nextBtn?.addEventListener('click', () => this.playNext());
 
+        // Volume controls
+        const volumeBtn = this.element.querySelector('.control-btn--volume');
+        volumeBtn?.addEventListener('click', () => this.toggleMute());
+
+        const volumeSlider = this.element.querySelector('.volume-slider');
+        volumeSlider?.addEventListener('input', (e) => this.setVolume(e.target.value / 100));
+
         // Progress bar
         const progressSlider = this.element.querySelector('.progress-bar__slider');
         progressSlider?.addEventListener('input', (e) => this.seek(e.target.value));
@@ -764,6 +791,10 @@ export class GlobalMusicPlayer extends BaseComponent {
         const ytContainer = this.element?.querySelector('.global-music-player__youtube');
         if (ytContainer) ytContainer.style.display = 'none';
 
+        // Apply volume settings
+        this.audioElement.volume = this.volume;
+        this.audioElement.muted = this.isMuted;
+
         this.audioElement.src = track.url;
         if (autoPlay) {
             this.audioElement.play().catch(err => {
@@ -912,6 +943,18 @@ export class GlobalMusicPlayer extends BaseComponent {
             this._logger.debug('Could not set playback quality:', error);
         }
 
+        // Apply volume settings
+        try {
+            if (typeof this.youtubePlayer.setVolume === 'function') {
+                this.youtubePlayer.setVolume(this.volume * 100);
+            }
+            if (this.isMuted && typeof this.youtubePlayer.mute === 'function') {
+                this.youtubePlayer.mute();
+            }
+        } catch (error) {
+            this._logger.debug('Could not set YouTube volume:', error);
+        }
+
         // Play queued video if any
         if (this._youtubeQueue) {
             const { videoId, autoPlay } = this._youtubeQueue;
@@ -1029,13 +1072,39 @@ export class GlobalMusicPlayer extends BaseComponent {
     }
 
     /**
+     * Get the currently visible tracks based on view mode and filters
+     * This respects selectedType and selectedPlaylist selections
+     * @returns {Array}
+     * @private
+     */
+    _getVisibleTracks() {
+        const baseFilteredTracks = this.filteredTracks.length > 0 ? this.filteredTracks : this.tracks;
+
+        // If in type view and a specific type is selected, filter by that type
+        if (this.viewMode === 'type' && this.selectedType) {
+            return baseFilteredTracks.filter(track => track.type === this.selectedType);
+        }
+
+        // If in playlist view and a specific playlist is selected, filter by that playlist
+        if (this.viewMode === 'playlist' && this.selectedPlaylist) {
+            return baseFilteredTracks.filter(track =>
+                track.playlists && track.playlists.includes(this.selectedPlaylist)
+            );
+        }
+
+        // Otherwise return the base filtered tracks
+        return baseFilteredTracks;
+    }
+
+    /**
      * Play next track
      */
     playNext() {
-        const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrack?.id);
-        const nextIndex = (currentIndex + 1) % this.tracks.length;
-        if (this.tracks[nextIndex]) {
-            this.playTrack(this.tracks[nextIndex], true);
+        const tracksToUse = this._getVisibleTracks();
+        const currentIndex = tracksToUse.findIndex(t => t.id === this.currentTrack?.id);
+        const nextIndex = (currentIndex + 1) % tracksToUse.length;
+        if (tracksToUse[nextIndex]) {
+            this.playTrack(tracksToUse[nextIndex], true);
         }
     }
 
@@ -1043,10 +1112,11 @@ export class GlobalMusicPlayer extends BaseComponent {
      * Play previous track
      */
     playPrevious() {
-        const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrack?.id);
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : this.tracks.length - 1;
-        if (this.tracks[prevIndex]) {
-            this.playTrack(this.tracks[prevIndex], true);
+        const tracksToUse = this._getVisibleTracks();
+        const currentIndex = tracksToUse.findIndex(t => t.id === this.currentTrack?.id);
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : tracksToUse.length - 1;
+        if (tracksToUse[prevIndex]) {
+            this.playTrack(tracksToUse[prevIndex], true);
         }
     }
 
@@ -1061,6 +1131,120 @@ export class GlobalMusicPlayer extends BaseComponent {
             this.youtubePlayer.seekTo(position, true);
         } else if (this.audioElement) {
             this.audioElement.currentTime = position;
+        }
+    }
+
+    /**
+     * Set volume
+     * @param {number} volume - 0 to 1
+     */
+    setVolume(volume) {
+        this.volume = Math.max(0, Math.min(1, volume));
+        this.isMuted = false;
+
+        // Apply to audio element
+        if (this.audioElement) {
+            this.audioElement.volume = this.volume;
+        }
+
+        // Apply to YouTube player
+        if (this.youtubePlayer && this.youtubePlayerReady && typeof this.youtubePlayer.setVolume === 'function') {
+            this.youtubePlayer.setVolume(this.volume * 100);
+        }
+
+        this._updateVolumeDisplay();
+        this._saveVolumeState();
+    }
+
+    /**
+     * Toggle mute
+     */
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+
+        // Apply to audio element
+        if (this.audioElement) {
+            this.audioElement.muted = this.isMuted;
+        }
+
+        // Apply to YouTube player
+        if (this.youtubePlayer && this.youtubePlayerReady) {
+            if (this.isMuted && typeof this.youtubePlayer.mute === 'function') {
+                this.youtubePlayer.mute();
+            } else if (!this.isMuted && typeof this.youtubePlayer.unMute === 'function') {
+                this.youtubePlayer.unMute();
+            }
+        }
+
+        this._updateVolumeDisplay();
+        this._saveVolumeState();
+    }
+
+    /**
+     * Update volume display
+     * @private
+     */
+    _updateVolumeDisplay() {
+        const volumeIcon = this.element?.querySelector('.volume-icon');
+        const volumeSlider = this.element?.querySelector('.volume-slider');
+
+        if (volumeIcon) {
+            if (this.isMuted) {
+                volumeIcon.textContent = '🔇';
+            } else if (this.volume > 0.5) {
+                volumeIcon.textContent = '🔊';
+            } else if (this.volume > 0) {
+                volumeIcon.textContent = '🔉';
+            } else {
+                volumeIcon.textContent = '🔈';
+            }
+        }
+
+        if (volumeSlider) {
+            volumeSlider.value = this.volume * 100;
+            // Update slider gradient to show filled portion
+            const percentage = this.volume * 100;
+            volumeSlider.style.background = `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${percentage}%, var(--color-border) ${percentage}%, var(--color-border) 100%)`;
+        }
+    }
+
+    /**
+     * Save volume state to localStorage
+     * @private
+     */
+    _saveVolumeState() {
+        try {
+            localStorage.setItem('globalPlayer:volume', this.volume.toString());
+            localStorage.setItem('globalPlayer:muted', this.isMuted.toString());
+        } catch (error) {
+            this._logger.warn('Failed to save volume state:', error.message);
+        }
+    }
+
+    /**
+     * Load volume state from localStorage
+     * @private
+     */
+    _loadVolumeState() {
+        try {
+            const savedVolume = localStorage.getItem('globalPlayer:volume');
+            const savedMuted = localStorage.getItem('globalPlayer:muted');
+
+            if (savedVolume !== null) {
+                this.volume = parseFloat(savedVolume);
+            }
+
+            if (savedMuted !== null) {
+                this.isMuted = savedMuted === 'true';
+            }
+
+            // Apply loaded volume to audio element if it exists
+            if (this.audioElement) {
+                this.audioElement.volume = this.volume;
+                this.audioElement.muted = this.isMuted;
+            }
+        } catch (error) {
+            this._logger.warn('Failed to load volume state:', error.message);
         }
     }
 

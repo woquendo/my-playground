@@ -15,6 +15,7 @@ import { NavigationComponent } from '../../Presentation/Components/Shell/Navigat
 import { GlobalMusicPlayer } from '../../Presentation/Components/Shell/GlobalMusicPlayer.js';
 import { ToastService } from '../../Presentation/Services/ToastService.js';
 import { ApplicationState } from '../../Presentation/State/ApplicationState.js';
+import { LegacyAdapter } from '../../Bootstrap/LegacyAdapter.js';
 
 /**
  * Main Application class
@@ -60,11 +61,15 @@ export class Application {
             await this.loadInitialData();
             console.log('✓ Initial data loaded');
 
-            // Step 7: Hide loading, show app
+            // Step 7: Initialize legacy compatibility layer
+            await this.initializeLegacyAdapter();
+            console.log('✓ Legacy adapter initialized');
+
+            // Step 8: Hide loading, show app
             this.hideLoading();
             console.log('✓ Application ready');
 
-            // Step 8: Navigate to initial route
+            // Step 9: Navigate to initial route
             const currentPath = window.location.pathname;
             const initialPath = currentPath === '/' || currentPath === '/app.html' || currentPath === '/index.html'
                 ? '/schedule'
@@ -207,6 +212,33 @@ export class Application {
             logger.error('Failed to load initial data:', error);
             // Don't throw - allow app to start with empty data
             this.showToast('Warning: Some data failed to load', 'warning');
+        }
+    }
+
+    /**
+     * Initialize legacy compatibility layer
+     * Provides backward compatibility with legacy code
+     */
+    async initializeLegacyAdapter() {
+        const logger = this.container.get('logger');
+        const eventBus = this.container.get('eventBus');
+
+        try {
+            logger.info('Initializing legacy adapter');
+
+            const legacyAdapter = new LegacyAdapter(this.container, eventBus, logger);
+            await legacyAdapter.initialize();
+
+            // Register adapter in container
+            this.container.singleton('legacyAdapter', () => legacyAdapter);
+
+            // Expose legacy API globally (for debugging and transition period)
+            window.legacyAPI = legacyAdapter.createLegacyAPI();
+
+            logger.info('Legacy adapter ready');
+        } catch (error) {
+            logger.warn('Legacy adapter initialization failed:', error);
+            // Don't throw - app can work without legacy compatibility
         }
     }
 

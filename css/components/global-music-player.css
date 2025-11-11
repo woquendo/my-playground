@@ -215,6 +215,69 @@
     font-size: var(--font-size-xl);
 }
 
+/* Volume Control */
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-left: auto;
+}
+
+.control-btn--volume {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-size-md);
+}
+
+.volume-slider {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right,
+            var(--color-border) 0%,
+            var(--color-primary) 0%);
+    border-radius: var(--radius-full);
+    outline: none;
+    cursor: pointer;
+    transition: opacity var(--duration-fast);
+}
+
+.volume-slider:hover {
+    opacity: 0.8;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(var(--color-primary-rgb), 0.4);
+    transition: all var(--duration-fast);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(var(--color-primary-rgb), 0.4);
+    transition: all var(--duration-fast);
+}
+
+.volume-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+}
+
 /* ============================================
    Progress Bar
    ============================================ */

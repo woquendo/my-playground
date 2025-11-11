@@ -8,7 +8,8 @@ import {
     getSites,
     constructSiteUrl,
     getAvailableSitesForShow,
-    toggleSiteAvailability
+    toggleSiteAvailability,
+    cleanupStaleSiteReferences
 } from '../../../js/sitesService.js';
 
 export class ShowCard extends BaseComponent {
@@ -53,6 +54,14 @@ export class ShowCard extends BaseComponent {
     async _loadSites() {
         try {
             this._sites = await getSites();
+
+            // Clean up any stale site references in localStorage
+            // This is done once when sites are first loaded
+            if (!ShowCard._cleanupPerformed) {
+                await cleanupStaleSiteReferences();
+                ShowCard._cleanupPerformed = true;
+            }
+
             // Re-render if sites were loaded after initial render
             if (this._element && this._sites.length > 0) {
                 this._renderSiteLinks();
@@ -252,7 +261,7 @@ export class ShowCard extends BaseComponent {
 
         // Generate site link buttons
         const siteButtons = sitesToShow.map(site => {
-            const siteUrl = constructSiteUrl(site.name, site.url, animeTitle);
+            const siteUrl = constructSiteUrl(site.name, site.url, animeTitle, site.searchPattern);
             const siteIcon = this._getSiteIcon(site.name);
 
             return `
@@ -340,11 +349,12 @@ export class ShowCard extends BaseComponent {
     _getSiteIcon(siteName) {
         const icons = {
             'aniwave': '🌊',
+            'animex': '🎭',
             'hianime': '📺',
             'crunchyroll': '🍥',
             'hidive': '🎬'
         };
-        return icons[siteName.toLowerCase()] || '▶️';
+        return icons[siteName.toLowerCase()] || '🎬';
     }
 
     /**
