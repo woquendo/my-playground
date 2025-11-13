@@ -17,6 +17,46 @@ Implement frontend authentication UI components to allow users to register accou
 - MySQL database with users table and role-based access control
 - Password hashing with bcrypt
 - API repositories (APIShowRepository, APIMusicRepository) ready for authenticated requests
+- **Database Integration:** ALL show and music data now comes from MySQL database via API
+- **Test Data:** Database populated with 444 shows, 68 songs, 1 admin user (dev@myplayground.local)
+- **Router Guards:** Authentication checks on all protected routes
+
+### ✅ Data Source Verification (100% Database-Driven)
+
+**Confirmed Data Flow:**
+```
+User Action → API Repository → HTTP Request (with JWT) → Backend API → MySQL Database
+```
+
+**Data Sources by Feature:**
+- **Shows:** `APIShowRepository` → `/api/shows` → MySQL `shows` table ✅
+- **Music:** `APIMusicRepository` → `/api/music` → MySQL `songs` table ✅
+- **Authentication:** `/api/auth/*` → MySQL `users` table ✅
+- **Streaming Sites:** `SitesService` → `/data/sites.json` ⚠️ **PENDING MIGRATION**
+
+**⚠️ Streaming Sites Migration Required:**
+Currently, streaming sites are loaded from static `/data/sites.json` file. This should be migrated to MySQL to support:
+- User-specific site preferences
+- Custom streaming site URLs per user
+- User-configured search patterns
+- Enabling/disabling specific sites per user
+- Future: User can add their own streaming sites
+
+**Migration planned for:** Future phase (Phase 9.5 or Phase 11)
+- Create `streaming_sites` table in database
+- Create `user_streaming_sites` junction table for user preferences
+- Add API endpoints: `/api/streaming-sites`
+- Create `APIStreamingSitesRepository`
+- Update `SitesService` to use API repository when database enabled
+- Migrate data from `sites.json` to database (seed data)
+
+**Repository Registration (ServiceRegistration.js):**
+```javascript
+if (useDatabase) {  // USE_DATABASE=true in .env
+    container.singleton('showRepository', () => new APIShowRepository(...));
+    container.singleton('musicRepository', () => new APIMusicRepository(...));
+}
+```
 
 ### ⚠️ Missing
 - Login page UI
@@ -30,47 +70,52 @@ Implement frontend authentication UI components to allow users to register accou
 
 ## Implementation Tasks
 
-### Task 1: Create Authentication Page Component
+### Task 1: Verify and Complete Authentication Page Component
 
 **File:** `src/Presentation/Pages/AuthPage.js`
 
-**Requirements:**
-- Toggle between login and registration forms
-- Responsive design matching existing app style
-- Form validation (email format, password strength)
-- Display error messages from API
-- Loading states during authentication
-- Auto-redirect to schedule page on success
+**Current Status:** ✅ File exists with basic structure
 
-**Features:**
+**What's Implemented:**
+- Page structure with login/register toggle
+- Form container rendering
+- View switching between login and register
+
+**What Needs Verification/Completion:**
+- [ ] Verify AuthService integration (currently references `authService` from container)
+- [ ] Ensure error handling displays properly
+- [ ] Test form submission flow
+- [ ] Verify redirect after successful login
+- [ ] Test registration flow end-to-end
+
+**Note:** AuthPage depends on `authService` which requires backend API. Currently references:
 ```javascript
-class AuthPage {
-  constructor({ authManager, eventBus, logger, container });
-  
-  // Methods
-  render() // Render login/register forms
-  handleLogin(email, password) // Process login
-  handleRegister(email, password, username) // Process registration
-  switchToLogin() // Toggle to login form
-  switchToRegister() // Toggle to register form
-  validateEmail(email) // Email validation
-  validatePassword(password) // Password strength check
-}
+this.authService = container.get('authService');
 ```
 
-### Task 2: Create Authentication Form Components
+**⚠️ CRITICAL:** AuthService is NOT registered in ServiceRegistration.js because it requires Node.js (mysql2). Authentication must go through AuthManager which calls API endpoints directly.
 
-**File:** `src/Presentation/Components/AuthForm.js`
+**Required Fix:**
+- AuthPage should use AuthManager instead of AuthService
+- AuthManager needs `register()` and `login()` methods added (see Task 4)
 
-**Requirements:**
-- Reusable form component for login/register
-- Email input with validation
-- Password input with show/hide toggle
-- Password strength indicator (for registration)
-- Confirm password field (for registration)
-- Username field (for registration)
-- Submit button with loading state
-- Error message display area
+### Task 2: Verify and Complete Authentication Form Components
+
+**Files:** 
+- `src/Presentation/Components/LoginForm.js` ✅ EXISTS
+- `src/Presentation/Components/RegisterForm.js` ✅ EXISTS
+
+**Current Status:** Files exist, need verification
+
+**Requirements to Verify:**
+- [ ] Email input with validation
+- [ ] Password input with show/hide toggle
+- [ ] Password strength indicator (for registration)
+- [ ] Confirm password field (for registration)
+- [ ] Username field (for registration)
+- [ ] Submit button with loading state
+- [ ] Error message display area
+- [ ] Form submission handlers
 
 **Validation Rules:**
 - Email: Valid email format
@@ -78,9 +123,11 @@ class AuthPage {
 - Username: 3-20 characters, alphanumeric + underscores
 - Confirm Password: Must match password field
 
-### Task 3: Update App Router for Authentication
+### Task 3: Router Authentication Guards - ALREADY IMPLEMENTED ✅
 
-**File:** `app.html` and router logic
+**File:** `src/Application/Bootstrap/RouteConfiguration.js`
+
+**Status:** ✅ COMPLETE - Authentication guards already implemented
 
 **Requirements:**
 - Add `/auth` route for authentication page
@@ -287,28 +334,181 @@ Response: { user: { id, email, username, role, createdAt } }
 
 ## Implementation Order
 
-1. **Enhance AuthManager** (add register/login/logout methods)
-2. **Create AuthForm Component** (reusable form with validation)
-3. **Create AuthPage** (container for auth forms)
-4. **Add CSS Styling** (auth-form.css enhancements)
-5. **Update Router** (add /auth route, authentication guard)
-6. **Create UserProfile Component** (header display + logout)
-7. **Add Session Persistence** (check token on app load)
-8. **Test & Refine** (all flows working smoothly)
+### CRITICAL PRE-WORK: Fix AuthPage to Use AuthManager
+
+**Current Issue:** AuthPage.js tries to get 'authService' from container, but AuthService is NOT registered in browser (requires Node.js/mysql2).
+
+**File to Fix:** `src/Presentation/Pages/AuthPage.js`
+
+**Change Required:**
+```javascript
+// OLD (BROKEN):
+this.authService = container.get('authService');
+
+// NEW (CORRECT):
+this.authManager = container.get('authManager');
+```
+
+**Then update all method calls:**
+- `authService.login()` → `authManager.login()`
+- `authService.register()` → `authManager.register()`
+
+### Implementation Steps
+
+1. **Fix AuthPage to use AuthManager** (~15 minutes) ⚠️ CRITICAL
+   - Replace authService with authManager
+   - Update all method calls
+
+2. **Enhance AuthManager** (~2-3 hours)
+   - Add `async register(email, password, username)` method
+   - Add `async login(email, password)` method
+   - Add `async logout()` method
+   - Add `async getCurrentUser()` method
+   - These methods should call the backend API directly using fetch
+
+3. **Verify/Complete LoginForm Component** (~2-3 hours)
+   - Check existing implementation
+   - Ensure validation works
+   - Test form submission
+   - Fix any bugs
+
+4. **Verify/Complete RegisterForm Component** (~2-3 hours)
+   - Check existing implementation
+   - Password strength indicator
+   - Confirm password matching
+   - Test form submission
+   - Fix any bugs
+
+5. **Test AuthPage Integration** (~1-2 hours)
+   - Test login flow end-to-end
+   - Test registration flow end-to-end
+   - Test error handling
+   - Test loading states
+
+6. **Add/Verify CSS Styling** (~2-3 hours)
+   - Check `css/components/auth-form.css`
+   - Ensure responsive design
+   - Error/success states
+   - Loading spinners
+
+7. **Create UserProfile Component** (~2-3 hours)
+   - Display user info in header
+   - Logout button
+   - Dropdown menu
+
+8. **Add Session Persistence** (~1-2 hours)
+   - Check token on app load
+   - Validate token with backend
+   - Auto-login if valid
+
+9. **End-to-End Testing** (~3-4 hours)
+   - Test all authentication flows
+   - Test with existing database user (dev@myplayground.local)
+   - Test registration of new users
+   - Test logout and re-login
+   - Test protected routes
+   - Test API calls with JWT tokens
+   - Verify ALL data comes from MySQL (not JSON files)
 
 ## Timeline Estimate
 
+- **CRITICAL Fix (AuthPage):** 15 minutes
 - **AuthManager Enhancements:** 2-3 hours
-- **AuthForm Component:** 3-4 hours
-- **AuthPage Implementation:** 2-3 hours
+- **Form Components Verification:** 4-6 hours
+- **AuthPage Testing:** 1-2 hours
 - **Styling:** 2-3 hours
-- **Router Updates:** 1-2 hours
 - **UserProfile Component:** 2-3 hours
-- **Testing & Debugging:** 3-4 hours
+- **Session Persistence:** 1-2 hours
+- **End-to-End Testing:** 3-4 hours
 
-**Total:** ~15-22 hours
+**Total:** ~16-24 hours
+
+**Total:** ~16-24 hours
+
+## Test Credentials & Database Verification
+
+### Existing Test User
+
+The database already contains a test admin user:
+
+```
+Email:    dev@myplayground.local
+Username: devuser
+Role:     admin
+Password: [Set during migration - check migration scripts or reset if needed]
+```
+
+**To reset password for test user:**
+```bash
+# Login to MySQL
+mysql -u root -p myplayground_dev
+
+# Generate new bcrypt hash (use Node.js)
+node -e "const bcrypt = require('bcrypt'); bcrypt.hash('TestPassword123', 10, (e,h) => console.log(h));"
+
+# Update user password
+UPDATE users SET password_hash = '[NEW_HASH]' WHERE email = 'dev@myplayground.local';
+```
+
+### Database Contents Verification
+
+**Current Database State:**
+- **Shows:** 444 records in `shows` table
+- **Songs:** 68 records in `songs` table
+- **Users:** 1 record in `users` table
+
+**All user data is linked to user_id=1** (the test admin user).
+
+**Verify data linkage:**
+```sql
+-- Check shows belong to user
+SELECT user_id, COUNT(*) FROM shows GROUP BY user_id;
+
+-- Check songs belong to user
+SELECT user_id, COUNT(*) FROM songs GROUP BY user_id;
+```
+
+### Data Flow Verification Checklist
+
+When testing, verify that:
+
+- [ ] Login with test user credentials works
+- [ ] After login, JWT token is stored in localStorage
+- [ ] Schedule page loads shows from `/api/shows` endpoint
+- [ ] Shows data comes from MySQL (444 shows displayed)
+- [ ] Music page loads songs from `/api/music` endpoint
+- [ ] Songs data comes from MySQL (68 songs displayed)
+- [ ] All API requests include `Authorization: Bearer <token>` header
+- [ ] Logout clears token and redirects to /auth
+- [ ] Trying to access protected routes without token redirects to /auth
+- [ ] No data is loaded from `/data/*.json` files (except sites.json for reference)
+
+### Browser DevTools Verification
+
+**Check in Console:**
+```javascript
+// Should show API repository registration
+"✓ API repositories registered (calls backend at http://localhost:3000)"
+
+// Should NOT show HTTP repository registration
+// If you see this, database mode is NOT enabled:
+"✓ HTTP repositories registered"
+```
+
+**Check in Network Tab:**
+- Look for requests to `localhost:3000/api/*`
+- Should see: `/api/shows`, `/api/music`, `/api/auth/*`
+- Should NOT see: `/data/shows.json`, `/data/songs.json`
+
+**Check in Application Tab:**
+```javascript
+// localStorage should contain:
+localStorage.getItem('auth_token')     // JWT token
+localStorage.getItem('current_user')   // User object JSON
+```
 
 ## Next Steps
 
 After Phase 9 completion, proceed to:
 - **Phase 10:** Production Deployment (see PHASE10_PRODUCTION_DEPLOYMENT_ROADMAP.md)
+```

@@ -9,11 +9,13 @@ export class SitesService {
      * @param {StorageService} storage - Storage service for site availability
      * @param {HttpClient} httpClient - HTTP client for loading sites data
      * @param {Logger} logger - Logger instance
+     * @param {Config} config - Configuration instance
      */
-    constructor({ storage, httpClient, logger }) {
+    constructor({ storage, httpClient, logger, config }) {
         this.storage = storage;
         this.httpClient = httpClient;
         this.logger = logger;
+        this.config = config;
         this.cachedSites = null;
         this.STORAGE_KEY = 'anime_site_availability';
     }
@@ -28,9 +30,9 @@ export class SitesService {
         }
 
         try {
-            const data = await this.httpClient.get('data/sites.json');
+            const data = await this.httpClient.get(this.config.data.sitesPath);
             this.cachedSites = data.sites || [];
-            this.logger.info(`Loaded ${this.cachedSites.length} streaming sites`);
+            this.logger.info(`Loaded ${this.cachedSites.length} streaming sites from ${this.config.data.sitesPath}`);
             return this.cachedSites;
         } catch (error) {
             this.logger.error('Failed to load sites:', error);
@@ -104,18 +106,12 @@ export class SitesService {
      * @private
      */
     _tryCommonSearchPatterns(baseUrl, encodedTitle, siteName) {
-        switch (siteName.toLowerCase()) {
-            case 'aniwave':
-                return `https://aniwave.at/catalog?search=${encodedTitle}&type=anime`;
-            case 'hianime':
-                return `https://hianime.to/search?keyword=${encodedTitle}`;
-            case 'crunchyroll':
-            case 'hidive':
-                return `${baseUrl}/search?q=${encodedTitle}`;
-            default:
-                // Most common pattern
-                return `${baseUrl}/search?q=${encodedTitle}`;
-        }
+        // All sites should have searchPattern defined in sites.json
+        // This is a fallback for legacy compatibility only
+        this.logger.warn(`Site "${siteName}" missing searchPattern in sites.json, using default pattern`);
+
+        // Return most common pattern as fallback
+        return `${baseUrl}/search?q=${encodedTitle}`;
     }
 
     /**

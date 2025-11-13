@@ -270,8 +270,13 @@ DB_NAME=myplayground_prod
 JWT_SECRET=generate-secure-random-string-64-chars
 SESSION_SECRET=generate-secure-random-string-64-chars
 APP_URL=https://yourdomain.com
+API_URL=https://yourdomain.com
 CORS_ORIGIN=https://yourdomain.com
 ```
+
+**Note:** `API_URL` can be:
+- Same as `APP_URL` if using nginx proxy (requests to `/api/*` proxied to Node.js)
+- Or separate subdomain: `https://api.yourdomain.com`
 
 **Run migrations:**
 ```bash
@@ -470,6 +475,7 @@ HOST=0.0.0.0
 API_PORT=3000
 
 APP_URL=https://yourdomain.com
+API_URL=https://yourdomain.com
 
 # Database
 DB_HOST=localhost

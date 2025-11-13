@@ -93,6 +93,30 @@ const config = {
         }
     },
 
+    // API Configuration
+    api: {
+        url: getEnv('API_URL', 'http://localhost:3000'),
+        get baseUrl() {
+            return `${this.url}/api`;
+        },
+        timeout: getNumberEnv('API_TIMEOUT', 30000), // 30 seconds default
+    },
+
+    // Data Configuration
+    data: {
+        dir: getEnv('DATA_DIR', './data'),
+        sitesPath: getEnv('SITES_DATA_PATH', '/data/sites.json'),
+        showsPath: getEnv('SHOWS_DATA_PATH', '/data/shows.json'),
+        songsPath: getEnv('SONGS_DATA_PATH', '/data/songs.json')
+    },
+
+    // HTTP Client Configuration
+    http: {
+        timeout: getNumberEnv('HTTP_TIMEOUT', 30000), // 30 seconds default
+        userAgent: getEnv('HTTP_USER_AGENT', 'MyPlayground/1.0'),
+        retries: getNumberEnv('HTTP_RETRIES', 3)
+    },
+
     // Database Configuration (Phase 8)
     database: {
         host: getEnv('DB_HOST', 'localhost'),
@@ -253,6 +277,9 @@ const config = {
         console.log(`Debug Mode: ${this.app.debug}`);
         console.log(`Server: ${this.app.host}:${this.app.port}`);
         console.log(`App URL: ${this.app.url}`);
+        console.log(`API URL: ${this.api.url}`);
+        console.log(`Data Directory: ${this.data.dir}`);
+        console.log(`HTTP Timeout: ${this.http.timeout}ms`);
         console.log(`Database: ${this.database.enabled ? 'Enabled' : 'Disabled'}`);
         if (this.database.enabled) {
             console.log(`  Host: ${this.database.host}:${this.database.port}`);

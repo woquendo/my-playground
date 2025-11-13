@@ -30,12 +30,18 @@ DEBUG=true                     # Enable verbose logging
 PORT=8000                      # Server port
 HOST=localhost                 # Server host
 APP_URL=http://localhost:8000  # Full application URL (important for production)
+API_URL=http://localhost:3000  # Backend API URL (Phase 8+)
 ```
 
 **When to update:**
 - `NODE_ENV`: Change to `production` when deploying
 - `APP_URL`: **CRITICAL** - Update to your domain when deploying (e.g., `https://myplayground.example.com`)
+- `API_URL`: **CRITICAL** - Update for production (same as APP_URL if using nginx proxy, or separate subdomain)
 - `PORT`: Change if port 8000 is already in use
+
+**Important:** The `API_URL` variable (added in Phase 8.5) allows API repositories to work in any environment. In production, this can be:
+- Same domain: `https://yourdomain.com` (nginx proxies `/api/*` to backend)
+- Separate subdomain: `https://api.yourdomain.com` (requires CORS configuration)
 
 ---
 

@@ -40,8 +40,11 @@ export async function registerServices(container) {
     // HTTP Client for API requests
     container.singleton('httpClient', () => new HttpClient({
         baseUrl: window.location.origin,
-        timeout: 30000,
-        retries: 3
+        timeout: config.http.timeout,
+        retries: config.http.retries,
+        headers: {
+            'User-Agent': config.http.userAgent
+        }
     }));
 
     // Cache manager for temporary data storage
@@ -86,17 +89,19 @@ export async function registerServices(container) {
         container.singleton('showRepository', () => new APIShowRepository({
             httpClient: container.get('httpClient'),
             logger,
-            authManager: container.get('authManager')
+            authManager: container.get('authManager'),
+            config
         }));
 
         // API Music repository (calls backend REST API)
         container.singleton('musicRepository', () => new APIMusicRepository({
             httpClient: container.get('httpClient'),
             logger,
-            authManager: container.get('authManager')
+            authManager: container.get('authManager'),
+            config
         }));
 
-        logger.info('✓ API repositories registered (calls backend at http://localhost:3000)');
+        logger.info(`✓ API repositories registered (calls backend at ${config.api.url})`);
     } else {
         logger.info('Registering HTTP (JSON file) repositories...');
 
@@ -162,7 +167,8 @@ export async function registerServices(container) {
     container.singleton('sitesService', () => new SitesService({
         storage: container.get('storage'),
         httpClient: container.get('httpClient'),
-        logger
+        logger,
+        config
     }));
 
     // Authentication service (Phase 8)

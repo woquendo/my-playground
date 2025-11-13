@@ -3,11 +3,11 @@
  * Repository that communicates with backend API for show operations
  */
 export class APIShowRepository {
-    constructor({ httpClient, logger, authManager }) {
+    constructor({ httpClient, logger, authManager, config }) {
         this.httpClient = httpClient;
         this.logger = logger;
         this.authManager = authManager;
-        this.baseUrl = 'http://localhost:3000/api';
+        this.baseUrl = config.api.baseUrl;
     }
 
     /**
