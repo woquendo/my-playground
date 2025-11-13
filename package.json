@@ -7,12 +7,22 @@
         "test": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js",
         "test:watch": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
         "test:coverage": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-        "dev": "python my-playground/server.py",
+        "dev": "python server.py",
+        "dev:api": "node api-server.js",
+        "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
         "build": "echo 'No build step required for ES modules'",
         "lint": "eslint src/ my-playground/js/",
-        "start": "python my-playground/server.py",
+        "start": "python server.py",
+        "start:api": "node api-server.js",
         "validate": "node my-playground/validate-phase1.js",
-        "test-browser": "python my-playground/server.py && echo 'Open http://localhost:8080/phase1-test.html'"
+        "test-browser": "python server.py && echo 'Open http://localhost:8080/phase1-test.html'",
+        "migrate": "node scripts/migrate.js migrate",
+        "migrate:status": "node scripts/migrate.js status",
+        "migrate:rollback": "node scripts/migrate.js rollback",
+        "migrate:fresh": "node scripts/migrate.js fresh",
+        "migrate:reset": "node scripts/migrate.js reset",
+        "db:setup": "node scripts/migrate.js migrate && node scripts/migrate-to-mysql.js",
+        "db:seed": "node scripts/migrate-to-mysql.js"
     },
     "jest": {
         "testEnvironment": "jsdom",
@@ -47,22 +57,18 @@
             "<rootDir>/src/Tests/setup.js"
         ]
     },
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.3",
+        "express": "^4.18.2",
+        "jsonwebtoken": "^9.0.2",
+        "mysql2": "^3.15.3"
+    },
     "devDependencies": {
+        "concurrently": "^8.2.2",
         "eslint": "^8.0.0",
         "jest": "^29.7.0",
         "jest-environment-jsdom": "^29.0.0"
-    },
-    "keywords": [
-        "javascript",
-        "modernization",
-        "solid-principles",
-        "clean-architecture",
-        "dependency-injection"
-    ],
-    "author": "Your Name",
-    "license": "MIT",
-    "dependencies": {
-        "dotenv": "^17.2.3",
-        "mysql2": "^3.15.3"
     }
 }

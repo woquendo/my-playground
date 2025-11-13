@@ -122,3 +122,26 @@ export class StorageError extends ApplicationError {
         this.key = options.key;
     }
 }
+/**
+ * Authentication-related errors
+ */
+export class AuthenticationError extends ApplicationError {
+    constructor(message, options = {}) {
+        super(message, {
+            code: 'AUTHENTICATION_ERROR',
+            ...options
+        });
+    }
+}
+
+/**
+ * Authorization-related errors
+ */
+export class AuthorizationError extends ApplicationError {
+    constructor(message, options = {}) {
+        super(message, {
+            code: 'AUTHORIZATION_ERROR',
+            ...options
+        });
+    }
+}

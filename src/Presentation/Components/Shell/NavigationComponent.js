@@ -12,12 +12,19 @@ export class NavigationComponent extends BaseComponent {
      * @param {EventBus} options.eventBus - Event bus
      * @param {Logger} options.logger - Logger instance
      * @param {Router} options.router - Router instance (optional, set later)
+     * @param {Container} options.container - DI Container (optional, for auth)
      */
-    constructor({ eventBus, logger, router = null }) {
+    constructor({ eventBus, logger, router = null, container = null }) {
         super({ eventBus, logger });
         this.router = router;
+        this.container = container;
         this.element = null;
         this.currentPath = '/schedule';
+
+        // Check if authManager is available
+        this._authManager = container?.get('authManager');
+        this._currentUser = this._authManager?.getCurrentUser();
+        this._isAdmin = this._authManager?.isAdmin() || false;
 
         // Navigation items configuration (Single Source of Truth)
         this.navItems = [
@@ -26,6 +33,16 @@ export class NavigationComponent extends BaseComponent {
             { path: '/music', label: 'Music', icon: '🎵', ariaLabel: 'Music player' },
             { path: '/import', label: 'Import', icon: '📥', ariaLabel: 'Import data' }
         ];
+
+        // Add admin link if user is admin
+        if (this._isAdmin) {
+            this.navItems.push({
+                path: '/admin',
+                label: 'Admin',
+                icon: '🔐',
+                ariaLabel: 'Admin dashboard'
+            });
+        }
     }
 
     /**
@@ -49,6 +66,7 @@ export class NavigationComponent extends BaseComponent {
         nav.innerHTML = `
             <div class="app-nav__container">
                 ${this.navItems.map(item => this._renderNavItem(item)).join('')}
+                ${this._currentUser ? this._renderUserMenu() : ''}
             </div>
         `;
 
@@ -83,6 +101,44 @@ export class NavigationComponent extends BaseComponent {
     }
 
     /**
+     * Render user menu
+     * @returns {string} HTML string for user menu
+     * @private
+     */
+    _renderUserMenu() {
+        const username = this._currentUser.username;
+        const role = this._currentUser.role;
+
+        return `
+            <div class="app-nav__user-menu">
+                <div class="user-info">
+                    <span class="user-info__icon">👤</span>
+                    <div class="user-info__details">
+                        <span class="user-info__name">${this._escapeHtml(username)}</span>
+                        ${role === 'admin' ? '<span class="user-info__badge">👑 Admin</span>' : ''}
+                    </div>
+                </div>
+                <button class="btn btn--logout" data-action="logout" title="Logout">
+                    <span class="btn__icon">🚪</span>
+                    <span class="btn__text">Logout</span>
+                </button>
+            </div>
+        `;
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     * @param {string} text
+     * @returns {string}
+     * @private
+     */
+    _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
      * Attach event listeners
      * @param {HTMLElement} element - Navigation element
      */
@@ -94,6 +150,14 @@ export class NavigationComponent extends BaseComponent {
                 this._createRippleEffect(e.currentTarget, e);
             });
         });
+
+        // Logout button handler
+        const logoutBtn = element.querySelector('[data-action="logout"]');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this._handleLogout();
+            });
+        }
     }
 
     /**
@@ -128,6 +192,22 @@ export class NavigationComponent extends BaseComponent {
         this.unsubscribe = this._eventBus.subscribe('route:navigation-complete', (data) => {
             this.updateActiveItem(data.path);
         });
+    }
+
+    /**
+     * Handle logout action
+     * @private
+     */
+    _handleLogout() {
+        if (this._authManager) {
+            this._authManager.logout();
+            // Redirect to auth page
+            if (this.router) {
+                this.router.navigate('/auth');
+            } else {
+                window.location.hash = '#/auth';
+            }
+        }
     }
 
     /**

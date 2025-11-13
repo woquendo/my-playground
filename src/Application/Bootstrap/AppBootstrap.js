@@ -144,7 +144,8 @@ export class Application {
         const navigationComponent = new NavigationComponent({
             eventBus,
             logger,
-            router: null // Will be set after router initialization
+            router: null, // Will be set after router initialization
+            container: this.container
         });
         const navElement = navigationComponent.render();
         document.getElementById('app-header').appendChild(navElement);

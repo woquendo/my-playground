@@ -27,6 +27,77 @@
 }
 
 /* ============================================
+   User Menu
+   ============================================ */
+.app-nav__user-menu {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-left: auto;
+    padding-left: var(--spacing-lg);
+    border-left: 1px solid var(--color-border);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.user-info__icon {
+    font-size: var(--font-size-xl);
+    line-height: 1;
+}
+
+.user-info__details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+}
+
+.user-info__name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.user-info__badge {
+    font-size: var(--font-size-xs);
+    color: var(--color-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+.btn--logout {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.btn--logout:hover {
+    color: var(--color-error);
+    background: rgba(245, 101, 101, 0.1);
+    border-color: var(--color-error);
+}
+
+.btn__icon {
+    font-size: var(--font-size-base);
+    line-height: 1;
+}
+
+.btn__text {
+    font-size: var(--font-size-sm);
+}
+
+/* ============================================
    Navigation Links
    ============================================ */
 .app-nav__link {
@@ -171,6 +242,7 @@
     .app-nav__container {
         gap: var(--spacing-2xs);
         padding: var(--spacing-sm) var(--spacing-md);
+        flex-wrap: wrap;
     }
 
     .app-nav__link {
@@ -184,6 +256,19 @@
 
     .app-nav__icon {
         font-size: var(--font-size-lg);
+    }
+
+    .app-nav__user-menu {
+        width: 100%;
+        justify-content: space-between;
+        padding-left: 0;
+        padding-top: var(--spacing-sm);
+        border-left: none;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .user-info__details {
+        display: none;
     }
 }
 

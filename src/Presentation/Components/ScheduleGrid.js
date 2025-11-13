@@ -19,6 +19,7 @@ export class ScheduleGrid extends BaseComponent {
      * @param {function} options.onSkipWeek - Callback for skip week
      * @param {EventBus} options.eventBus - Event bus
      * @param {Logger} options.logger - Logger
+     * @param {Container} options.diContainer - DI container (optional)
      */
     constructor(options) {
         super({
@@ -34,6 +35,7 @@ export class ScheduleGrid extends BaseComponent {
             }
         });
 
+        this._diContainer = options.diContainer; // Store DI container
         this._showCards = new Map();
 
         // Pagination settings
@@ -174,7 +176,8 @@ export class ScheduleGrid extends BaseComponent {
                         onUpdateAirDate: this._props.onUpdateAirDate,
                         onSkipWeek: this._props.onSkipWeek,
                         eventBus: this._eventBus,
-                        logger: this._logger
+                        logger: this._logger,
+                        diContainer: this._diContainer // Pass DI container separately
                     });
 
                     showCard.mount();
@@ -328,7 +331,8 @@ export class ScheduleGrid extends BaseComponent {
                 onUpdateAirDate: this._props.onUpdateAirDate,
                 onSkipWeek: this._props.onSkipWeek,
                 eventBus: this._eventBus,
-                logger: this._logger
+                logger: this._logger,
+                diContainer: this._diContainer // Pass DI container
             });
 
             showCard.mount();

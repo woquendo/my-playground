@@ -35,7 +35,12 @@ function getEnv(key, defaultValue = '') {
     }
 
     // Node.js environment
-    return process.env[key] ?? defaultValue;
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env[key] ?? defaultValue;
+    }
+
+    // Fallback for browser without injected config
+    return defaultValue;
 }
 
 /**

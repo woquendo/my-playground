@@ -16,7 +16,8 @@ export class ShowCard extends BaseComponent {
     /**
      * Create a show card component
      * @param {object} options - Configuration options
-     * @param {HTMLElement} options.container - Container element
+     * @param {HTMLElement} options.container - Container element (DOM)
+     * @param {Container} options.diContainer - DI container (optional)
      * @param {Show} options.show - Show to display
      * @param {string} options.airTime - Air time for future shows (MM-DD-YY format)
      * @param {function} options.onProgress - Callback for progress button
@@ -41,6 +42,10 @@ export class ShowCard extends BaseComponent {
                 onSkipWeek: options.onSkipWeek || (() => { })
             }
         });
+
+        // Check if authManager is available (when database is enabled)
+        this._authManager = options.diContainer?.get('authManager');
+        this._isAdmin = this._authManager?.isAdmin() || false;
 
         // Load streaming sites
         this._sites = [];
@@ -167,6 +172,7 @@ export class ShowCard extends BaseComponent {
                     <span class="action-btn__icon">✓</span>
                     <span class="action-btn__text">Mark Watched</span>
                 </button>
+                ${this._isAdmin ? `
                 <div class="show-card__status-wrapper">
                     <label class="status-label" for="status-${show.getId()}">Status:</label>
                     <select class="show-card__status-select" id="status-${show.getId()}" data-action="status-change" title="Change watch status">
@@ -177,6 +183,12 @@ export class ShowCard extends BaseComponent {
                         <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>📋 Plan to Watch</option>
                     </select>
                 </div>
+                ` : `
+                <div class="show-card__status-display">
+                    <span class="status-label">Status:</span>
+                    <span class="badge badge--${status}">${this._formatStatus(status)}</span>
+                </div>
+                `}
                 <div class="show-card__menu">
                     <button class="show-card__action-btn show-card__action-btn--ghost" data-action="menu-toggle" title="More options" aria-label="Show menu" aria-expanded="false">
                         <span class="action-btn__icon">⋮</span>
@@ -186,6 +198,7 @@ export class ShowCard extends BaseComponent {
                             <span class="dropdown-icon">🔗</span>
                             <span class="dropdown-text">View on MAL</span>
                         </a>
+                        ${this._isAdmin ? `
                         <button class="show-card__dropdown-item" data-action="update-air-date">
                             <span class="dropdown-icon">📅</span>
                             <span class="dropdown-text">Update Air Date</span>
@@ -198,6 +211,7 @@ export class ShowCard extends BaseComponent {
                             <span class="dropdown-icon">⏭️</span>
                             <span class="dropdown-text">Skip This Week</span>
                         </button>
+                        ` : ''}
                     </div>
                 </div>
             </div>

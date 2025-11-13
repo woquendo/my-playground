@@ -121,7 +121,104 @@ my-playground/
 - `GlobalMusicPlayer.js` - Persistent music player
 - `Router.js` - SPA navigation
 
-## 🔧 Configuration
+## �️ Database & Migrations
+
+### MySQL Database Setup
+
+The application supports MySQL for production deployments with a professional migration system.
+
+**Quick Setup:**
+```powershell
+# 1. Ensure MySQL is running
+mysql -u root -p
+
+# 2. Configure environment
+# Edit .env file with your database credentials:
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your-password
+DB_NAME=myplayground_dev
+USE_DATABASE=true
+
+# 3. Run migrations
+npm run migrate
+
+# 4. Seed initial data
+npm run db:seed
+```
+
+### Migration Commands
+
+```powershell
+# Check migration status
+npm run migrate:status
+
+# Run all pending migrations
+npm run migrate
+
+# Rollback last batch
+npm run migrate:rollback
+
+# Reset database (rollback all)
+npm run migrate:reset
+
+# Fresh database (reset + migrate)
+npm run migrate:fresh
+
+# Complete setup (migrate + seed)
+npm run db:setup
+```
+
+### Creating New Migrations
+
+```powershell
+# 1. Create migration file in database/migrations/
+# Format: YYYYMMDDHHMMSS_descriptive_name.js
+
+# 2. Implement up() and down() methods
+# See docs/guides/CREATING_MIGRATIONS.md for examples
+
+# 3. Test migration
+npm run migrate        # Apply
+npm run migrate:rollback  # Test rollback
+npm run migrate        # Re-apply
+
+# 4. Commit migration file
+git add database/migrations/YYYYMMDDHHMMSS_*.js
+git commit -m "Add migration: description"
+```
+
+**Migration Documentation:**
+- [Database Migration Guide](docs/guides/DATABASE_MIGRATION_GUIDE.md) - Complete deployment guide
+- [Creating Migrations](docs/guides/CREATING_MIGRATIONS.md) - Developer guide with patterns
+- [Migration System Summary](docs/DATABASE_MIGRATION_SYSTEM_SUMMARY.md) - Implementation details
+- [Production Deployment Checklist](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) - Step-by-step deployment
+
+### Database Features
+
+**Phase 8 (Completed):**
+- ✅ MySQL 8.0+ support with connection pooling
+- ✅ Versioned migration system (timestamp-based)
+- ✅ Automatic migration tracking and rollback
+- ✅ JWT authentication with bcrypt
+- ✅ Role-based access control (admin/user)
+- ✅ User data isolation (multi-user support)
+- ✅ Transaction safety with auto-rollback
+- ✅ 100% data migration (515/515 items)
+
+**Database Tables:**
+- `users` - Authentication and user profiles
+- `shows` - Anime catalog (shared across users)
+- `user_shows` - Per-user show associations and watch status
+- `songs` - Music library
+- `user_songs` - Per-user favorites
+- `playlists` - Music playlists
+- `streaming_sites` - Platform information
+- `show_streaming_sites` - Show availability
+- `schema_migrations` - Migration tracking
+
+## �🔧 Configuration
 
 ### Sites Configuration (`data/sites.json`)
 

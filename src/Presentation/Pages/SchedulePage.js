@@ -243,7 +243,8 @@ export class SchedulePage {
                 onUpdateAirDate: (show, date) => this.handleUpdateAirDate(show, date),
                 onSkipWeek: (show) => this.handleSkipWeek(show),
                 eventBus: this.eventBus,
-                logger: this.logger
+                logger: this.logger,
+                diContainer: this.container // Pass DI container
             });
 
             container.innerHTML = '';

@@ -435,6 +435,13 @@
     min-width: 180px;
 }
 
+.show-card__status-display {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex: 1;
+}
+
 .status-label {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);

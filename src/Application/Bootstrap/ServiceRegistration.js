@@ -6,6 +6,8 @@
 
 import { HttpShowRepository } from '../../Infrastructure/Repositories/HttpShowRepository.js';
 import { HttpMusicRepository } from '../../Infrastructure/Repositories/HttpMusicRepository.js';
+import { APIShowRepository } from '../../Infrastructure/Repositories/APIShowRepository.js';
+import { APIMusicRepository } from '../../Infrastructure/Repositories/APIMusicRepository.js';
 import { ShowManagementService } from '../Services/ShowManagementService.js';
 import { MusicManagementService } from '../Services/MusicManagementService.js';
 import { ScheduleService } from '../Services/ScheduleService.js';
@@ -17,6 +19,8 @@ import { EpisodeCalculatorService } from '../../Domain/Services/EpisodeCalculato
 import { HttpClient } from '../../Infrastructure/Http/HttpClient.js';
 import { CacheManager } from '../../Infrastructure/Cache/CacheManager.js';
 import { StorageService } from '../../Infrastructure/Storage/StorageService.js';
+import { AuthManager } from '../../Infrastructure/Auth/AuthManager.js';
+import config from '../../Infrastructure/Config/index.js';
 
 /**
  * Register all application services in the container
@@ -53,6 +57,12 @@ export async function registerServices(container) {
         storageKey: 'anime-tracker-v2'
     }));
 
+    // Authentication manager for frontend (Phase 8)
+    container.singleton('authManager', () => new AuthManager({
+        eventBus,
+        logger
+    }));
+
     // ===========================
     // Domain Services
     // ===========================
@@ -66,25 +76,52 @@ export async function registerServices(container) {
     // Repositories
     // ===========================
 
-    // Show repository
-    container.singleton('showRepository', () => new HttpShowRepository(
-        container.get('httpClient'),
-        container.get('cache'),
-        {
-            endpoint: '/data/shows.json',
-            logger
-        }
-    ));
+    // Determine which repositories to use based on configuration
+    const useDatabase = config.database.enabled;
 
-    // Music repository
-    container.singleton('musicRepository', () => new HttpMusicRepository(
-        container.get('httpClient'),
-        container.get('cache'),
-        {
-            endpoint: '/data/songs.json',
-            logger
-        }
-    ));
+    if (useDatabase) {
+        logger.info('Registering API repositories (database mode)...');
+
+        // API Show repository (calls backend REST API)
+        container.singleton('showRepository', () => new APIShowRepository({
+            httpClient: container.get('httpClient'),
+            logger,
+            authManager: container.get('authManager')
+        }));
+
+        // API Music repository (calls backend REST API)
+        container.singleton('musicRepository', () => new APIMusicRepository({
+            httpClient: container.get('httpClient'),
+            logger,
+            authManager: container.get('authManager')
+        }));
+
+        logger.info('✓ API repositories registered (calls backend at http://localhost:3000)');
+    } else {
+        logger.info('Registering HTTP (JSON file) repositories...');
+
+        // Show repository (HTTP/JSON)
+        container.singleton('showRepository', () => new HttpShowRepository(
+            container.get('httpClient'),
+            container.get('cache'),
+            {
+                endpoint: '/data/shows.json',
+                logger
+            }
+        ));
+
+        // Music repository (HTTP/JSON)
+        container.singleton('musicRepository', () => new HttpMusicRepository(
+            container.get('httpClient'),
+            container.get('cache'),
+            {
+                endpoint: '/data/songs.json',
+                logger
+            }
+        ));
+
+        logger.info('✓ HTTP repositories registered');
+    }
 
     // ===========================
     // Application Services
@@ -127,6 +164,13 @@ export async function registerServices(container) {
         httpClient: container.get('httpClient'),
         logger
     }));
+
+    // Authentication service (Phase 8)
+    // NOTE: Database authentication requires backend API
+    // Skipping auth service registration in browser environment
+    if (useDatabase) {
+        logger.warn('AuthService skipped - requires backend API for database operations');
+    }
 
     // ===========================
     // ViewModels
@@ -172,8 +216,12 @@ export function validateServices(container) {
         'importService',
         'sitesService',
         'scheduleViewModel',
-        'musicViewModel'
+        'musicViewModel',
+        'authManager'
     ];
+
+    // NOTE: Database services (connectionManager, authService) are not available in browser
+    // They require a backend API server
 
     const missingServices = [];
 
