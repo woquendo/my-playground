@@ -43,7 +43,8 @@ export class MySQLShowRepository {
                     us.tags,
                     us.notes
                 FROM shows s
-                LEFT JOIN user_shows us ON s.id = us.show_id AND us.user_id = ?
+                INNER JOIN user_shows us ON s.id = us.show_id
+                WHERE us.user_id = ?
                 ORDER BY s.title
             `;
 
@@ -381,6 +382,28 @@ export class MySQLShowRepository {
      * @returns {Show}
      */
     _mapRowToShow(row) {
+        // Parse tags safely - handle null, empty string, arrays, and JSON arrays
+        let tags = [];
+        if (row.tags) {
+            // If tags is already an array, use it directly
+            if (Array.isArray(row.tags)) {
+                tags = row.tags;
+            }
+            // If tags is a string, try to parse it
+            else if (typeof row.tags === 'string' && row.tags !== '[]' && row.tags.trim() !== '') {
+                try {
+                    tags = JSON.parse(row.tags);
+                    // Ensure it's an array
+                    if (!Array.isArray(tags)) {
+                        tags = [];
+                    }
+                } catch (e) {
+                    // Silently default to empty array if parsing fails
+                    tags = [];
+                }
+            }
+        }
+
         return new Show({
             id: row.id,
             title: row.title,
@@ -404,7 +427,7 @@ export class MySQLShowRepository {
             customEpisodes: row.custom_episodes,
             skippedWeeks: row.skipped_weeks || 0,
             customStartDate: row.custom_start_date,
-            tags: row.tags ? JSON.parse(row.tags) : [],
+            tags: tags,
             notes: row.notes || ''
         });
     }

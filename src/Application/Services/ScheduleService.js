@@ -275,6 +275,9 @@ export class ScheduleService {
      * @returns {object} Shows grouped by day
      */
     _groupShowsByDay(shows, weekStart) {
+        // Debug: Log entry
+        this.logger?.info(`[Schedule Debug] _groupShowsByDay called with ${shows.length} shows`);
+
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const schedule = {};
         const today = ShowDate.today();
@@ -297,6 +300,13 @@ export class ScheduleService {
         // Group shows by their air day
         shows.forEach(show => {
             const airingStatus = this._getShowProperty(show, 'airingStatus');
+            const title = this._getShowProperty(show, 'title');
+            const effectiveDate = this._getShowProperty(show, 'effectiveStartDate');
+
+            // Debug: Log first 5 shows with detailed info
+            if (shows.indexOf(show) < 5) {
+                this.logger?.info(`[Schedule Debug] Show: "${title}", effectiveStartDate: ${effectiveDate ? effectiveDate.toString() : 'NULL'}, type: ${effectiveDate ? effectiveDate.constructor.name : 'null'}, airingStatus: ${airingStatus}`);
+            }
 
             // Shows that have ended go to "Ended" category (2 = finished_airing)
             if (airingStatus === 'finished_airing' || airingStatus === 2) {

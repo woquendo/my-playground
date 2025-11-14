@@ -842,13 +842,13 @@ export class GlobalMusicPlayer extends BaseComponent {
 
             const playlists = track.getPlaylists ? track.getPlaylists() : (track.playlists || []);
 
-            console.log('🔍 [GlobalMusicPlayer._normalizeTrack] Extracting playlists:', {
-                title: track.getTitle(),
-                hasGetPlaylists: typeof track.getPlaylists === 'function',
-                playlists: playlists,
-                playlistsLength: playlists.length,
-                rawPlaylists: track.playlists
-            });
+            // console.log('🔍 [GlobalMusicPlayer._normalizeTrack] Extracting playlists:', {
+            //     title: track.getTitle(),
+            //     hasGetPlaylists: typeof track.getPlaylists === 'function',
+            //     playlists: playlists,
+            //     playlistsLength: playlists.length,
+            //     rawPlaylists: track.playlists
+            // });
 
             return {
                 id: track.getId(),

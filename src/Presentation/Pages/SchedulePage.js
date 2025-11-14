@@ -245,7 +245,7 @@ export class SchedulePage {
                     <div class="empty-state">
                         <div class="empty-state__icon">${isNewUser ? '📺' : '🔍'}</div>
                         <h2 class="empty-state__title">
-                            ${isNewUser ? 'Welcome to My Playground!' : `No shows for ${selectedDay}`}
+                            ${isNewUser ? 'Welcome to your Anime Scheduler!' : `No shows for ${selectedDay}`}
                         </h2>
                         <p class="empty-state__message">
                             ${isNewUser

@@ -10,15 +10,15 @@ export class Music {
      * @param {object} data - Music data
      */
     constructor(data) {
-        console.log('🔍 [Music.constructor] Received data:', {
-            title: data.title,
-            youtube: data.youtube,
-            youtubeUrl: data.youtubeUrl,
-            youtube_type: typeof data.youtube,
-            youtubeUrl_type: typeof data.youtubeUrl,
-            youtube_length: data.youtube?.length,
-            youtubeUrl_length: data.youtubeUrl?.length
-        });
+        // console.log('🔍 [Music.constructor] Received data:', {
+        //     title: data.title,
+        //     youtube: data.youtube,
+        //     youtubeUrl: data.youtubeUrl,
+        //     youtube_type: typeof data.youtube,
+        //     youtubeUrl_type: typeof data.youtubeUrl,
+        //     youtube_length: data.youtube?.length,
+        //     youtubeUrl_length: data.youtubeUrl?.length
+        // });
 
         this._validateRequiredFields(data);
 
@@ -43,15 +43,15 @@ export class Music {
         }
         this.localFile = data.localFile || data.local_file || null;
 
-        console.log('🔍 [Music.constructor] Assigned URLs:', {
-            title: this.title,
-            youtubeUrl: this.youtubeUrl,
-            youtubeUrl_length: this.youtubeUrl?.length,
-            youtubeUrl_type: typeof this.youtubeUrl,
-            spotifyUrl: this.spotifyUrl,
-            appleMusicUrl: this.appleMusicUrl,
-            localFile: this.localFile
-        });
+        // console.log('🔍 [Music.constructor] Assigned URLs:', {
+        //     title: this.title,
+        //     youtubeUrl: this.youtubeUrl,
+        //     youtubeUrl_length: this.youtubeUrl?.length,
+        //     youtubeUrl_type: typeof this.youtubeUrl,
+        //     spotifyUrl: this.spotifyUrl,
+        //     appleMusicUrl: this.appleMusicUrl,
+        //     localFile: this.localFile
+        // });
 
         // Validate and set duration
         if (data.duration !== undefined && data.duration !== null && data.duration !== 0) {
@@ -211,16 +211,16 @@ export class Music {
             this.localFile ||
             null;
 
-        console.log('🔍 [Music.getPrimaryUrl] URL priority check:', {
-            title: this.title,
-            youtubeUrl: this.youtubeUrl,
-            spotifyUrl: this.spotifyUrl,
-            soundcloudUrl: this.soundcloudUrl,
-            appleMusicUrl: this.appleMusicUrl,
-            localFile: this.localFile,
-            result: result,
-            result_length: result?.length
-        });
+        // console.log('🔍 [Music.getPrimaryUrl] URL priority check:', {
+        //     title: this.title,
+        //     youtubeUrl: this.youtubeUrl,
+        //     spotifyUrl: this.spotifyUrl,
+        //     soundcloudUrl: this.soundcloudUrl,
+        //     appleMusicUrl: this.appleMusicUrl,
+        //     localFile: this.localFile,
+        //     result: result,
+        //     result_length: result?.length
+        // });
 
         return result;
     }

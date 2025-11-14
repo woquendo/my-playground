@@ -21,7 +21,7 @@ export class SitesService {
     }
 
     /**
-     * Load sites from sites.json
+     * Load sites from database (placeholder - returns empty array until database implementation)
      * @returns {Promise<Array>} Array of site objects
      */
     async loadSites() {
@@ -29,15 +29,11 @@ export class SitesService {
             return this.cachedSites;
         }
 
-        try {
-            const data = await this.httpClient.get(this.config.data.sitesPath);
-            this.cachedSites = data.sites || [];
-            this.logger.info(`Loaded ${this.cachedSites.length} streaming sites from ${this.config.data.sitesPath}`);
-            return this.cachedSites;
-        } catch (error) {
-            this.logger.error('Failed to load sites:', error);
-            return [];
-        }
+        // TODO: Load from streaming_sites table when database API is ready
+        // For now, return empty array since sites.json has been removed
+        this.cachedSites = [];
+        this.logger.debug('Streaming sites feature disabled - will use database in future');
+        return this.cachedSites;
     }
 
     /**
