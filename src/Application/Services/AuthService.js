@@ -61,7 +61,7 @@ export class AuthService {
             // Hash password
             const passwordHash = await bcrypt.hash(password, this.saltRounds);
 
-            // Insert user
+            // Insert user (email is optional, can be NULL)
             const sql = `
                 INSERT INTO users (username, email, password_hash, display_name)
                 VALUES (?, ?, ?, ?)
@@ -69,7 +69,7 @@ export class AuthService {
 
             const result = await this.connectionManager.query(sql, [
                 username,
-                email,
+                email || null,  // Use NULL if email not provided
                 passwordHash,
                 displayName || username
             ]);
@@ -411,13 +411,25 @@ export class AuthService {
      * @returns {Promise<Object|null>}
      */
     async _findByUsernameOrEmail(username, email) {
-        const sql = `
-            SELECT * FROM users
-            WHERE username = ? OR email = ?
-            LIMIT 1
-        `;
+        // If email is not provided, only check username
+        let sql, params;
+        if (email) {
+            sql = `
+                SELECT * FROM users
+                WHERE username = ? OR email = ?
+                LIMIT 1
+            `;
+            params = [username, email];
+        } else {
+            sql = `
+                SELECT * FROM users
+                WHERE username = ?
+                LIMIT 1
+            `;
+            params = [username];
+        }
 
-        const rows = await this.connectionManager.query(sql, [username, email]);
+        const rows = await this.connectionManager.query(sql, params);
         return rows.length > 0 ? rows[0] : null;
     }
 
@@ -466,7 +478,7 @@ export class AuthService {
     async _updateLastLogin(userId) {
         const sql = `
             UPDATE users
-            SET last_login_at = CURRENT_TIMESTAMP
+            SET last_login = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
 
@@ -485,7 +497,8 @@ export class AuthService {
             });
         }
 
-        if (!email || !this._isValidEmail(email)) {
+        // Email is optional, but if provided, must be valid
+        if (email && !this._isValidEmail(email)) {
             throw new ValidationError('Invalid email address', {
                 field: 'email'
             });

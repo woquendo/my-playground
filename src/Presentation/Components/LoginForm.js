@@ -35,16 +35,10 @@ export class LoginForm extends BaseComponent {
         const { showPassword, validationErrors } = this.state;
 
         return `
-            <div class="auth-form login-form">
-                <div class="auth-form__header">
-                    <h2 class="auth-form__title">Welcome Back</h2>
-                    <p class="auth-form__subtitle">Sign in to continue</p>
-                </div>
-
+            <div class="login-form">
                 ${error ? `
                     <div class="alert alert--error">
-                        <span class="alert__icon">⚠️</span>
-                        <span class="alert__message">${error}</span>
+                        ${error}
                     </div>
                 ` : ''}
 
@@ -75,7 +69,7 @@ export class LoginForm extends BaseComponent {
                         <label for="login-password" class="form-label">
                             Password
                         </label>
-                        <div class="form-input-wrapper">
+                        <div class="password-wrapper">
                             <input
                                 type="${showPassword ? 'text' : 'password'}"
                                 id="login-password"
@@ -89,7 +83,7 @@ export class LoginForm extends BaseComponent {
                             />
                             <button
                                 type="button"
-                                class="form-input-toggle"
+                                class="password-toggle"
                                 data-toggle-password
                                 aria-label="Toggle password visibility"
                             >
@@ -104,28 +98,18 @@ export class LoginForm extends BaseComponent {
                     <!-- Submit Button -->
                     <button
                         type="submit"
-                        class="btn btn--primary btn--block"
+                        class="btn btn--primary btn--block ${loading ? 'btn--loading' : ''}"
                         ${loading ? 'disabled' : ''}
                     >
-                        ${loading ? `
-                            <span class="btn__spinner"></span>
-                            <span>Signing in...</span>
-                        ` : 'Sign In'}
+                        ${loading ? 'Signing in...' : 'Sign In'}
                     </button>
 
                     <!-- Switch to Register -->
-                    <div class="auth-form__footer">
-                        <p>
-                            Don't have an account?
-                            <button
-                                type="button"
-                                class="link"
-                                data-switch-to-register
-                                ${loading ? 'disabled' : ''}
-                            >
-                                Create one
-                            </button>
-                        </p>
+                    <div class="form-footer">
+                        <span class="form-switch-text">Don't have an account?</span>
+                        <a href="#" class="form-switch-link" data-switch-to-register>
+                            Create one
+                        </a>
                     </div>
                 </form>
             </div>
@@ -167,7 +151,8 @@ export class LoginForm extends BaseComponent {
 
         // Switch to register
         if (switchToRegister) {
-            this._addEventListener(switchToRegister, 'click', () => {
+            this._addEventListener(switchToRegister, 'click', (e) => {
+                e.preventDefault();
                 this._props.onSwitchToRegister();
             });
         }

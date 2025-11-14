@@ -2,6 +2,8 @@
  * API Music Repository
  * Repository that communicates with backend API for music operations
  */
+import { Music } from '../../Domain/Models/Music.js';
+
 export class APIMusicRepository {
     constructor({ httpClient, logger, authManager, config }) {
         this.httpClient = httpClient;
@@ -34,7 +36,32 @@ export class APIMusicRepository {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const songs = await response.json();
+            const songsData = await response.json();
+
+            // Count songs with playlists
+            const songsWithPlaylists = songsData.filter(s => s.playlists && s.playlists.length > 0);
+
+            console.log('🔍 [APIMusicRepository.findAll] API response:', {
+                count: songsData.length,
+                songsWithPlaylists: songsWithPlaylists.length,
+                sampleSong: songsData[0] ? {
+                    id: songsData[0].id,
+                    title: songsData[0].title,
+                    youtubeUrl: songsData[0].youtubeUrl,
+                    youtubeUrl_length: songsData[0].youtubeUrl?.length,
+                    playlists: songsData[0].playlists,
+                    playlists_count: songsData[0].playlists?.length
+                } : null,
+                sampleSongWithPlaylist: songsWithPlaylists[0] ? {
+                    id: songsWithPlaylists[0].id,
+                    title: songsWithPlaylists[0].title,
+                    playlists: songsWithPlaylists[0].playlists
+                } : null
+            });
+
+            // Convert plain objects to Music domain models
+            const songs = songsData.map(songData => new Music(songData));
+
             this.logger.debug('Loaded songs from API', { count: songs.length });
             return songs;
         } catch (error) {

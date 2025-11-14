@@ -83,11 +83,11 @@ export class ShowCard extends BaseComponent {
      */
     _template() {
         const show = this._props.show;
-        const current = show.getWatchingStatus();
-        const total = show.getTotalEpisodes();
-        const latest = show.getCurrentEpisode(new Date());
-        const status = show.getStatus();
-        const title = this._escapeHtml(show.getPrimaryTitle());
+        const current = typeof show.getWatchingStatus === 'function' ? show.getWatchingStatus() : (show.watching_status || 0);
+        const total = typeof show.getTotalEpisodes === 'function' ? show.getTotalEpisodes() : (show.episodes || 0);
+        const latest = typeof show.getCurrentEpisode === 'function' ? show.getCurrentEpisode(new Date()) : (show.current_episode || 0);
+        const status = typeof show.getStatus === 'function' ? show.getStatus() : (show.status || 'plan_to_watch');
+        const title = this._escapeHtml(typeof show.getPrimaryTitle === 'function' ? show.getPrimaryTitle() : (show.title || 'Unknown'));
         const showUrl = show.getUrl?.() || show.url || '#';
 
         // Determine the air day/date display
@@ -99,7 +99,7 @@ export class ShowCard extends BaseComponent {
             airDay = this._formatAirDate(airTime);
         } else {
             // For regular shows, use the standard air day
-            airDay = show.getAirDay() || 'Unknown';
+            airDay = (typeof show.getAirDay === 'function' ? show.getAirDay() : show.air_day) || 'Unknown';
         }
 
         // Use getter method for image URL
@@ -111,7 +111,7 @@ export class ShowCard extends BaseComponent {
 
         return `
             <div class="show-card-wrapper">
-            <div class="show-card show-card--horizontal ${statusClass} ${behindClass}" data-show-id="${show.getId()}">
+            <div class="show-card show-card--horizontal ${statusClass} ${behindClass}" data-show-id="${typeof show.getId === 'function' ? show.getId() : show.id}">
                 <a href="${this._escapeHtml(showUrl)}" target="_blank" rel="noopener noreferrer" class="show-card__image-link" title="View on MyAnimeList">
                     ${imageUrl ? `
                         <div class="show-card__image">
@@ -174,8 +174,8 @@ export class ShowCard extends BaseComponent {
                 </button>
                 ${this._isAdmin ? `
                 <div class="show-card__status-wrapper">
-                    <label class="status-label" for="status-${show.getId()}">Status:</label>
-                    <select class="show-card__status-select" id="status-${show.getId()}" data-action="status-change" title="Change watch status">
+                    <label class="status-label" for="status-${typeof show.getId === 'function' ? show.getId() : show.id}">Status:</label>
+                    <select class="show-card__status-select" id="status-${typeof show.getId === 'function' ? show.getId() : show.id}" data-action="status-change" title="Change watch status">
                         <option value="watching" ${status === 'watching' ? 'selected' : ''}>📺 Watching</option>
                         <option value="completed" ${status === 'completed' ? 'selected' : ''}>✅ Completed</option>
                         <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>⏸️ On Hold</option>
@@ -252,8 +252,8 @@ export class ShowCard extends BaseComponent {
         }
 
         const show = this._props.show;
-        const showId = show.getId();
-        const animeTitle = show.getPrimaryTitle();
+        const showId = typeof show.getId === 'function' ? show.getId() : show.id;
+        const animeTitle = typeof show.getPrimaryTitle === 'function' ? show.getPrimaryTitle() : (show.title || 'Unknown');
 
         // Get available sites for this show
         const availableSites = getAvailableSitesForShow(showId);
@@ -321,7 +321,7 @@ export class ShowCard extends BaseComponent {
         }
 
         const show = this._props.show;
-        const showId = show.getId();
+        const showId = typeof show.getId === 'function' ? show.getId() : show.id;
         const availableSites = getAvailableSitesForShow(showId);
 
         const checkboxes = this._sites.map(site => {
@@ -532,7 +532,7 @@ export class ShowCard extends BaseComponent {
         modal.innerHTML = `
             <div class="modal-content">
                 <h3>Update Air Date</h3>
-                <p class="text-secondary">Enter the new air date for: <strong>${this._escapeHtml(show.getTitle())}</strong></p>
+                <p class="text-secondary">Enter the new air date for: <strong>${this._escapeHtml(typeof show.getTitle === 'function' ? show.getTitle() : (show.title || 'Unknown'))}</strong></p>
                 <div class="form-group">
                     <label for="air-date-input">Air Date (MM-DD-YY format):</label>
                     <input 
@@ -641,7 +641,7 @@ export class ShowCard extends BaseComponent {
         modal.innerHTML = `
             <div class="modal-content">
                 <h3>Update Skipped Weeks</h3>
-                <p class="text-secondary">Set skipped weeks for: <strong>${this._escapeHtml(show.getTitle())}</strong></p>
+                <p class="text-secondary">Set skipped weeks for: <strong>${this._escapeHtml(typeof show.getTitle === 'function' ? show.getTitle() : (show.title || 'Unknown'))}</strong></p>
                 <div class="form-group">
                     <label for="skipped-weeks-input">Number of Skipped Weeks:</label>
                     <input 

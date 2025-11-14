@@ -151,6 +151,148 @@
     animation: musicBounce 0.6s ease-in-out infinite;
 }
 
+/* ============================================
+   Authentication UI
+   ============================================ */
+/* Login button */
+.auth-login-btn {
+    background: linear-gradient(135deg,
+            rgba(var(--color-accent-rgb), 0.15) 0%,
+            rgba(var(--color-accent-rgb), 0.08) 100%);
+}
+
+.auth-login-btn:hover {
+    background: linear-gradient(135deg,
+            rgba(var(--color-accent-rgb), 0.25) 0%,
+            rgba(var(--color-accent-rgb), 0.15) 100%);
+    border-color: var(--color-accent);
+    box-shadow: 0 4px 12px rgba(var(--color-accent-rgb), 0.2);
+}
+
+/* User profile */
+.user-profile {
+    position: relative;
+}
+
+.user-profile__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: var(--color-surface-elevated);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.user-profile__button:hover {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.2);
+    transform: scale(1.05);
+}
+
+.user-profile__button:active {
+    transform: scale(0.98);
+}
+
+.user-profile__icon {
+    font-size: var(--font-size-xl);
+    line-height: 1;
+}
+
+/* User profile dropdown */
+.user-profile__dropdown {
+    position: absolute;
+    top: calc(100% + var(--spacing-xs));
+    right: 0;
+    min-width: 220px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all var(--duration-fast) var(--ease-out);
+    z-index: var(--z-dropdown);
+}
+
+.user-profile__dropdown--open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.user-profile__info {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.user-profile__email {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-2xs);
+}
+
+.user-profile__role {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: capitalize;
+    background: rgba(var(--color-primary-rgb), 0.1);
+    padding: var(--spacing-2xs) var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.user-profile__menu {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-profile__menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: transparent;
+    border: none;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    text-align: left;
+}
+
+.user-profile__menu-item:hover {
+    background: var(--color-surface-hover);
+}
+
+.user-profile__menu-item:active {
+    transform: scale(0.98);
+}
+
+.user-profile__menu-icon {
+    font-size: var(--font-size-lg);
+    line-height: 1;
+}
+
+.user-profile__logout {
+    color: var(--color-error);
+    border-top: 1px solid var(--color-border);
+}
+
+.user-profile__logout:hover {
+    background: rgba(var(--color-error-rgb), 0.1);
+}
+
 @keyframes musicPulse {
 
     0%,

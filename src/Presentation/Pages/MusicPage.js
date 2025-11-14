@@ -457,6 +457,14 @@ export class MusicPage {
                 hasSubscribers: diagnostics.eventStats['music:play'] || 0
             });
 
+            console.log('🔍 [MusicPage.setCurrentTrack] BEFORE emitSync:', {
+                hasGetTitle: typeof track.getTitle === 'function',
+                hasGetId: typeof track.getId === 'function',
+                title: track.title,
+                youtubeUrl: track.youtubeUrl,
+                trackType: track.constructor.name
+            });
+
             // Use emitSync to avoid async timing issues
             this.eventBus.emitSync('music:play', track);
             this.logger.info('Event emitted (sync) - Delegating playback to global player:', track.getTitle());

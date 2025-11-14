@@ -45,6 +45,15 @@ export class Application {
             await registerServices(this.container);
             console.log('✓ Services registered');
 
+            // Step 2.5: Check if user is already authenticated and emit event
+            const authManager = this.container.get('authManager');
+            const eventBus = this.container.get('eventBus');
+            if (authManager.isAuthenticated()) {
+                const user = authManager.getCurrentUser();
+                console.log('✓ User already authenticated:', user.username);
+                eventBus.emit('auth:login', { user });
+            }
+
             // Step 3: Initialize application state
             await this.initializeState();
             console.log('✓ Application state initialized');

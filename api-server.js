@@ -25,7 +25,7 @@ app.use(cors({
 app.use(express.json());
 
 // Auth middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -35,7 +35,7 @@ const authenticateToken = (req, res, next) => {
 
     try {
         const authService = new AuthService({ connectionManager, logger });
-        const user = authService.verifyToken(token);
+        const user = await authService.verifyToken(token);
         req.user = user;
         next();
     } catch (error) {
@@ -63,8 +63,24 @@ app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
         const authService = new AuthService({ connectionManager, logger });
-        const result = await authService.register({ username, email, password });
-        res.json(result);
+
+        // Register user
+        const user = await authService.register({ username, email, password });
+
+        // Generate token for the new user
+        const token = authService._generateToken(user);
+
+        // Return user and token
+        res.json({
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                displayName: user.displayName,
+                role: user.role
+            },
+            token
+        });
     } catch (error) {
         logger.error('Registration failed', { error: error.message });
         res.status(400).json({ error: error.message });
@@ -74,11 +90,24 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        logger.info('Login attempt', {
+            username,
+            hasPassword: !!password,
+            passwordLength: password?.length,
+            bodyKeys: Object.keys(req.body)
+        });
+
         const authService = new AuthService({ connectionManager, logger });
         const result = await authService.login(username, password);
+
+        logger.info('Login successful', { username, userId: result.user?.id });
         res.json(result);
     } catch (error) {
-        logger.error('Login failed', { error: error.message });
+        logger.error('Login failed', {
+            username: req.body.username,
+            error: error.message,
+            stack: error.stack
+        });
         res.status(401).json({ error: error.message });
     }
 });
@@ -86,7 +115,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
     try {
         const authService = new AuthService({ connectionManager, logger });
-        const profile = await authService.getUserProfile(req.user.userId);
+        const profile = await authService.getUserProfile(req.user.id);
         res.json(profile);
     } catch (error) {
         logger.error('Get profile failed', { error: error.message });
@@ -101,7 +130,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 app.get('/api/shows', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLShowRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const { status, day, search } = req.query;
 
@@ -116,7 +145,9 @@ app.get('/api/shows', authenticateToken, async (req, res) => {
             shows = await repository.findAll();
         }
 
-        res.json(shows);
+        // Convert Show models to plain objects for JSON serialization
+        const showsJSON = shows.map(show => show.toJSON ? show.toJSON() : show);
+        res.json(showsJSON);
     } catch (error) {
         logger.error('Get shows failed', { error: error.message });
         res.status(500).json({ error: error.message });
@@ -126,7 +157,7 @@ app.get('/api/shows', authenticateToken, async (req, res) => {
 app.get('/api/shows/:id', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLShowRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const show = await repository.findById(parseInt(req.params.id));
 
@@ -144,7 +175,7 @@ app.get('/api/shows/:id', authenticateToken, async (req, res) => {
 app.post('/api/shows', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLShowRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const show = await repository.create(req.body);
         res.status(201).json(show);
@@ -157,7 +188,7 @@ app.post('/api/shows', authenticateToken, async (req, res) => {
 app.put('/api/shows/:id', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLShowRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const show = await repository.update(parseInt(req.params.id), req.body);
 
@@ -175,7 +206,7 @@ app.put('/api/shows/:id', authenticateToken, async (req, res) => {
 app.delete('/api/shows/:id', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLShowRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const success = await repository.delete(parseInt(req.params.id));
 
@@ -197,7 +228,7 @@ app.delete('/api/shows/:id', authenticateToken, async (req, res) => {
 app.get('/api/music', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLMusicRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const { type, playlist, search, favorites } = req.query;
 
@@ -214,7 +245,10 @@ app.get('/api/music', authenticateToken, async (req, res) => {
             songs = await repository.findAll();
         }
 
-        res.json(songs);
+        // Convert Music models to plain objects for JSON serialization
+        const songsJSON = songs.map(song => song.toJSON ? song.toJSON() : song);
+
+        res.json(songsJSON);
     } catch (error) {
         logger.error('Get music failed', { error: error.message });
         res.status(500).json({ error: error.message });
@@ -224,7 +258,7 @@ app.get('/api/music', authenticateToken, async (req, res) => {
 app.post('/api/music', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLMusicRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const song = await repository.create(req.body);
         res.status(201).json(song);
@@ -237,7 +271,7 @@ app.post('/api/music', authenticateToken, async (req, res) => {
 app.put('/api/music/:id', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLMusicRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const song = await repository.update(parseInt(req.params.id), req.body);
 
@@ -255,7 +289,7 @@ app.put('/api/music/:id', authenticateToken, async (req, res) => {
 app.delete('/api/music/:id', authenticateToken, async (req, res) => {
     try {
         const repository = new MySQLMusicRepository({ connectionManager, logger });
-        repository.userId = req.user.userId;
+        repository.userId = req.user.id;
 
         const success = await repository.delete(parseInt(req.params.id));
 
@@ -318,6 +352,33 @@ app.get('/api/admin/stats', authenticateToken, requireAdmin, async (req, res) =>
     } catch (error) {
         logger.error('Get stats failed', { error: error.message });
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Debug endpoint to test playlist query
+app.get('/api/debug/playlists', authenticateToken, async (req, res) => {
+    try {
+        const repository = new MySQLMusicRepository({ connectionManager, logger });
+        repository.userId = req.user.id;
+
+        // Get first 5 songs
+        const songs = await connectionManager.query('SELECT id FROM songs LIMIT 5');
+        logger.error('🔍 DEBUG: songs type:', typeof songs, 'isArray:', Array.isArray(songs), 'value:', songs);
+        const songIds = songs.map(s => s.id);
+
+        // Call the private method via a test
+        const playlistsMap = await repository._getPlaylistsForSongs(songIds);
+
+        res.json({
+            userId: req.user.userId,
+            repositoryUserId: repository.userId,
+            songIds: songIds,
+            playlistsMapSize: playlistsMap.size,
+            playlistsMapEntries: Array.from(playlistsMap.entries())
+        });
+    } catch (error) {
+        logger.error('Debug playlists failed', { error: error.message, stack: error.stack });
+        res.status(500).json({ error: error.message, stack: error.stack });
     }
 });
 

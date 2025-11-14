@@ -56,6 +56,15 @@ export class GlobalMusicPlayer extends BaseComponent {
 
         // Listen for music playback requests
         this._eventBus.subscribe('music:play', (track) => {
+            console.log('🔍 [GlobalMusicPlayer] RECEIVED music:play event:', {
+                hasGetTitle: typeof track?.getTitle === 'function',
+                hasGetId: typeof track?.getId === 'function',
+                title: track?.title,
+                youtubeUrl: track?.youtubeUrl,
+                trackType: track?.constructor?.name,
+                trackKeys: Object.keys(track || {})
+            });
+
             this._logger.info('=== RECEIVED music:play event ===', {
                 trackId: track?.getId ? track.getId() : track?.id,
                 trackTitle: track?.getTitle ? track.getTitle() : track?.title,
@@ -354,12 +363,26 @@ export class GlobalMusicPlayer extends BaseComponent {
     _getAvailablePlaylists() {
         const playlistsMap = new Map();
 
+        console.log('🔍 [GlobalMusicPlayer._getAvailablePlaylists] Checking tracks:', {
+            totalTracks: this.tracks.length,
+            sampleTrack: this.tracks[0] ? {
+                title: this.tracks[0].title,
+                playlists: this.tracks[0].playlists,
+                playlistsLength: this.tracks[0].playlists?.length
+            } : null
+        });
+
         this.tracks.forEach(track => {
             if (track.playlists && track.playlists.length > 0) {
                 track.playlists.forEach(playlistName => {
                     playlistsMap.set(playlistName, (playlistsMap.get(playlistName) || 0) + 1);
                 });
             }
+        });
+
+        console.log('🔍 [GlobalMusicPlayer._getAvailablePlaylists] Result:', {
+            playlistCount: playlistsMap.size,
+            playlists: Array.from(playlistsMap.entries())
         });
 
         return playlistsMap;
@@ -650,6 +673,13 @@ export class GlobalMusicPlayer extends BaseComponent {
             this.tracks = rawTracks.map(track => this._normalizeTrack(track));
             this.filteredTracks = [...this.tracks];
             this._logger.info(`Loaded ${this.tracks.length} tracks`);
+
+            // Debug: Check if any tracks have playlists
+            const tracksWithPlaylists = this.tracks.filter(t => t.playlists && t.playlists.length > 0);
+            this._logger.info(`Tracks with playlists: ${tracksWithPlaylists.length}/${this.tracks.length}`);
+            if (tracksWithPlaylists.length > 0) {
+                this._logger.info(`Sample track with playlists:`, tracksWithPlaylists[0]);
+            }
         } catch (error) {
             this._logger.error('Failed to load tracks', error);
             this.tracks = [];
@@ -724,6 +754,19 @@ export class GlobalMusicPlayer extends BaseComponent {
         // Normalize track object (handle Music domain model)
         const normalizedTrack = this._normalizeTrack(track);
 
+        if (!normalizedTrack.url) {
+            this._logger.error('Track has no playable URL', {
+                id: normalizedTrack.id,
+                title: normalizedTrack.title,
+                artist: normalizedTrack.artist,
+                url: normalizedTrack.url,
+                // Log the original track to see if URLs exist before normalization
+                originalTrack: track
+            });
+            this._showError('Cannot play this track - no source available');
+            return;
+        }
+
         this.currentTrack = normalizedTrack;
         this._logger.info(`Playing track: ${normalizedTrack.title}`);
 
@@ -731,13 +774,23 @@ export class GlobalMusicPlayer extends BaseComponent {
         this._updateTrackInfo();
         this._updateTrackList();
 
-        // Determine if YouTube or audio
-        const isYouTube = normalizedTrack.url && (normalizedTrack.url.includes('youtube.com') || normalizedTrack.url.includes('youtu.be'));
+        // Determine player type based on URL
+        const videoId = this._extractYouTubeId(normalizedTrack.url);
 
-        if (isYouTube) {
+        if (videoId) {
+            // Has valid YouTube video ID - use YouTube player
             this._playYouTubeTrack(normalizedTrack, autoPlay);
-        } else {
+        } else if (this._isPlayableAudioUrl(normalizedTrack.url)) {
+            // Direct audio file URL - use HTML5 audio
             this._playAudioTrack(normalizedTrack, autoPlay);
+        } else {
+            // Streaming service URL without video ID (Spotify, Apple Music, etc.)
+            this._logger.error('Unsupported streaming service URL', {
+                url: normalizedTrack.url,
+                title: normalizedTrack.title
+            });
+            this._showError(`Cannot play "${normalizedTrack.title}" - unsupported source (Spotify/Apple Music require premium APIs)`);
+            return;
         }
 
         // Save state
@@ -754,22 +807,75 @@ export class GlobalMusicPlayer extends BaseComponent {
      * @private
      */
     _normalizeTrack(track) {
+        console.log('🔍 [GlobalMusicPlayer._normalizeTrack] Received track:', {
+            hasGetTitle: typeof track.getTitle === 'function',
+            title: track.title || (track.getTitle && track.getTitle()),
+            youtubeUrl: track.youtubeUrl,
+            youtubeUrl_length: track.youtubeUrl?.length
+        });
+
         // If it's a Music domain model, convert it
         if (track.getTitle && typeof track.getTitle === 'function') {
+            const primaryUrl = track.getPrimaryUrl();
+
+            console.log('🔍 [GlobalMusicPlayer._normalizeTrack] Music model processed:', {
+                title: track.getTitle(),
+                primaryUrl: primaryUrl,
+                primaryUrl_length: primaryUrl?.length,
+                youtubeUrl: track.youtubeUrl,
+                spotifyUrl: track.spotifyUrl,
+                appleMusicUrl: track.appleMusicUrl,
+                localFile: track.localFile
+            });
+
+            // Debug logging for URL issues
+            if (!primaryUrl) {
+                this._logger.warn('Music model has no primary URL', {
+                    id: track.getId(),
+                    title: track.getTitle(),
+                    youtubeUrl: track.youtubeUrl,
+                    spotifyUrl: track.spotifyUrl,
+                    appleMusicUrl: track.appleMusicUrl,
+                    localFile: track.localFile
+                });
+            }
+
+            const playlists = track.getPlaylists ? track.getPlaylists() : (track.playlists || []);
+
+            console.log('🔍 [GlobalMusicPlayer._normalizeTrack] Extracting playlists:', {
+                title: track.getTitle(),
+                hasGetPlaylists: typeof track.getPlaylists === 'function',
+                playlists: playlists,
+                playlistsLength: playlists.length,
+                rawPlaylists: track.playlists
+            });
+
             return {
                 id: track.getId(),
                 title: track.getTitle(),
                 artist: track.getArtist(),
                 show: track.getArtist(), // Use artist as show for music
-                url: track.getPrimaryUrl(),
+                url: primaryUrl,
                 type: track.type || track.genre || 'OST',
                 autoplay: track.autoplay || false,
-                playlists: track.playlists || []
+                playlists: playlists
             };
         }
 
         // Otherwise assume it's already a plain object
         return track;
+    }
+
+    /**
+     * Show error message to user
+     * @param {string} message - Error message
+     * @private
+     */
+    _showError(message) {
+        this._eventBus.emit('toast:show', {
+            message: message,
+            type: 'error'
+        });
     }
 
     /**
@@ -791,14 +897,50 @@ export class GlobalMusicPlayer extends BaseComponent {
         const ytContainer = this.element?.querySelector('.global-music-player__youtube');
         if (ytContainer) ytContainer.style.display = 'none';
 
+        // Validate URL before attempting playback
+        if (!track.url) {
+            this._logger.error('Audio track has no URL');
+            this._showError('Cannot play track - no source URL');
+            return;
+        }
+
         // Apply volume settings
         this.audioElement.volume = this.volume;
         this.audioElement.muted = this.isMuted;
 
+        // Set source
         this.audioElement.src = track.url;
+
+        // Add one-time error handler
+        const errorHandler = (e) => {
+            this._logger.error('Audio playback failed', {
+                url: track.url,
+                title: track.title,
+                errorCode: e.target?.error?.code,
+                errorMessage: e.target?.error?.message
+            });
+
+            const errorMessages = {
+                1: 'Loading aborted',
+                2: 'Network error',
+                3: 'Decoding failed',
+                4: 'Format not supported'
+            };
+
+            const errorCode = e.target?.error?.code || 0;
+            const errorMsg = errorMessages[errorCode] || 'Unknown error';
+
+            this._showError(`Cannot play "${track.title}" - ${errorMsg}`);
+            this.isPlaying = false;
+            this._updatePlayPauseButton();
+        };
+
+        this.audioElement.addEventListener('error', errorHandler, { once: true });
+
         if (autoPlay) {
             this.audioElement.play().catch(err => {
-                this._logger.error('Audio playback failed', err);
+                this._logger.error('Audio play() promise rejected', err);
+                this._showError(`Cannot autoplay "${track.title}" - ${err.message}`);
             });
         }
     }
@@ -812,7 +954,13 @@ export class GlobalMusicPlayer extends BaseComponent {
     _playYouTubeTrack(track, autoPlay) {
         const videoId = this._extractYouTubeId(track.url);
         if (!videoId) {
-            this._logger.error('Invalid YouTube URL', track.url);
+            this._logger.error('Invalid YouTube URL - no video ID found', {
+                url: track.url,
+                title: track.title
+            });
+            this._showError(`Cannot play "${track.title}" - invalid YouTube URL`);
+            this.isPlaying = false;
+            this._updatePlayPauseButton();
             return;
         }
 
@@ -898,6 +1046,14 @@ export class GlobalMusicPlayer extends BaseComponent {
     /**
      * Initialize YouTube player
      * @private
+     * 
+     * NOTE: You may see console warnings about postMessage origin mismatch:
+     * "The target origin provided ('https://www.youtube.com') does not match 
+     *  the recipient window's origin ('http://localhost:8000')."
+     * 
+     * This is EXPECTED in development (HTTP vs HTTPS) and does NOT affect functionality.
+     * The warnings will disappear when deployed to production with HTTPS.
+     * YouTube player works correctly despite these warnings.
      */
     _initializeYouTubePlayer() {
         if (!window.YT || !window.YT.Player) return;
@@ -910,7 +1066,7 @@ export class GlobalMusicPlayer extends BaseComponent {
                 controls: 0,
                 modestbranding: 1,
                 rel: 0,
-                origin: window.location.origin,
+                origin: window.location.origin,  // Required for iframe communication
                 // OPTIMIZATION: Reduce bandwidth for audio-only playback
                 vq: 'tiny',           // Request lowest video quality (144p)
                 playsinline: 1,       // Prevent fullscreen on mobile

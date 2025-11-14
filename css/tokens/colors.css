@@ -19,6 +19,14 @@
     --color-secondary-active: #334155;
     --color-secondary-rgb: 100, 116, 139;
 
+    /* Accent Colors */
+    --color-accent: #8b5cf6;
+    --color-accent-hover: #7c3aed;
+    --color-accent-active: #6d28d9;
+    --color-accent-light: #a78bfa;
+    --color-accent-dark: #5b21b6;
+    --color-accent-rgb: 139, 92, 246;
+
     /* Status Colors */
     --color-success: #10b981;
     --color-success-light: #34d399;

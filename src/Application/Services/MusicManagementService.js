@@ -201,7 +201,7 @@ export class MusicManagementService {
      */
     async getAllTracks() {
         try {
-            return await this.repository.getAll();
+            return await this.repository.findAll();
         } catch (error) {
             this.logger?.error('Failed to get all tracks', error);
             throw error;

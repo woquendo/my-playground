@@ -1,0 +1,135 @@
+/**
+ * Empty State Component
+ * User-friendly empty states with icons, messages, and call-to-action buttons
+ */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--spacing-3xl) var(--spacing-lg);
+    min-height: 400px;
+}
+
+.empty-state__icon {
+    font-size: 4rem;
+    line-height: 1;
+    margin-bottom: var(--spacing-lg);
+    opacity: 0.8;
+    animation: fadeInScale 0.5s var(--ease-out);
+}
+
+.empty-state__title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-md) 0;
+    animation: fadeInUp 0.6s var(--ease-out);
+}
+
+.empty-state__message {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    max-width: 500px;
+    margin: 0 0 var(--spacing-xl) 0;
+    line-height: 1.6;
+    animation: fadeInUp 0.7s var(--ease-out);
+}
+
+.empty-state__actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    animation: fadeInUp 0.8s var(--ease-out);
+}
+
+.empty-state__hint {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+    margin: 0;
+    padding: var(--spacing-md);
+    background: rgba(var(--color-primary-rgb), 0.05);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.1);
+    max-width: 400px;
+    animation: fadeInUp 0.9s var(--ease-out);
+}
+
+/* Button overrides for empty state */
+.empty-state .btn {
+    min-width: 160px;
+}
+
+.empty-state .btn--secondary {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.empty-state .btn--secondary:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+}
+
+/* Animations */
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .empty-state {
+        padding: var(--spacing-2xl) var(--spacing-md);
+        min-height: 300px;
+    }
+
+    .empty-state__icon {
+        font-size: 3rem;
+    }
+
+    .empty-state__title {
+        font-size: var(--font-size-xl);
+    }
+
+    .empty-state__message {
+        font-size: var(--font-size-base);
+    }
+
+    .empty-state__actions {
+        flex-direction: column;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .empty-state .btn {
+        width: 100%;
+    }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .empty-state__hint {
+    background: rgba(var(--color-primary-rgb), 0.08);
+    border-color: rgba(var(--color-primary-rgb), 0.15);
+}

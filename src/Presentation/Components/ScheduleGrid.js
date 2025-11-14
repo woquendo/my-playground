@@ -123,7 +123,8 @@ export class ScheduleGrid extends BaseComponent {
                         <div class="schedule-grid__day-content" data-day-content="${day}">
                             ${visibleShows.map(item => {
                     const show = item.show || item;
-                    return `<div data-show-container="${show.getId()}" data-air-time="${item.airTime || ''}"></div>`;
+                    const showId = typeof show.getId === 'function' ? show.getId() : show.id;
+                    return `<div data-show-container="${showId}" data-air-time="${item.airTime || ''}"></div>`;
                 }).join('')}
                             ${hasMore ? `
                                 <div class="schedule-grid__load-more" data-load-more="${day}">
@@ -160,7 +161,8 @@ export class ScheduleGrid extends BaseComponent {
 
             visibleShows.forEach(item => {
                 const show = item.show || item;
-                const container = this._querySelector(`[data-show-container="${show.getId()}"]`);
+                const showId = typeof show.getId === 'function' ? show.getId() : show.id;
+                const container = this._querySelector(`[data-show-container="${showId}"]`);
 
                 if (container) {
                     // Pass airTime to ShowCard for future/unscheduled shows
@@ -182,11 +184,10 @@ export class ScheduleGrid extends BaseComponent {
 
                     showCard.mount();
                     this._addChild(showCard);
-                    this._showCards.set(show.getId(), showCard);
+                    const showId = typeof show.getId === 'function' ? show.getId() : show.id;
+                    this._showCards.set(showId, showCard);
                 }
-            });
-
-            // Track sentinel element for this day if it has more items
+            });            // Track sentinel element for this day if it has more items
             if (visibleCount < allShows.length) {
                 const sentinel = this._querySelector(`[data-sentinel="${day}"]`);
                 if (sentinel) {
@@ -306,10 +307,11 @@ export class ScheduleGrid extends BaseComponent {
         // Render new show cards
         newShows.forEach(item => {
             const show = item.show || item;
+            const showId = typeof show.getId === 'function' ? show.getId() : show.id;
 
             // Create container for new show
             const showContainer = document.createElement('div');
-            showContainer.setAttribute('data-show-container', show.getId());
+            showContainer.setAttribute('data-show-container', showId);
             showContainer.setAttribute('data-air-time', item.airTime || '');
 
             // Find the load-more element and insert before it
@@ -337,7 +339,7 @@ export class ScheduleGrid extends BaseComponent {
 
             showCard.mount();
             this._addChild(showCard);
-            this._showCards.set(show.getId(), showCard);
+            this._showCards.set(showId, showCard);
         });
 
         // Update or remove load-more indicator
@@ -384,7 +386,8 @@ export class ScheduleGrid extends BaseComponent {
      * @param {Show} updatedShow - Updated show
      */
     updateShow(updatedShow) {
-        const showCard = this._showCards.get(updatedShow.getId());
+        const showId = typeof updatedShow.getId === 'function' ? updatedShow.getId() : updatedShow.id;
+        const showCard = this._showCards.get(showId);
         if (showCard) {
             showCard.updateShow(updatedShow);
         }

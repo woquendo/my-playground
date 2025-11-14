@@ -16,12 +16,17 @@ export class HeaderComponent extends BaseComponent {
     constructor({ eventBus, logger, container }) {
         super({ eventBus, logger });
         this.container = container;
+        this.authManager = container.get('authManager');
+        this.currentUser = this.authManager.getCurrentUser();
         this.currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
         this.element = null;
         this.isPlaying = false;
 
         // Subscribe to playback events
         this._subscribeToPlaybackEvents();
+
+        // Subscribe to auth events
+        this._subscribeToAuthEvents();
     }
 
     /**
@@ -45,6 +50,22 @@ export class HeaderComponent extends BaseComponent {
 
         this._eventBus.subscribe('globalPlayer:stopped', () => {
             this.setPlayingState(false);
+        });
+    }
+
+    /**
+     * Subscribe to authentication events
+     * @private
+     */
+    _subscribeToAuthEvents() {
+        this._eventBus.subscribe('auth:login', ({ user }) => {
+            this.currentUser = user;
+            this._updateAuthUI();
+        });
+
+        this._eventBus.subscribe('auth:logout', () => {
+            this.currentUser = null;
+            this._updateAuthUI();
         });
     }
 
@@ -82,13 +103,18 @@ export class HeaderComponent extends BaseComponent {
                         <span class="app-header__logo-icon">📺</span>
                     </div>
                     <div class="app-header__brand-text">
-                        <h1 class="app-header__title">Anime Tracker</h1>
-                        <p class="app-header__subtitle">Your Personal Anime Schedule</p>
+                        <h1 class="app-header__title">Show / Music Tracker</h1>
+                        <p class="app-header__subtitle">Your Personal Show and Music Tracker</p>
                     </div>
                 </div>
                 
                 <!-- Actions Section -->
                 <div class="app-header__actions">
+                    <!-- Authentication -->
+                    <div class="app-header__auth">
+                        ${this._renderAuthUI()}
+                    </div>
+                    
                     <button 
                         class="header-action-btn music-player-toggle" 
                         id="music-player-toggle" 
@@ -117,6 +143,74 @@ export class HeaderComponent extends BaseComponent {
         this._updateThemeToggleState();
 
         return header;
+    }
+
+
+
+    /**
+     * Render authentication UI based on current state
+     * @returns {string} HTML string for auth UI
+     * @private
+     */
+    _renderAuthUI() {
+        if (!this.currentUser) {
+            return `
+                <button 
+                    class="header-action-btn auth-login-btn" 
+                    id="auth-login-btn" 
+                    aria-label="Login"
+                    title="Login to your account"
+                >
+                    <span class="action-btn__icon" aria-hidden="true">👤</span>
+                </button>
+            `;
+        }
+
+        return `
+            <div class="user-profile" id="user-profile">
+                <button 
+                    class="user-profile__button" 
+                    aria-label="User menu"
+                    title="${this.currentUser.username || this.currentUser.email}"
+                >
+                    <span class="user-profile__icon" aria-hidden="true">👤</span>
+                </button>
+                <div class="user-profile__dropdown" id="user-profile-dropdown">
+                    <div class="user-profile__info">
+                        <div class="user-profile__email">${this.currentUser.email || this.currentUser.username}</div>
+                        ${this.currentUser.role ? `<div class="user-profile__role">${this.currentUser.role}</div>` : ''}
+                    </div>
+                    <div class="user-profile__menu">
+                        <button class="user-profile__menu-item" id="menu-profile-btn" data-menu-profile>
+                            <span class="user-profile__menu-icon" aria-hidden="true">👤</span>
+                            <span>Edit Profile</span>
+                        </button>
+                        <button class="user-profile__menu-item" id="menu-import-btn" data-menu-import>
+                            <span class="user-profile__menu-icon" aria-hidden="true">📥</span>
+                            <span>Import Anime</span>
+                        </button>
+                        <button class="user-profile__menu-item user-profile__logout" id="auth-logout-btn">
+                            <span class="user-profile__menu-icon" aria-hidden="true">🚪</span>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Update authentication UI reactively
+     * @private
+     */
+    _updateAuthUI() {
+        if (!this.element) return;
+
+        const authContainer = this.element.querySelector('.app-header__auth');
+        if (!authContainer) return;
+
+        authContainer.innerHTML = this._renderAuthUI();
+        this._attachAuthEventListeners(this.element);
     }
 
     /**
@@ -159,6 +253,116 @@ export class HeaderComponent extends BaseComponent {
             // Add ripple effect
             themeToggle.addEventListener('click', (e) => {
                 this._createRippleEffect(e.currentTarget, e);
+            });
+        }
+
+        // Attach auth event listeners
+        this._attachAuthEventListeners(element);
+    }
+
+    /**
+     * Attach authentication event listeners
+     * @param {HTMLElement} element - Container element
+     * @private
+     */
+    _attachAuthEventListeners(element) {
+        // Login button - only navigate to /auth if NOT already logged in
+        const loginBtn = element.querySelector('#auth-login-btn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                // Don't navigate if user is already authenticated
+                if (this.authManager && this.authManager.isAuthenticated()) {
+                    console.warn('User is already logged in. Use the profile menu to log out.');
+                    return;
+                }
+
+                if (this.router) {
+                    this.router.navigate('/auth');
+                } else {
+                    window.location.href = '/auth';
+                }
+            });
+        }
+
+        // User profile toggle
+        const profileContainer = element.querySelector('.user-profile');
+        const dropdown = element.querySelector('#user-profile-dropdown');
+        if (profileContainer && dropdown) {
+            // Open on hover
+            profileContainer.addEventListener('mouseenter', () => {
+                dropdown.classList.add('user-profile__dropdown--open');
+            });
+
+            // Close when mouse leaves
+            profileContainer.addEventListener('mouseleave', () => {
+                dropdown.classList.remove('user-profile__dropdown--open');
+            });
+
+            // Also support click toggle for touch devices
+            const profileBtn = profileContainer.querySelector('.user-profile__button');
+            if (profileBtn) {
+                profileBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('user-profile__dropdown--open');
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!profileContainer.contains(e.target)) {
+                    dropdown.classList.remove('user-profile__dropdown--open');
+                }
+            });
+        }
+
+        // Edit profile button
+        const profileBtn = element.querySelector('#menu-profile-btn');
+        if (profileBtn) {
+            profileBtn.addEventListener('click', () => {
+                // Close dropdown
+                if (dropdown) {
+                    dropdown.classList.remove('user-profile__dropdown--open');
+                }
+                // Navigate to profile page (placeholder - implement when profile page exists)
+                if (this.router) {
+                    this.router.navigate('/profile');
+                } else {
+                    window.location.href = '/profile';
+                }
+            });
+        }
+
+        // Import shows button
+        const importBtn = element.querySelector('#menu-import-btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                // Close dropdown
+                if (dropdown) {
+                    dropdown.classList.remove('user-profile__dropdown--open');
+                }
+                // Navigate to import page
+                if (this.router) {
+                    this.router.navigate('/import');
+                } else {
+                    window.location.href = '/import';
+                }
+            });
+        }
+
+        // Logout button
+        const logoutBtn = element.querySelector('#auth-logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    this.authManager.logout();
+                    if (this.router) {
+                        this.router.navigate('/');
+                    } else {
+                        window.location.href = '/';
+                    }
+                } catch (error) {
+                    this._logger?.error('Logout failed:', error);
+                }
             });
         }
     }

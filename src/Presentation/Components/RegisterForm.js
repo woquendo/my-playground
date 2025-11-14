@@ -39,16 +39,10 @@ export class RegisterForm extends BaseComponent {
         const passwordStrength = this._getPasswordStrength();
 
         return `
-            <div class="auth-form register-form">
-                <div class="auth-form__header">
-                    <h2 class="auth-form__title">Create Account</h2>
-                    <p class="auth-form__subtitle">Join us today</p>
-                </div>
-
+            <div class="register-form">
                 ${error ? `
                     <div class="alert alert--error">
-                        <span class="alert__icon">⚠️</span>
-                        <span class="alert__message">${error}</span>
+                        ${error}
                     </div>
                 ` : ''}
 
@@ -97,10 +91,10 @@ export class RegisterForm extends BaseComponent {
 
                     <!-- Password Field -->
                     <div class="form-group ${validationErrors.password ? 'form-group--error' : ''}">
-                        <label for="register-password" class="form-label">
+                        <label for="register-password" class="form-label form-label--required">
                             Password
                         </label>
-                        <div class="form-input-wrapper">
+                        <div class="password-wrapper">
                             <input
                                 type="${showPassword ? 'text' : 'password'}"
                                 id="register-password"
@@ -114,7 +108,7 @@ export class RegisterForm extends BaseComponent {
                             />
                             <button
                                 type="button"
-                                class="form-input-toggle"
+                                class="password-toggle"
                                 data-toggle-password
                                 aria-label="Toggle password visibility"
                             >
@@ -128,23 +122,28 @@ export class RegisterForm extends BaseComponent {
                         <!-- Password Strength Indicator -->
                         ${this.state.password ? `
                             <div class="password-strength">
+                                <div class="password-strength__label">
+                                    <span>Password Strength</span>
+                                    <span class="password-strength__value password-strength__value--${passwordStrength.level}">
+                                        ${passwordStrength.label}
+                                    </span>
+                                </div>
                                 <div class="password-strength__bar">
                                     <div 
                                         class="password-strength__fill password-strength__fill--${passwordStrength.level}"
                                         style="width: ${passwordStrength.percentage}%"
                                     ></div>
                                 </div>
-                                <span class="password-strength__label">${passwordStrength.label}</span>
                             </div>
                         ` : ''}
                     </div>
 
                     <!-- Confirm Password Field -->
                     <div class="form-group ${validationErrors.confirmPassword ? 'form-group--error' : ''}">
-                        <label for="register-confirm-password" class="form-label">
+                        <label for="register-confirm-password" class="form-label form-label--required">
                             Confirm Password
                         </label>
-                        <div class="form-input-wrapper">
+                        <div class="password-wrapper">
                             <input
                                 type="${showConfirmPassword ? 'text' : 'password'}"
                                 id="register-confirm-password"
@@ -158,7 +157,7 @@ export class RegisterForm extends BaseComponent {
                             />
                             <button
                                 type="button"
-                                class="form-input-toggle"
+                                class="password-toggle"
                                 data-toggle-confirm-password
                                 aria-label="Toggle confirm password visibility"
                             >
@@ -173,28 +172,18 @@ export class RegisterForm extends BaseComponent {
                     <!-- Submit Button -->
                     <button
                         type="submit"
-                        class="btn btn--primary btn--block"
+                        class="btn btn--primary btn--block ${loading ? 'btn--loading' : ''}"
                         ${loading ? 'disabled' : ''}
                     >
-                        ${loading ? `
-                            <span class="btn__spinner"></span>
-                            <span>Creating account...</span>
-                        ` : 'Create Account'}
+                        ${loading ? 'Creating account...' : 'Create Account'}
                     </button>
 
                     <!-- Switch to Login -->
-                    <div class="auth-form__footer">
-                        <p>
-                            Already have an account?
-                            <button
-                                type="button"
-                                class="link"
-                                data-switch-to-login
-                                ${loading ? 'disabled' : ''}
-                            >
-                                Sign in
-                            </button>
-                        </p>
+                    <div class="form-footer">
+                        <span class="form-switch-text">Already have an account?</span>
+                        <a href="#" class="form-switch-link" data-switch-to-login>
+                            Sign in
+                        </a>
                     </div>
                 </form>
             </div>
@@ -232,7 +221,8 @@ export class RegisterForm extends BaseComponent {
         this._addEventListener(passwordInput, 'input', (e) => {
             this.state.password = e.target.value;
             this._clearFieldError('password');
-            this.update({ ...this._props });  // Re-render to update strength indicator
+            // Update password strength indicator without full re-render to preserve focus
+            this._updatePasswordStrengthIndicator();
         });
 
         this._addEventListener(confirmPasswordInput, 'input', (e) => {
@@ -257,7 +247,8 @@ export class RegisterForm extends BaseComponent {
 
         // Switch to login
         if (switchToLogin) {
-            this._addEventListener(switchToLogin, 'click', () => {
+            this._addEventListener(switchToLogin, 'click', (e) => {
+                e.preventDefault();
                 this._props.onSwitchToLogin();
             });
         }
@@ -279,9 +270,10 @@ export class RegisterForm extends BaseComponent {
 
         // Call submit handler
         try {
+            const emailValue = this.state.email.trim();
             await this._props.onSubmit({
                 username: this.state.username,
-                email: this.state.email || undefined,  // Optional
+                email: emailValue || undefined,  // Optional - only include if not empty
                 password: this.state.password
             });
         } catch (error) {
@@ -305,7 +297,8 @@ export class RegisterForm extends BaseComponent {
         }
 
         // Email validation (optional but must be valid if provided)
-        if (this.state.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.state.email)) {
+        const emailValue = this.state.email.trim();
+        if (emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
             errors.email = 'Please enter a valid email address';
         }
 
@@ -370,6 +363,71 @@ export class RegisterForm extends BaseComponent {
         }
 
         return { level, label, percentage: Math.min(strength, 100) };
+    }
+
+    /**
+     * Update password strength indicator without full re-render
+     * This prevents focus loss on the password input
+     * @private
+     */
+    _updatePasswordStrengthIndicator() {
+        if (!this._element) return;
+
+        const strengthContainer = this._element.querySelector('.password-strength');
+        const passwordGroup = this._element.querySelector('#register-password').closest('.form-group');
+
+        if (!this.state.password) {
+            // Remove strength indicator if password is empty
+            if (strengthContainer) {
+                strengthContainer.remove();
+            }
+            return;
+        }
+
+        const passwordStrength = this._getPasswordStrength();
+
+        // If strength indicator doesn't exist, create it
+        if (!strengthContainer) {
+            const strengthHTML = `
+                <div class="password-strength">
+                    <div class="password-strength__label">
+                        <span>Password Strength</span>
+                        <span class="password-strength__value password-strength__value--${passwordStrength.level}">
+                            ${passwordStrength.label}
+                        </span>
+                    </div>
+                    <div class="password-strength__bar">
+                        <div 
+                            class="password-strength__fill password-strength__fill--${passwordStrength.level}"
+                            style="width: ${passwordStrength.percentage}%"
+                        ></div>
+                    </div>
+                </div>
+            `;
+
+            const errorSpan = passwordGroup.querySelector('.form-error');
+            const passwordWrapper = passwordGroup.querySelector('.password-wrapper');
+
+            if (errorSpan) {
+                errorSpan.insertAdjacentHTML('beforebegin', strengthHTML);
+            } else if (passwordWrapper) {
+                passwordWrapper.insertAdjacentHTML('afterend', strengthHTML);
+            }
+        } else {
+            // Update existing strength indicator
+            const valueSpan = strengthContainer.querySelector('.password-strength__value');
+            const fillBar = strengthContainer.querySelector('.password-strength__fill');
+
+            if (valueSpan) {
+                valueSpan.className = `password-strength__value password-strength__value--${passwordStrength.level}`;
+                valueSpan.textContent = passwordStrength.label;
+            }
+
+            if (fillBar) {
+                fillBar.className = `password-strength__fill password-strength__fill--${passwordStrength.level}`;
+                fillBar.style.width = `${passwordStrength.percentage}%`;
+            }
+        }
     }
 
     /**

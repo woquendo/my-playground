@@ -28,6 +28,19 @@ export class ScheduleService {
     }
 
     /**
+     * Helper to safely access show properties/methods
+     * Handles both domain objects (with methods) and plain objects (with properties)
+     * @private
+     */
+    _getShowProperty(show, property) {
+        const methodName = 'get' + property.charAt(0).toUpperCase() + property.slice(1);
+        if (typeof show[methodName] === 'function') {
+            return show[methodName]();
+        }
+        return show[property];
+    }
+
+    /**
      * Get weekly schedule for currently airing shows
      * @param {object} options - Schedule options
      * @param {string} options.weekStart - Week start date (MM-DD-YY format), defaults to current week
@@ -49,17 +62,20 @@ export class ScheduleService {
             let shows;
             if (statuses[0] === 'all') {
                 // Get all shows regardless of status
-                shows = await this.repository.getAll();
+                shows = await this.repository.findAll();
             } else if (statuses.length === 1 && statuses[0] !== 'all') {
                 // Single status filter
-                shows = await this.repository.getByStatus(statuses[0]);
+                shows = await this.repository.findByStatus(statuses[0]);
             } else if (statuses.length > 1) {
                 // Multiple statuses - load all and filter
-                const allShows = await this.repository.getAll();
-                shows = allShows.filter(show => statuses.includes(show.getStatus()));
+                const allShows = await this.repository.findAll();
+                shows = allShows.filter(show => {
+                    const status = this._getShowProperty(show, 'status');
+                    return statuses.includes(status);
+                });
             } else {
                 // Fallback to all shows
-                shows = await this.repository.getAll();
+                shows = await this.repository.findAll();
             }
 
             // Filtering by airing status depends on the watching statuses requested:
@@ -73,9 +89,10 @@ export class ScheduleService {
                 filteredShows = shows;
             } else if (statuses.includes('watching') && statuses.length === 1) {
                 // Only watching - filter to currently airing
-                filteredShows = shows.filter(show =>
-                    show.getAiringStatus() === 'currently_airing'
-                );
+                filteredShows = shows.filter(show => {
+                    const airingStatus = this._getShowProperty(show, 'airingStatus');
+                    return airingStatus === 'currently_airing' || airingStatus === 1;
+                });
             } else if (statuses.includes('completed') || statuses.includes('on_hold') || statuses.includes('dropped')) {
                 // For completed/on_hold/dropped - show all regardless of airing status
                 filteredShows = shows;
@@ -114,11 +131,9 @@ export class ScheduleService {
 
             // Filter shows that air on this date
             const scheduledShows = shows.filter(show => {
-                const showDate = show.getEffectiveStartDate();
+                const showDate = this._getShowProperty(show, 'effectiveStartDate');
                 const dayOfWeek = this._getDayOfWeek(targetDate);
-                const showDayOfWeek = this._getDayOfWeek(showDate);
-
-                // Check if the show airs on this day of the week
+                const showDayOfWeek = this._getDayOfWeek(showDate);                // Check if the show airs on this day of the week
                 return showDayOfWeek === dayOfWeek;
             });
 
@@ -128,12 +143,10 @@ export class ScheduleService {
                     show,
                     expectedEpisode: this.episodeCalculator
                         ? await this.episodeCalculator.calculateCurrentEpisode(show)
-                        : show.getCurrentEpisode(),
+                        : this._getShowProperty(show, 'currentEpisode'),
                     airDate: date
                 }))
-            );
-
-            return enrichedSchedule;
+            ); return enrichedSchedule;
         } catch (error) {
             this.logger?.error(`Failed to get schedule for date: ${date}`, error);
             throw error;
@@ -159,9 +172,7 @@ export class ScheduleService {
             for (const show of shows) {
                 try {
                     const calculatedEpisode = await this.episodeCalculator.calculateCurrentEpisode(show);
-                    const currentEpisode = show.getCurrentEpisode();
-
-                    if (calculatedEpisode > currentEpisode) {
+                    const currentEpisode = this._getShowProperty(show, 'currentEpisode'); if (calculatedEpisode > currentEpisode) {
                         updates.push({
                             show,
                             currentEpisode,
@@ -170,18 +181,14 @@ export class ScheduleService {
                         });
                     }
                 } catch (error) {
-                    this.logger?.warn(`Failed to calculate episode for show: ${show.getId()}`, error);
+                    this.logger?.warn(`Failed to calculate episode for show: ${this._getShowProperty(show, 'id')}`, error);
                 }
-            }
-
-            if (updates.length > 0) {
+            } if (updates.length > 0) {
                 this.eventBus?.emit('schedule:updates-detected', {
                     updateCount: updates.length,
-                    shows: updates.map(u => u.show.getId())
+                    shows: updates.map(u => this._getShowProperty(u.show, 'id'))
                 });
-            }
-
-            return updates;
+            } return updates;
         } catch (error) {
             this.logger?.error('Failed to detect new episodes', error);
             throw error;
@@ -240,9 +247,9 @@ export class ScheduleService {
      */
     calculateNextAirDate(show) {
         try {
-            const startDate = show.getStartDate();
-            const currentEpisode = show.getCurrentEpisode();
-            const totalEpisodes = show.getTotalEpisodes();
+            const startDate = this._getShowProperty(show, 'startDate');
+            const currentEpisode = this._getShowProperty(show, 'currentEpisode');
+            const totalEpisodes = this._getShowProperty(show, 'totalEpisodes');
 
             // If show is complete, no next air date
             if (currentEpisode >= totalEpisodes) {
@@ -255,7 +262,7 @@ export class ScheduleService {
 
             return nextAirDate;
         } catch (error) {
-            this.logger?.error(`Failed to calculate next air date for show: ${show.getId()}`, error);
+            this.logger?.error(`Failed to calculate next air date for show: ${this._getShowProperty(show, 'id')}`, error);
             throw error;
         }
     }
@@ -289,29 +296,29 @@ export class ScheduleService {
 
         // Group shows by their air day
         shows.forEach(show => {
-            const airingStatus = show.getAiringStatus();
+            const airingStatus = this._getShowProperty(show, 'airingStatus');
 
-            // Shows that have ended go to "Ended" category
-            if (airingStatus === 'finished_airing') {
+            // Shows that have ended go to "Ended" category (2 = finished_airing)
+            if (airingStatus === 'finished_airing' || airingStatus === 2) {
                 schedule['Ended'].push({
                     show,
                     airTime: null,
-                    episode: show.getCurrentEpisode() + 1,
-                    totalEpisodes: show.getTotalEpisodes()
+                    episode: this._getShowProperty(show, 'currentEpisode') + 1,
+                    totalEpisodes: this._getShowProperty(show, 'totalEpisodes')
                 });
                 return;
             }
 
-            const effectiveStartDate = show.getEffectiveStartDate();
+            const effectiveStartDate = this._getShowProperty(show, 'effectiveStartDate');
 
             // Shows without a valid start date go to "Airing Date Not Yet Scheduled"
             if (!effectiveStartDate) {
-                this.logger?.debug(`Show without valid start date: ${show.getTitle()}`);
+                this.logger?.debug(`Show without valid start date: ${this._getShowProperty(show, 'title')}`);
                 schedule['Airing Date Not Yet Scheduled'].push({
                     show,
                     airTime: null,
-                    episode: show.getCurrentEpisode() + 1,
-                    totalEpisodes: show.getTotalEpisodes()
+                    episode: this._getShowProperty(show, 'currentEpisode') + 1,
+                    totalEpisodes: this._getShowProperty(show, 'totalEpisodes')
                 });
                 return;
             }
@@ -323,8 +330,8 @@ export class ScheduleService {
                     schedule[seasonCategory].push({
                         show,
                         airTime: effectiveStartDate.format(),
-                        episode: show.getCurrentEpisode() + 1,
-                        totalEpisodes: show.getTotalEpisodes()
+                        episode: this._getShowProperty(show, 'currentEpisode') + 1,
+                        totalEpisodes: this._getShowProperty(show, 'totalEpisodes')
                     });
                     return;
                 }
@@ -336,22 +343,26 @@ export class ScheduleService {
             schedule[dayName].push({
                 show,
                 airTime: effectiveStartDate.format(),
-                episode: show.getCurrentEpisode() + 1,
-                totalEpisodes: show.getTotalEpisodes()
+                episode: this._getShowProperty(show, 'currentEpisode') + 1,
+                totalEpisodes: this._getShowProperty(show, 'totalEpisodes')
             });
         });
 
         // Sort shows within each day by title
         daysOfWeek.forEach(day => {
-            schedule[day].sort((a, b) =>
-                a.show.getTitle().localeCompare(b.show.getTitle())
-            );
+            schedule[day].sort((a, b) => {
+                const titleA = this._getShowProperty(a.show, 'title');
+                const titleB = this._getShowProperty(b.show, 'title');
+                return titleA.localeCompare(titleB);
+            });
         });
 
         // Sort unscheduled shows by title
-        schedule['Airing Date Not Yet Scheduled'].sort((a, b) =>
-            a.show.getTitle().localeCompare(b.show.getTitle())
-        );
+        schedule['Airing Date Not Yet Scheduled'].sort((a, b) => {
+            const titleA = this._getShowProperty(a.show, 'title');
+            const titleB = this._getShowProperty(b.show, 'title');
+            return titleA.localeCompare(titleB);
+        });
 
         // Sort future season shows by air date, then title
         futureSeasons.forEach(season => {
@@ -359,7 +370,9 @@ export class ScheduleService {
                 if (a.airTime && b.airTime) {
                     return a.airTime.localeCompare(b.airTime);
                 }
-                return a.show.getTitle().localeCompare(b.show.getTitle());
+                const titleA = this._getShowProperty(a.show, 'title');
+                const titleB = this._getShowProperty(b.show, 'title');
+                return titleA.localeCompare(titleB);
             });
         });
 

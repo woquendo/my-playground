@@ -63,7 +63,8 @@ export async function registerServices(container) {
     // Authentication manager for frontend (Phase 8)
     container.singleton('authManager', () => new AuthManager({
         eventBus,
-        logger
+        logger,
+        config
     }));
 
     // ===========================
@@ -83,25 +84,122 @@ export async function registerServices(container) {
     const useDatabase = config.database.enabled;
 
     if (useDatabase) {
-        logger.info('Registering API repositories (database mode)...');
+        logger.info('Registering dynamic repositories with public/private modes...');
 
-        // API Show repository (calls backend REST API)
-        container.singleton('showRepository', () => new APIShowRepository({
-            httpClient: container.get('httpClient'),
-            logger,
-            authManager: container.get('authManager'),
-            config
-        }));
+        // Dynamic Show Repository - uses public endpoint when not authenticated
+        container.singleton('showRepository', () => {
+            const authManager = container.get('authManager');
+            const httpClient = container.get('httpClient');
+            const cache = container.get('cache');
 
-        // API Music repository (calls backend REST API)
-        container.singleton('musicRepository', () => new APIMusicRepository({
-            httpClient: container.get('httpClient'),
-            logger,
-            authManager: container.get('authManager'),
-            config
-        }));
+            // Create both repository types
+            const apiRepo = new APIShowRepository({
+                httpClient,
+                logger,
+                authManager,
+                config
+            });
 
-        logger.info(`✓ API repositories registered (calls backend at ${config.api.url})`);
+            const httpRepo = new HttpShowRepository(
+                httpClient,
+                cache,
+                {
+                    endpoint: '/data/shows.json',
+                    logger
+                }
+            );
+
+            // Return a proxy that switches based on auth state
+            return {
+                async findAll() {
+                    if (authManager.isAuthenticated()) {
+                        logger.info('📊 Loading user\'s shows (authenticated)');
+                        return await apiRepo.findAll();
+                    } else {
+                        logger.info('📊 Loading all shows (public view)');
+                        return await httpRepo.findAll();
+                    }
+                },
+                async findById(id) {
+                    if (authManager.isAuthenticated()) {
+                        return await apiRepo.findById(id);
+                    } else {
+                        return await httpRepo.findById(id);
+                    }
+                },
+                async save(show) {
+                    // Only authenticated users can save
+                    if (!authManager.isAuthenticated()) {
+                        throw new Error('Authentication required to save shows');
+                    }
+                    return await apiRepo.save(show);
+                },
+                async delete(id) {
+                    // Only authenticated users can delete
+                    if (!authManager.isAuthenticated()) {
+                        throw new Error('Authentication required to delete shows');
+                    }
+                    return await apiRepo.delete(id);
+                }
+            };
+        });
+
+        // Dynamic Music Repository - uses public endpoint when not authenticated
+        container.singleton('musicRepository', () => {
+            const authManager = container.get('authManager');
+            const httpClient = container.get('httpClient');
+            const cache = container.get('cache');
+
+            const apiRepo = new APIMusicRepository({
+                httpClient,
+                logger,
+                authManager,
+                config
+            });
+
+            const httpRepo = new HttpMusicRepository(
+                httpClient,
+                cache,
+                {
+                    endpoint: '/data/songs.json',
+                    logger
+                }
+            );
+
+            // Return a proxy that switches based on auth state
+            return {
+                async findAll() {
+                    if (authManager.isAuthenticated()) {
+                        logger.info('🎵 Loading user\'s music (authenticated)');
+                        return await apiRepo.findAll();
+                    } else {
+                        logger.info('🎵 Loading all music (public view)');
+                        return await httpRepo.findAll();
+                    }
+                },
+                async findById(id) {
+                    if (authManager.isAuthenticated()) {
+                        return await apiRepo.findById(id);
+                    } else {
+                        return await httpRepo.findById(id);
+                    }
+                },
+                async save(song) {
+                    if (!authManager.isAuthenticated()) {
+                        throw new Error('Authentication required to save music');
+                    }
+                    return await apiRepo.save(song);
+                },
+                async delete(id) {
+                    if (!authManager.isAuthenticated()) {
+                        throw new Error('Authentication required to delete music');
+                    }
+                    return await apiRepo.delete(id);
+                }
+            };
+        });
+
+        logger.info(`✓ Dynamic repositories registered (public: JSON files, authenticated: ${config.api.url})`);
     } else {
         logger.info('Registering HTTP (JSON file) repositories...');
 

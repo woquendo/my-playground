@@ -38,6 +38,9 @@
     <link rel="stylesheet" href="css/components/day-navigation.css">
     <link rel="stylesheet" href="css/components/season-tabs.css">
     <link rel="stylesheet" href="css/components/import-form.css">
+    <link rel="stylesheet" href="css/components/auth-form.css">
+    <link rel="stylesheet" href="css/components/public-banner.css">
+    <link rel="stylesheet" href="css/components/empty-state.css">
 
     <!-- App-specific styles -->
     <style>
@@ -174,6 +177,30 @@
         <div id="modal-container" class="modal-container"></div>
 
     </div>
+
+    <!-- Environment Configuration (Browser) -->
+    <script>
+        // Inject environment variables for browser environment
+        // In production, this would be replaced by a build process
+        window.__ENV__ = {
+            NODE_ENV: 'development',
+            DEBUG: 'true',
+            PORT: '8000',
+            HOST: 'localhost',
+            APP_URL: 'http://localhost:8000',
+            API_URL: 'http://localhost:3000',
+            USE_DATABASE: 'true',  // Enable authentication
+            DB_HOST: 'localhost',
+            DB_PORT: '3306',
+            DB_USER: 'root',
+            DB_NAME: 'myplayground_dev',
+            STORAGE_TYPE: 'localStorage',
+            FEATURE_SCHEDULE_UPDATES: 'true',
+            FEATURE_MUSIC_PLAYER: 'true',
+            FEATURE_IMPORT: 'true',
+            FEATURE_EXPORT: 'true'
+        };
+    </script>
 
     <!-- Modern Architecture Bootstrap -->
     <script type="module">

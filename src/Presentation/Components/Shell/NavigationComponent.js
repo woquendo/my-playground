@@ -28,7 +28,7 @@ export class NavigationComponent extends BaseComponent {
 
         // Navigation items configuration (Single Source of Truth)
         this.navItems = [
-            { path: '/schedule', label: 'Schedule', icon: '📅', ariaLabel: 'View anime schedule' },
+            { path: '/schedule', label: 'My Schedule', icon: '📅', ariaLabel: 'View your anime schedule' },
             { path: '/shows', label: 'Shows', icon: '📺', ariaLabel: 'Browse all shows' },
             { path: '/music', label: 'Music', icon: '🎵', ariaLabel: 'Music player' },
             { path: '/import', label: 'Import', icon: '📥', ariaLabel: 'Import data' }
@@ -106,27 +106,9 @@ export class NavigationComponent extends BaseComponent {
      * @private
      */
     _renderUserMenu() {
-        const username = this._currentUser.username;
-        const role = this._currentUser.role;
-
-        return `
-            <div class="app-nav__user-menu">
-                <div class="user-info">
-                    <span class="user-info__icon">👤</span>
-                    <div class="user-info__details">
-                        <span class="user-info__name">${this._escapeHtml(username)}</span>
-                        ${role === 'admin' ? '<span class="user-info__badge">👑 Admin</span>' : ''}
-                    </div>
-                </div>
-                <button class="btn btn--logout" data-action="logout" title="Logout">
-                    <span class="btn__icon">🚪</span>
-                    <span class="btn__text">Logout</span>
-                </button>
-            </div>
-        `;
-    }
-
-    /**
+        // User menu removed - profile now only in header
+        return '';
+    }    /**
      * Escape HTML to prevent XSS
      * @param {string} text
      * @returns {string}
@@ -151,16 +133,7 @@ export class NavigationComponent extends BaseComponent {
             });
         });
 
-        // Logout button handler
-        const logoutBtn = element.querySelector('[data-action="logout"]');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this._handleLogout();
-            });
-        }
-    }
-
-    /**
+    }    /**
      * Create ripple effect on click
      * @param {HTMLElement} element - Element to add ripple to
      * @param {MouseEvent} event - Click event
@@ -205,7 +178,7 @@ export class NavigationComponent extends BaseComponent {
             if (this.router) {
                 this.router.navigate('/auth');
             } else {
-                window.location.hash = '#/auth';
+                window.location.href = '/auth';
             }
         }
     }

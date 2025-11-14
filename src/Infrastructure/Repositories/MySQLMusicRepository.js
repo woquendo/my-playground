@@ -47,12 +47,39 @@ export class MySQLMusicRepository {
 
             const rows = await this.connectionManager.query(sql, [this.userId]);
 
-            logger.debug('Retrieved songs from MySQL', {
-                count: rows.length,
-                userId: this.userId
+            console.log('🔍 [MySQLMusicRepository.findAll] Query completed:', {
+                userId: this.userId,
+                rowCount: rows.length,
+                sampleRow: rows[0] ? {
+                    id: rows[0].id,
+                    title: rows[0].title,
+                    youtube_url: rows[0].youtube_url,
+                    youtube_url_length: rows[0].youtube_url?.length,
+                    youtube_url_type: typeof rows[0].youtube_url
+                } : null
             });
 
-            return rows.map(row => this._mapRowToMusic(row));
+            // Get playlists for the user
+            const playlistsMap = await this._getPlaylistsForSongs(rows.map(r => r.id));
+
+            logger.debug('Retrieved songs from MySQL', {
+                count: rows.length,
+                userId: this.userId,
+                playlistsFound: playlistsMap.size
+            });
+
+            console.log('🔍 [MySQLMusicRepository.findAll] Playlist mapping:', {
+                totalSongs: rows.length,
+                playlistMapSize: playlistsMap.size,
+                sampleMappings: Array.from(playlistsMap.entries()).slice(0, 3),
+                firstSongId: rows[0]?.id,
+                firstSongPlaylists: playlistsMap.get(rows[0]?.id)
+            });
+
+            // CRITICAL: Force log to show
+            logger.error('🔍 BACKEND FINDALL: Returning ' + rows.length + ' songs with ' + playlistsMap.size + ' songs having playlists');
+
+            return rows.map(row => this._mapRowToMusic(row, playlistsMap.get(row.id) || []));
         } catch (error) {
             logger.error('Failed to find all songs', { error: error.message });
             throw new RepositoryError('Failed to retrieve songs from database', {
@@ -454,30 +481,145 @@ export class MySQLMusicRepository {
     }
 
     /**
+     * Get playlists for given song IDs
+     * @private
+     * @param {Array<string>} songIds - Song IDs
+     * @returns {Promise<Map<string, Array<string>>>} Map of song ID to playlist names
+     */
+    async _getPlaylistsForSongs(songIds) {
+        console.log('🔍 [MySQLMusicRepository._getPlaylistsForSongs] Called with:', {
+            songIdsCount: songIds?.length,
+            userId: this.userId,
+            firstThreeSongIds: songIds?.slice(0, 3)
+        });
+
+        if (!songIds || songIds.length === 0) {
+            console.log('🔍 [MySQLMusicRepository._getPlaylistsForSongs] No song IDs provided, returning empty map');
+            return new Map();
+        }
+
+        try {
+            logger.error('🔍 _getPlaylistsForSongs START: userId=' + this.userId + ', songIds=' + songIds.length);
+
+            // Use junction table for better performance and scalability
+            const sql = `
+                SELECT ps.song_id, p.name as playlist_name
+                FROM playlist_songs ps
+                JOIN playlists p ON ps.playlist_id = p.id
+                WHERE p.user_id = ? AND ps.song_id IN (${songIds.map(() => '?').join(',')})
+                ORDER BY ps.song_id, ps.position
+            `;
+
+            const params = [this.userId, ...songIds];
+            logger.error('🔍 _getPlaylistsForSongs QUERY: params count=' + params.length);
+            console.log('🔍 [MySQLMusicRepository._getPlaylistsForSongs] Executing query with params:', {
+                userId: params[0],
+                songIdsCount: params.length - 1,
+                sql: sql.substring(0, 200) + '...'
+            });
+
+            logger.error('🔍 _getPlaylistsForSongs BEFORE QUERY');
+            const rows = await this.connectionManager.query(sql, params);
+            logger.error('🔍 _getPlaylistsForSongs AFTER QUERY: rows=' + rows.length);
+
+            console.log('🔍 [MySQLMusicRepository._getPlaylistsForSongs] Query results:', {
+                rowsReturned: rows.length,
+                sampleRows: rows.slice(0, 3)
+            });
+
+            logger.debug('_getPlaylistsForSongs fetched from junction table', {
+                userId: this.userId,
+                songIdsQueried: songIds.length,
+                rowsReturned: rows.length
+            });
+
+            // Create a map of song ID to playlist names
+            const songToPlaylists = new Map();
+
+            rows.forEach(row => {
+                if (!songToPlaylists.has(row.song_id)) {
+                    songToPlaylists.set(row.song_id, []);
+                }
+                songToPlaylists.get(row.song_id).push(row.playlist_name);
+            });
+
+            logger.debug('_getPlaylistsForSongs created map', {
+                totalSongsWithPlaylists: songToPlaylists.size,
+                sampleMappings: Array.from(songToPlaylists.entries()).slice(0, 3)
+            });
+
+            console.log('🔍 [MySQLMusicRepository._getPlaylistsForSongs] SUCCESS returning map with', songToPlaylists.size, 'songs');
+            logger.error('🔍 PLAYLIST QUERY SUCCESS: Found ' + songToPlaylists.size + ' songs with playlists');
+            return songToPlaylists;
+        } catch (error) {
+            console.log('🔍 [MySQLMusicRepository._getPlaylistsForSongs] ERROR:', error.message);
+            logger.error('🔍 PLAYLIST QUERY FAILED:', { error: error.message, stack: error.stack });
+            return new Map(); // Return empty map on error
+        }
+    }
+
+    /**
      * Map database row to Music model
      * @private
      * @param {Object} row - Database row
+     * @param {Array<string>} playlists - Playlist names for this song
      * @returns {Music}
      */
-    _mapRowToMusic(row) {
-        return new Music({
+    _mapRowToMusic(row, playlists = []) {
+        console.log('🔍 [MySQLMusicRepository._mapRowToMusic] Mapping row:', {
+            title: row.title,
+            playlists: playlists,
+            playlistsLength: playlists.length,
+            playlistsType: typeof playlists,
+            playlistsIsArray: Array.isArray(playlists),
+            youtube_url_from_db: row.youtube_url,
+            youtube_url_length: row.youtube_url?.length,
+            youtube_url_type: typeof row.youtube_url,
+            youtube_url_isEmpty: row.youtube_url === '',
+            youtube_url_isNull: row.youtube_url === null,
+            youtube_url_isUndefined: row.youtube_url === undefined
+        });
+
+        // Parse tags safely
+        let tags = [];
+        if (row.tags) {
+            try {
+                tags = JSON.parse(row.tags);
+            } catch (e) {
+                console.error('Failed to parse tags for song:', row.id, row.tags);
+                tags = [];
+            }
+        }
+
+        const music = new Music({
             id: row.id,
             title: row.title,
             artist: row.artist,
             source: row.source,
             album: row.album,
+            type: row.type || 'OST',
             spotifyUrl: row.spotify_url,
             youtubeUrl: row.youtube_url,
             appleMusicUrl: row.apple_music_url,
             duration: row.duration,
+            playlists: playlists, // Add playlists array
             // User-specific data
             rating: row.rating || 0,
             playCount: row.play_count || 0,
             lastPlayed: row.last_played,
             favorite: row.favorite || false,
-            tags: row.tags ? JSON.parse(row.tags) : [],
+            tags: tags,
             notes: row.notes || ''
         });
+
+        console.log('🔍 [MySQLMusicRepository._mapRowToMusic] Created Music object:', {
+            title: music.title,
+            youtubeUrl: music.youtubeUrl,
+            youtubeUrl_length: music.youtubeUrl?.length,
+            getPrimaryUrl: music.getPrimaryUrl()
+        });
+
+        return music;
     }
 
     /**

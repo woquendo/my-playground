@@ -14,6 +14,7 @@
         "lint": "eslint src/ my-playground/js/",
         "start": "python server.py",
         "start:api": "node api-server.js",
+        "server": "node api-server.js",
         "validate": "node my-playground/validate-phase1.js",
         "test-browser": "python server.py && echo 'Open http://localhost:8080/phase1-test.html'",
         "migrate": "node scripts/migrate.js migrate",

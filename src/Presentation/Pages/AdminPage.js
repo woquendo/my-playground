@@ -34,7 +34,12 @@ export class AdminPage {
                 message: 'Access denied. Admin privileges required.',
                 type: 'error'
             });
-            window.location.hash = '#/schedule';
+            if (this.container && this.container.has('router')) {
+                const router = this.container.get('router');
+                router.navigate('/schedule');
+            } else {
+                window.location.href = '/schedule';
+            }
             return document.createElement('div');
         }
 
@@ -346,7 +351,12 @@ export class AdminPage {
 
             case 'logout':
                 this.authManager.logout();
-                window.location.hash = '#/auth';
+                if (this.container && this.container.has('router')) {
+                    const router = this.container.get('router');
+                    router.navigate('/auth');
+                } else {
+                    window.location.href = '/auth';
+                }
                 break;
         }
     }

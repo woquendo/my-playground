@@ -39,8 +39,8 @@ export class SchedulePage {
 
         // Render page header
         const headerHTML = this.pageHeader.render({
-            title: 'Anime Schedule',
-            subtitle: 'Your weekly anime viewing schedule',
+            title: 'My Anime Schedule',
+            subtitle: 'Manage and track your anime watchlist',
             icon: '📅',
             actions: [
                 {
@@ -75,8 +75,23 @@ export class SchedulePage {
             ]
         });
 
+        // Check if user is authenticated
+        const authManager = this.container.get('authManager');
+        const isAuthenticated = authManager.isAuthenticated();
+
+        const publicBanner = !isAuthenticated ? `
+            <div class="public-view-banner">
+                <span class="public-view-banner__icon">ℹ️</span>
+                <span class="public-view-banner__text">
+                    You're viewing all shows. 
+                    <a href="/auth" class="public-view-banner__link">Login</a> to track your personal schedule.
+                </span>
+            </div>
+        ` : '';
+
         page.innerHTML = `
             ${headerHTML}
+            ${publicBanner}
             <div id="day-navigation-container"></div>
             <div id="season-tabs-container"></div>
             <div class="page__content">
@@ -220,13 +235,38 @@ export class SchedulePage {
 
             // Check if schedule has any shows
             const showCount = Object.values(schedule).reduce((sum, day) => sum + day.length, 0);
+            const totalShowCount = Object.values(fullSchedule).reduce((sum, day) => sum + day.length, 0);
 
             if (showCount === 0) {
+                // Check if user has no shows at all (new user)
+                const isNewUser = totalShowCount === 0;
+
                 container.innerHTML = `
                     <div class="empty-state">
-                        <p>No shows for ${selectedDay === 'all' ? 'any day' : selectedDay}.</p>
-                        <p>${selectedDay === 'all' ? 'Add shows to start tracking your anime!' : 'Try selecting a different day or status filter.'}</p>
-                        ${selectedDay === 'all' ? '<a href="/import" class="btn btn--primary">Import Shows</a>' : ''}
+                        <div class="empty-state__icon">${isNewUser ? '📺' : '🔍'}</div>
+                        <h2 class="empty-state__title">
+                            ${isNewUser ? 'Welcome to My Playground!' : `No shows for ${selectedDay}`}
+                        </h2>
+                        <p class="empty-state__message">
+                            ${isNewUser
+                        ? 'Start building your anime collection and track your watchlist.'
+                        : selectedDay === 'all'
+                            ? 'No shows match your current filters.'
+                            : 'Try selecting a different day or status filter.'}
+                        </p>
+                        ${isNewUser ? `
+                            <div class="empty-state__actions">
+                                <a href="/shows" class="btn btn--primary">
+                                    <span>Browse Shows</span>
+                                </a>
+                                <a href="/import" class="btn btn--secondary">
+                                    <span>Import from MAL</span>
+                                </a>
+                            </div>
+                            <p class="empty-state__hint">
+                                💡 Tip: Import your MyAnimeList to quickly add your shows!
+                            </p>
+                        ` : ''}
                     </div>
                 `;
                 return;

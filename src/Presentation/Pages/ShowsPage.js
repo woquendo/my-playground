@@ -72,8 +72,23 @@ export class ShowsPage {
             ]
         });
 
+        // Check if user is authenticated
+        const authManager = this.container.get('authManager');
+        const isAuthenticated = authManager.isAuthenticated();
+
+        const publicBanner = !isAuthenticated ? `
+            <div class="public-view-banner">
+                <span class="public-view-banner__icon">ℹ️</span>
+                <span class="public-view-banner__text">
+                    You're viewing all shows. 
+                    <a href="/auth" class="public-view-banner__link">Login</a> to manage your collection.
+                </span>
+            </div>
+        ` : '';
+
         page.innerHTML = `
             ${headerHTML}
+            ${publicBanner}
             <div class="page__content">
                 <div id="shows-list-container"></div>
             </div>

@@ -12,7 +12,7 @@ export class AuthPage {
         this.container = container;
         this.eventBus = eventBus;
         this.logger = logger;
-        this.authService = container.get('authService');
+        this.authManager = container.get('authManager');
 
         this.currentView = 'login';  // 'login' or 'register'
         this.loginForm = null;
@@ -31,13 +31,12 @@ export class AuthPage {
         page.className = 'page page--auth';
         page.innerHTML = `
             <div class="auth-container">
-                <div class="auth-container__card">
-                    <div class="auth-container__logo">
-                        <h1>📺 My Playground</h1>
-                        <p>Track your anime and music</p>
-                    </div>
-                    <div class="auth-container__forms" data-auth-forms></div>
+                <div class="auth-header">
+                    <div class="auth-logo">📺</div>
+                    <h1 class="auth-title">My Playground</h1>
+                    <p class="auth-subtitle">Track your anime and music</p>
                 </div>
+                <div class="auth-form" data-auth-forms></div>
             </div>
         `;
 
@@ -124,35 +123,26 @@ export class AuthPage {
 
             this.logger.info('Attempting login', { username: credentials.username });
 
-            const result = await this.authService.login(
+            // AuthManager handles API call, token storage, and events
+            const result = await this.authManager.login(
                 credentials.username,
                 credentials.password
             );
 
             if (result.success) {
-                this.logger.info('Login successful', { userId: result.user.id });
-
-                // Store auth token
-                localStorage.setItem('auth_token', result.token);
-                localStorage.setItem('current_user', JSON.stringify(result.user));
-
-                // Emit authentication event
-                this.eventBus.emit('auth:login', result.user);
-
-                // Show success toast
-                this.eventBus.emit('toast:show', {
-                    message: `Welcome back, ${result.user.username}!`,
-                    type: 'success'
-                });
-
                 // Navigate to schedule page
                 setTimeout(() => {
-                    window.location.hash = '#/schedule';
+                    if (this.container && this.container.has('router')) {
+                        const router = this.container.get('router');
+                        router.navigate('/schedule');
+                    } else {
+                        window.location.href = '/schedule';
+                    }
                 }, 500);
             }
         } catch (error) {
             this.logger.error('Login failed', { error: error.message });
-            this.error = error.message || 'Invalid username or password';
+            this.error = error.message || 'Invalid email or password';
             this.loading = false;
             this._updateFormProps();
         }
@@ -167,29 +157,20 @@ export class AuthPage {
             this.error = null;
             this._updateFormProps();
 
-            this.logger.info('Attempting registration', { username: userData.username });
+            this.logger.info('Attempting registration', { email: userData.email, username: userData.username });
 
-            const result = await this.authService.register(userData);
+            // AuthManager handles API call, token storage, and events
+            const result = await this.authManager.register(userData);
 
             if (result.success) {
-                this.logger.info('Registration successful', { userId: result.user.id });
-
-                // Store auth token
-                localStorage.setItem('auth_token', result.token);
-                localStorage.setItem('current_user', JSON.stringify(result.user));
-
-                // Emit authentication event
-                this.eventBus.emit('auth:register', result.user);
-
-                // Show success toast
-                this.eventBus.emit('toast:show', {
-                    message: `Welcome, ${result.user.username}! Your account has been created.`,
-                    type: 'success'
-                });
-
                 // Navigate to schedule page
                 setTimeout(() => {
-                    window.location.hash = '#/schedule';
+                    if (this.container && this.container.has('router')) {
+                        const router = this.container.get('router');
+                        router.navigate('/schedule');
+                    } else {
+                        window.location.href = '/schedule';
+                    }
                 }, 500);
             }
         } catch (error) {
@@ -283,6 +264,11 @@ export class AuthPage {
             });
         }
 
-        window.location.hash = '#/auth';
+        if (this.container && this.container.has('router')) {
+            const router = this.container.get('router');
+            router.navigate('/auth');
+        } else {
+            window.location.href = '/auth';
+        }
     }
 }

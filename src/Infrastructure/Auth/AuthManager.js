@@ -5,9 +5,10 @@
  */
 
 export class AuthManager {
-    constructor({ eventBus, logger }) {
+    constructor({ eventBus, logger, config }) {
         this.eventBus = eventBus;
         this.logger = logger;
+        this.config = config;
         this.currentUser = null;
         this.token = null;
 
@@ -203,6 +204,104 @@ export class AuthManager {
         this.requireAuth();
         if (!this.isAdmin()) {
             throw new Error('Admin access required');
+        }
+    }
+
+    /**
+     * Login user with credentials
+     * @param {string} usernameOrEmail - User email or username
+     * @param {string} password - User password
+     * @returns {Promise<{success: boolean, user: Object, token: string}>}
+     */
+    async login(usernameOrEmail, password) {
+        try {
+            this.logger.info('Attempting login', { username: usernameOrEmail });
+
+            const response = await fetch(`${this.config.api.url}/api/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: usernameOrEmail, password })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Login failed');
+            }
+
+            const data = await response.json();
+
+            // Store authentication data
+            this.setAuth(data.token, data.user);
+
+            this.logger.info('Login successful', { userId: data.user.id, username: data.user.username });
+
+            // Emit login event
+            this.eventBus.emit('auth:login', data.user);
+            this.eventBus.emit('toast:show', {
+                message: `Welcome back, ${data.user.username}!`,
+                type: 'success'
+            });
+
+            return {
+                success: true,
+                user: data.user,
+                token: data.token
+            };
+        } catch (error) {
+            this.logger.error('Login failed', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Register new user
+     * @param {Object} userData - User registration data
+     * @param {string} userData.email - User email
+     * @param {string} userData.username - Username
+     * @param {string} userData.password - Password
+     * @returns {Promise<{success: boolean, user: Object, token: string}>}
+     */
+    async register(userData) {
+        try {
+            this.logger.info('Attempting registration', { email: userData.email, username: userData.username });
+
+            const response = await fetch(`${this.config.api.url}/api/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(userData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Registration failed');
+            }
+
+            const data = await response.json();
+
+            // Store authentication data
+            this.setAuth(data.token, data.user);
+
+            this.logger.info('Registration successful', { userId: data.user.id, username: data.user.username });
+
+            // Emit registration event
+            this.eventBus.emit('auth:register', data.user);
+            this.eventBus.emit('toast:show', {
+                message: `Welcome, ${data.user.username}! Your account has been created.`,
+                type: 'success'
+            });
+
+            return {
+                success: true,
+                user: data.user,
+                token: data.token
+            };
+        } catch (error) {
+            this.logger.error('Registration failed', { error: error.message });
+            throw error;
         }
     }
 }

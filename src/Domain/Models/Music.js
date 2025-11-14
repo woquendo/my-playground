@@ -10,6 +10,16 @@ export class Music {
      * @param {object} data - Music data
      */
     constructor(data) {
+        console.log('🔍 [Music.constructor] Received data:', {
+            title: data.title,
+            youtube: data.youtube,
+            youtubeUrl: data.youtubeUrl,
+            youtube_type: typeof data.youtube,
+            youtubeUrl_type: typeof data.youtubeUrl,
+            youtube_length: data.youtube?.length,
+            youtubeUrl_length: data.youtubeUrl?.length
+        });
+
         this._validateRequiredFields(data);
 
         // Core identifiers and metadata
@@ -32,6 +42,16 @@ export class Music {
             this.appleMusicUrl = data.apple_music || data.appleMusicUrl || null;
         }
         this.localFile = data.localFile || data.local_file || null;
+
+        console.log('🔍 [Music.constructor] Assigned URLs:', {
+            title: this.title,
+            youtubeUrl: this.youtubeUrl,
+            youtubeUrl_length: this.youtubeUrl?.length,
+            youtubeUrl_type: typeof this.youtubeUrl,
+            spotifyUrl: this.spotifyUrl,
+            appleMusicUrl: this.appleMusicUrl,
+            localFile: this.localFile
+        });
 
         // Validate and set duration
         if (data.duration !== undefined && data.duration !== null && data.duration !== 0) {
@@ -61,6 +81,9 @@ export class Music {
         this.playlists = data.playlists || [];
         this.tags = data.tags || [];
         this.notes = data.notes || '';
+
+        // Track type (Opening, Ending, OST, etc.)
+        this.type = data.type || 'OST';
 
         // Additional metadata
         this.bpm = data.bpm || null;
@@ -181,7 +204,25 @@ export class Music {
      * @returns {string|null} Primary URL for playback
      */
     getPrimaryUrl() {
-        return this.youtubeUrl || this.spotifyUrl || this.soundcloudUrl || this.localFile;
+        const result = this.youtubeUrl ||
+            this.spotifyUrl ||
+            this.soundcloudUrl ||
+            this.appleMusicUrl ||
+            this.localFile ||
+            null;
+
+        console.log('🔍 [Music.getPrimaryUrl] URL priority check:', {
+            title: this.title,
+            youtubeUrl: this.youtubeUrl,
+            spotifyUrl: this.spotifyUrl,
+            soundcloudUrl: this.soundcloudUrl,
+            appleMusicUrl: this.appleMusicUrl,
+            localFile: this.localFile,
+            result: result,
+            result_length: result?.length
+        });
+
+        return result;
     }
 
     /**
@@ -454,6 +495,7 @@ export class Music {
             album: this.album,
             genre: this.genre,
             year: this.year,
+            type: this.type,
             duration: this.duration,
             youtube: this.youtubeUrl,
             spotify: this.spotifyUrl,
@@ -814,6 +856,7 @@ export class Music {
             title: this.title,
             artist: this.artist,
             album: this.album,
+            type: this.type,
             duration: this.duration,
             sources: this.getSources(),
             rating: this.rating,
@@ -859,6 +902,7 @@ export class Music {
             title: this.title,
             artist: this.artist,
             album: this.album,
+            type: this.type,
             duration: this.duration,
             sources: this.getSources(),
             rating: this.rating,
